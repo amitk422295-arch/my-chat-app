@@ -985,6 +985,25 @@
         min-width: 0;
       }
     }
+  
+    .top-three-dot-btn{background:none;border:0;color:#fff;font-size:28px;line-height:1;cursor:pointer;padding:4px 8px;}
+    .top-menu-panel{position:fixed;top:58px;right:12px;z-index:5000;display:none;flex-direction:column;min-width:180px;background:#171722;border:1px solid #353546;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden;}
+    .top-menu-panel button{background:none;border:0;color:#fff;text-align:left;padding:14px 16px;font-size:14px;cursor:pointer;}
+    .top-menu-panel button:hover{background:#252535;}
+    .full-dp-modal,.edit-profile-modal,.block-sheet-modal{position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;padding:20px;}
+    .full-dp-modal{flex-direction:column;}
+    .full-dp-modal img{max-width:min(92vw,520px);max-height:78vh;width:auto;height:auto;object-fit:contain;border-radius:16px;box-shadow:0 15px 50px rgba(0,0,0,.6);background:#222;}
+    .full-dp-close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:50%;width:42px;height:42px;font-size:20px;cursor:pointer;}
+    .full-dp-name{color:#fff;font-size:17px;font-weight:700;margin-top:12px;}
+    .edit-profile-card,.block-sheet-card{width:min(92vw,420px);background:#171722;border:1px solid #353546;border-radius:18px;padding:20px;box-shadow:0 15px 50px rgba(0,0,0,.55);}
+    .edit-profile-card h3{margin:0 0 16px;color:#fff;}
+    .edit-profile-card .input-box{width:100%;box-sizing:border-box;margin:7px 0;}
+    .edit-dp-wrap{width:96px;height:96px;margin:0 auto 14px;position:relative;cursor:pointer;}
+    .edit-dp-wrap img{width:96px;height:96px;border-radius:50%;object-fit:cover;background:#222;border:2px solid #ff6b8b;}
+    .edit-dp-wrap span{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);font-size:10px;background:#ff6b8b;color:#fff;padding:4px 7px;border-radius:10px;white-space:nowrap;}
+    .block-sheet-card{display:flex;flex-direction:column;gap:10px;}
+    .chat-row img,.room-header-profile img,#myStatusAvatarImg{cursor:pointer;}
+
   </style>
 </head>
 
@@ -1063,11 +1082,9 @@
         type="password"
         id="passwordInp"
         class="input-box"
-        placeholder="6-Digit PIN (e.g. 123456) *"
-        maxlength="6"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        oninput="sanitizePin(this); validateAuthInputs()"
+        placeholder="Password *"
+        autocomplete="new-password"
+        oninput="validateAuthInputs()"
       >
 
       <button
@@ -1103,10 +1120,20 @@
           💖 Your Chat App
         </div>
 
-        <div
-          class="user-profile-badge"
-          onclick="openUserIdPopup()"
-        >
+        <div style="display:flex;align-items:center;gap:8px;">
+
+          <button
+            id="topThreeDotBtn"
+            class="top-three-dot-btn"
+            type="button"
+            aria-label="Menu"
+            onclick="toggleTopMenu(event)"
+          >⋮</button>
+
+          <div
+            class="user-profile-badge"
+            onclick="openUserIdPopup()"
+          >
           <span
             id="myNameTopBadge"
             style="font-size:14px;font-weight:700;color:#ff6b8b;"
@@ -1115,6 +1142,8 @@
           <span style="font-size:10px;color:#ff6b8b;">
             ▼
           </span>
+          </div>
+
         </div>
 
       </div>
@@ -1199,6 +1228,7 @@
 
             <img
               id="myStatusAvatarImg"
+              data-dp-view="1"
               src=""
             >
 
@@ -1250,6 +1280,47 @@
 
     </div>
 
+  </div>
+
+  <!-- TOP MENU -->
+  <div id="topMenuPanel" class="top-menu-panel" onclick="event.stopPropagation()">
+    <button onclick="openEditProfile()">✏️ Edit Profile</button>
+    <button onclick="logoutUser()">🚪 Logout</button>
+  </div>
+
+  <!-- FULL DP VIEWER -->
+  <div id="fullDpModal" class="full-dp-modal" onclick="closeFullDp(event)">
+    <button class="full-dp-close" onclick="closeFullDp()">✕</button>
+    <img id="fullDpImage" src="" alt="Profile picture">
+    <div id="fullDpName" class="full-dp-name"></div>
+  </div>
+
+  <!-- EDIT PROFILE -->
+  <div id="editProfileModal" class="edit-profile-modal" onclick="closeEditProfile(event)">
+    <div class="edit-profile-card" onclick="event.stopPropagation()">
+      <h3>Edit Profile</h3>
+      <div class="edit-dp-wrap" onclick="document.getElementById('editDpInput').click()">
+        <img id="editDpPreview" src="" alt="DP">
+        <span>Change DP</span>
+      </div>
+      <input id="editDpInput" type="file" accept="image/*" style="display:none" onchange="previewEditDp(this)">
+      <input id="editNameInput" class="input-box" type="text" placeholder="Name">
+      <input id="editMobileInput" class="input-box" type="tel" maxlength="13" placeholder="Indian Mobile Number" inputmode="tel" oninput="sanitizeMobile(this)">
+      <input id="editUserIdInput" class="input-box" type="text" disabled placeholder="User ID">
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn-gradient" onclick="saveEditProfile()">Save</button>
+        <button class="btn-gradient" onclick="closeEditProfile()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCK / UNBLOCK SHEET -->
+  <div id="blockSheetModal" class="block-sheet-modal" onclick="closeBlockSheet(event)">
+    <div class="block-sheet-card" onclick="event.stopPropagation()">
+      <div id="blockSheetName" style="font-size:18px;font-weight:800;color:#fff;margin-bottom:14px;"></div>
+      <button id="blockSheetAction" class="btn-gradient" onclick="toggleSelectedBlock()">Block User</button>
+      <button class="btn-gradient" onclick="closeBlockSheet()">Cancel</button>
+    </div>
   </div>
 
   <!-- =======================================================
@@ -1353,6 +1424,7 @@
 
         <img
           id="roomPartnerAvatar"
+          data-dp-view="1"
           src=""
         >
 
@@ -1831,10 +1903,8 @@
        ========================================================= */
 
     function sanitizePin(input) {
-
-      input.value = String(input.value || '')
-        .replace(/\D/g, '')
-        .substring(0, 6);
+      /* Password is intentionally unrestricted; keep function for compatibility. */
+      input.value = String(input.value || '');
     }
 
     function sanitizeMobile(input) { input.value = String(input.value || '').replace(/[^0-9+]/g, '').slice(0, 13); }
@@ -1885,7 +1955,7 @@
        * Exactly 6 digits.
        */
 
-      if (!/^\d{6}$/.test(pass)) {
+      if (!pass) {
         isValid = false;
       }
 
@@ -1897,7 +1967,7 @@
 
       if (isRegisterMode) {
 
-        if (!fName) {
+        if (!fName || !/[\p{L}]/u.test(fName)) {
           isValid = false;
         }
 
@@ -2077,9 +2147,9 @@
       const fName=document.getElementById('fullNameInp')?.value.trim()||'';
       const mobile=document.getElementById('mobileInp')?.value.trim()||'';
       if(!/^@[a-z0-9]+$/.test(uCode)) return showToast('❌ User ID must be @ followed by letters/numbers.','error');
-      if(!/^\d{6}$/.test(pass)) return showToast('❌ PIN must be exactly 6 numeric digits.','error');
+      if(!pass) return showToast('❌ Password is required.','error');
       if(isRegisterMode){
-        if(!fName) return showToast('❌ Full Name is mandatory!','error');
+        if(!fName || !/[\p{L}]/u.test(fName)) return showToast('❌ Name must contain at least one letter.','error');
         if(!/^((\+91|91|0)?[6-9]\d{9})$/.test(mobile.replace(/[\s-]/g,''))) return showToast('❌ Enter a valid Indian mobile number.','error');
       }
       createSocketConnection();
@@ -2509,17 +2579,18 @@
         row.className = 'chat-row';
 
         row.onclick = () => {
-
+          if (row.dataset.longPressed === '1') { row.dataset.longPressed = ''; return; }
           openRoom(
             c.userCode,
             c.name || c.fullName || 'User',
             c.avatar
           );
         };
+        addPersonLongPress(row, c.userCode, c.name || c.fullName || 'User');
 
         row.innerHTML = `
 
-          <img src="${safeMediaUrl(c.avatar)}">
+          <img data-dp-view="1" data-dp-name="${escapeHtml(c.name || c.fullName || 'User')}" src="${safeMediaUrl(c.avatar) || defaultAvatar(c.name || c.fullName || 'User')}">
 
           <div style="flex:1;min-width:0;">
 
@@ -2565,10 +2636,10 @@
       ).textContent =
         name || code;
 
-      document.getElementById(
-        'roomPartnerAvatar'
-      ).src =
-        avatar || '';
+      const partnerImg = document.getElementById('roomPartnerAvatar');
+      partnerImg.src = avatar || defaultAvatar(name || code);
+      partnerImg.dataset.dpView = '1';
+      partnerImg.dataset.dpName = name || code;
 
       document.getElementById(
         'chatRoom'
@@ -3751,9 +3822,9 @@
             <div
               style="position:relative;width:50px;height:50px;"
             >
-              <img
+              <img data-dp-view="1" data-dp-name="${escapeHtml(userStatus.name || userStatus.fullName || 'User')}"
                 class="status-ring"
-                src="${safeMediaUrl(userStatus.avatar)}"
+                src="${safeMediaUrl(userStatus.avatar) || defaultAvatar(userStatus.name || userStatus.fullName || 'User')}"
               >
             </div>
 
@@ -4654,6 +4725,139 @@
 
       return '';
     }
+
+    /* =========================================================
+       PROFILE / MENU / BLOCK / FULL DP
+       ========================================================= */
+
+    let editDpFile = null;
+    let selectedBlockUser = '';
+
+    function toggleTopMenu(event) {
+      if (event) event.stopPropagation();
+      const panel = document.getElementById('topMenuPanel');
+      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    document.addEventListener('click', (event) => {
+      const dpImg = event.target.closest && event.target.closest('img[data-dp-view="1"]');
+      if (dpImg) { event.preventDefault(); event.stopPropagation(); openFullDp(dpImg.src, dpImg.dataset.dpName || ''); return; }
+      const panel = document.getElementById('topMenuPanel');
+      const btn = document.getElementById('topThreeDotBtn');
+      if (panel && panel.style.display === 'flex' && !panel.contains(event.target) && event.target !== btn) panel.style.display = 'none';
+
+    });
+
+    function openFullDp(src, name='') {
+      const modal = document.getElementById('fullDpModal');
+      const img = document.getElementById('fullDpImage');
+      img.src = src || defaultAvatar(name);
+      document.getElementById('fullDpName').textContent = name || '';
+      modal.style.display = 'flex';
+    }
+
+    function closeFullDp(event) {
+      if (event && event.target && event.target.id !== 'fullDpModal') return;
+      document.getElementById('fullDpModal').style.display = 'none';
+    }
+
+    function openEditProfile() {
+      document.getElementById('topMenuPanel').style.display = 'none';
+      document.getElementById('editNameInput').value = myFullName || '';
+      document.getElementById('editMobileInput').value = myMobileNumber || '';
+      document.getElementById('editUserIdInput').value = myUserCode || '';
+      document.getElementById('editDpPreview').src = myAvatar || defaultAvatar(myFullName);
+      editDpFile = null;
+      document.getElementById('editDpInput').value = '';
+      document.getElementById('editProfileModal').style.display = 'flex';
+    }
+
+    function closeEditProfile(event) {
+      if (event && event.target && event.target.id !== 'editProfileModal') return;
+      document.getElementById('editProfileModal').style.display = 'none';
+    }
+
+    function previewEditDp(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) return showToast('Please select an image.', 'error');
+      editDpFile = file;
+      const reader = new FileReader();
+      reader.onload = e => document.getElementById('editDpPreview').src = e.target.result;
+      reader.readAsDataURL(file);
+    }
+
+    async function saveEditProfile() {
+      const name = document.getElementById('editNameInput').value.trim();
+      const mobile = document.getElementById('editMobileInput').value.trim();
+      if (!name || !/[\p{L}]/u.test(name)) return showToast('❌ Name must contain at least one letter.', 'error');
+      if (!/^((\+91|91|0)?[6-9]\d{9})$/.test(mobile.replace(/[\s-]/g,''))) return showToast('❌ Enter a valid Indian mobile number.', 'error');
+      let avatar = myAvatar || '';
+      try {
+        if (editDpFile) { showToast('Profile photo syncing...', 'info'); avatar = await uploadToCloudinary(editDpFile, 'your-chat-app/profile'); }
+        socket.emit('update-profile', { fullName:name, mobileNumber:mobile, avatar }, res => {
+          if (!res?.success) return showToast(res?.error || 'Profile update failed.', 'error');
+          myFullName = res.user.fullName;
+          myMobileNumber = res.user.mobileNumber || mobile;
+          myAvatar = res.user.avatar || '';
+          document.getElementById('myNameTopBadge').textContent = myFullName;
+          document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName);
+          document.getElementById('roomPartnerAvatar').dataset.dpView = '1';
+          document.getElementById('editProfileModal').style.display = 'none';
+          showToast('Profile updated and synced.', 'success');
+          socket.emit('get-contacts');
+          socket.emit('get-statuses');
+        });
+      } catch (e) { console.error(e); showToast('Profile photo upload failed.', 'error'); }
+    }
+
+    function addPersonLongPress(row, code, name) {
+      let timer = null;
+      const start = (e) => {
+        if (e.target.closest && e.target.closest('button,input')) return;
+        clearTimeout(timer);
+        timer = setTimeout(() => { row.dataset.longPressed = '1'; selectedBlockUser = code; openBlockSheet(code, name); }, 600);
+      };
+      const cancel = () => clearTimeout(timer);
+      row.addEventListener('pointerdown', start);
+      row.addEventListener('pointerup', cancel);
+      row.addEventListener('pointerleave', cancel);
+      row.addEventListener('pointercancel', cancel);
+      row.addEventListener('contextmenu', e => { e.preventDefault(); selectedBlockUser = code; openBlockSheet(code, name); });
+    }
+
+    function openBlockSheet(code, name) {
+      selectedBlockUser = code;
+      document.getElementById('blockSheetName').textContent = name || code;
+      socket.emit('get-block-status', { targetCode: code }, res => {
+        const btn = document.getElementById('blockSheetAction');
+        btn.textContent = res?.blockedByMe ? 'Unblock User' : 'Block User';
+        document.getElementById('blockSheetModal').style.display = 'flex';
+      });
+    }
+
+    function closeBlockSheet(event) {
+      if (event && event.target && event.target.id !== 'blockSheetModal') return;
+      document.getElementById('blockSheetModal').style.display = 'none';
+    }
+
+    function toggleSelectedBlock() {
+      if (!selectedBlockUser) return;
+      socket.emit('toggle-block', { targetCode: selectedBlockUser }, res => {
+        if (!res?.success) return showToast(res?.error || 'Could not change block status.', 'error');
+        document.getElementById('blockSheetAction').textContent = res.blockedByMe ? 'Unblock User' : 'Block User';
+        showToast(res.blockedByMe ? 'User blocked.' : 'User unblocked.', 'success');
+      });
+    }
+
+    function logoutUser() {
+      document.getElementById('topMenuPanel').style.display = 'none';
+      localStorage.removeItem('wa_userCode');
+      localStorage.removeItem('wa_password');
+      if (socket) socket.disconnect();
+      location.reload();
+    }
+
 
     /* =========================================================
        CLEANUP
