@@ -22,13 +22,12 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 3000;
 
-// Environment variables take priority. The fallback values below were supplied by the
-// project owner for direct deployment. For a public repository, move these secrets to
-// Render Environment Variables and remove the fallback values.
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://chatadmin:vVWQkXn2ptXhnlzs@cluster0.pb5by68.mongodb.net/?appName=Cluster0';
-const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'gr8tp1tg';
-const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || '668573837891895';
-const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'dTJqlvLUKWLJUt-FH8rpnIPYs';
+// Secrets are intentionally loaded only from Render Environment Variables.
+// Never put MongoDB credentials or Cloudinary API secrets in GitHub source code.
+const MONGODB_URI = process.env.MONGODB_URI || '';
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || '';
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || '';
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || '';
 
 cloudinary.config({
   cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -41,7 +40,7 @@ const userSchema = new mongoose.Schema({
   userCode: { type: String, required: true, unique: true, index: true },
   fullName: { type: String, required: true, trim: true },
   passwordHash: { type: String, required: true },
-  mobileNumber: { type: String, required: true, unique: true, index: true },
+  mobileNumber: { type: String, required: true, index: true },
   avatar: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
@@ -52,6 +51,13 @@ const connectionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 connectionSchema.index({ ownerCode: 1, contactCode: 1 }, { unique: true });
+
+const blockSchema = new mongoose.Schema({
+  ownerCode: { type: String, required: true, index: true },
+  targetCode: { type: String, required: true, index: true },
+  createdAt: { type: Date, default: Date.now }
+});
+blockSchema.index({ ownerCode: 1, targetCode: 1 }, { unique: true });
 
 const messageSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
@@ -103,6 +109,7 @@ callSchema.index({ receiverCode: 1, createdAt: -1 });
 
 const User = mongoose.model('User', userSchema);
 const Connection = mongoose.model('Connection', connectionSchema);
+const Block = mongoose.model('Block', blockSchema);
 const Message = mongoose.model('Message', messageSchema);
 const Status = mongoose.model('Status', statusSchema);
 const Call = mongoose.model('Call', callSchema);
@@ -157,6 +164,14 @@ async function connectUsers(a, b) {
   if (!a || !b || a === b) return;
   await Connection.updateOne({ ownerCode: a, contactCode: b }, { $setOnInsert: { ownerCode: a, contactCode: b } }, { upsert: true });
   await Connection.updateOne({ ownerCode: b, contactCode: a }, { $setOnInsert: { ownerCode: b, contactCode: a } }, { upsert: true });
+}
+
+async function isBlockedEitherWay(a, b) {
+  const [ab, ba] = await Promise.all([
+    Block.exists({ ownerCode: a, targetCode: b }),
+    Block.exists({ ownerCode: b, targetCode: a })
+  ]);
+  return { blockedByMe: !!ab, blockedMe: !!ba, blocked: !!ab || !!ba };
 }
 
 async function contactListFor(userCode) {
@@ -230,18 +245,14 @@ io.on('connection', socket => {
     try {
       const cleanCode = cleanUserCode(userCode);
       if (!cleanCode || !/^@[a-z0-9]+$/.test(cleanCode)) return callback({ success: false, error: 'Valid User ID is mandatory!' });
-      if (!/^\d{6}$/.test(String(password || ''))) return callback({ success: false, error: 'PIN must be 6 digits!' });
+      if (!String(password || '').trim()) return callback({ success: false, error: 'Password is required!' });
 
       if (isRegister) {
-        if (!fullName || !String(fullName).trim()) return callback({ success: false, error: 'Full Name is mandatory!' });
+        if (!fullName || !String(fullName).trim() || !/[\p{L}]/u.test(String(fullName))) return callback({ success: false, error: 'Name must contain at least one letter.' });
         if (!validIndianMobile(mobileNumber)) return callback({ success: false, error: 'Enter a valid Indian mobile number.' });
         const mobile = normalizeMobile(mobileNumber);
-        const [codeExists, mobileExists] = await Promise.all([
-          User.exists({ userCode: cleanCode }),
-          User.exists({ mobileNumber: mobile })
-        ]);
+        const codeExists = await User.exists({ userCode: cleanCode });
         if (codeExists) return callback({ success: false, error: 'User ID already exists!' });
-        if (mobileExists) return callback({ success: false, error: 'Mobile number is already registered.' });
         const passwordHash = await bcrypt.hash(String(password), 10);
         const user = await User.create({ userCode: cleanCode, fullName: String(fullName).trim(), passwordHash, mobileNumber: mobile, avatar: avatar || '' });
         mapSocket(cleanCode);
@@ -251,7 +262,7 @@ io.on('connection', socket => {
       const user = await User.findOne({ userCode: cleanCode });
       if (!user) return callback({ success: false, error: 'User ID not found!' });
       const ok = await bcrypt.compare(String(password), user.passwordHash);
-      if (!ok) return callback({ success: false, error: 'Incorrect 6-digit PIN!' });
+      if (!ok) return callback({ success: false, error: 'Incorrect password.' });
       mapSocket(cleanCode);
       callback({ success: true, user: publicUser(user) });
     } catch (err) {
@@ -270,6 +281,49 @@ io.on('connection', socket => {
     } catch (err) {
       callback({ success: false });
     }
+  });
+
+  socket.on('update-profile', async ({ fullName, mobileNumber, avatar }, callback = () => {}) => {
+    try {
+      const me = socketToUser.get(socket.id);
+      if (!me) return callback({ success: false, error: 'Please login again.' });
+      const name = String(fullName || '').trim();
+      if (!name || !/[\p{L}]/u.test(name)) return callback({ success: false, error: 'Name must contain at least one letter.' });
+      if (!validIndianMobile(mobileNumber)) return callback({ success: false, error: 'Enter a valid Indian mobile number.' });
+      const mobile = normalizeMobile(mobileNumber);
+      const user = await User.findOneAndUpdate({ userCode: me }, { $set: { fullName: name, mobileNumber: mobile, avatar: String(avatar || '') } }, { new: true, runValidators: true });
+      if (!user) return callback({ success: false, error: 'User not found.' });
+      callback({ success: true, user: publicUser(user) });
+      const links = await Connection.find({ $or: [{ ownerCode: me }, { contactCode: me }] }).lean();
+      const otherCodes = new Set();
+      links.forEach(x => { if (x.ownerCode !== me) otherCodes.add(x.ownerCode); if (x.contactCode !== me) otherCodes.add(x.contactCode); });
+      otherCodes.forEach(code => sendToUser(code, 'refresh-contacts'));
+      sendToUser(me, 'refresh-contacts');
+      sendToUser(me, 'refresh-statuses');
+      otherCodes.forEach(code => sendToUser(code, 'refresh-statuses'));
+    } catch (err) { console.error('update-profile', err); callback({ success: false, error: 'Profile update failed.' }); }
+  });
+
+  socket.on('get-block-status', async ({ targetCode }, callback = () => {}) => {
+    try {
+      const me = socketToUser.get(socket.id);
+      const target = cleanUserCode(targetCode);
+      if (!me || !target || me === target) return callback({ success: false });
+      callback({ success: true, ...(await isBlockedEitherWay(me, target)) });
+    } catch (err) { callback({ success: false }); }
+  });
+
+  socket.on('toggle-block', async ({ targetCode }, callback = () => {}) => {
+    try {
+      const me = socketToUser.get(socket.id);
+      const target = cleanUserCode(targetCode);
+      if (!me || !target || me === target) return callback({ success: false, error: 'Invalid user.' });
+      const exists = await Block.exists({ ownerCode: me, targetCode: target });
+      if (exists) await Block.deleteOne({ ownerCode: me, targetCode: target });
+      else await Block.create({ ownerCode: me, targetCode: target });
+      const state = await isBlockedEitherWay(me, target);
+      callback({ success: true, ...state });
+    } catch (err) { console.error('toggle-block', err); callback({ success: false, error: 'Could not change block status.' }); }
   });
 
   socket.on('get-contacts', async () => {
@@ -326,6 +380,8 @@ io.on('connection', socket => {
       if (!sender || !target || sender === target) return callback({ success: false, error: 'Invalid chat.' });
       const targetUser = await User.findOne({ userCode: target });
       if (!targetUser) return callback({ success: false, error: 'User not found.' });
+      const blockState = await isBlockedEitherWay(sender, target);
+      if (blockState.blocked) return callback({ success: false, error: blockState.blockedByMe ? 'You blocked this user.' : 'This user has blocked you.' });
       await connectUsers(sender, target);
       const roomId = roomIdFor(sender, target);
       const targetOnline = (userSockets.get(target)?.size || 0) > 0;
@@ -553,6 +609,8 @@ async function start() {
   }
   try {
     await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+    try { await User.collection.dropIndex('mobileNumber_1'); } catch (e) { /* old unique index may not exist */ }
+    await User.collection.createIndex({ mobileNumber: 1 }, { name: 'mobileNumber_1', unique: false });
     console.log('✅ MongoDB connected');
     server.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on port ${PORT}`));
   } catch (err) {
