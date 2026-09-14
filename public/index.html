@@ -3,213 +3,333 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Private Chat App</title>
+  <title>WhatsApp Web</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background: #08080c; color: #fff; height: 100vh; display: flex; flex-direction: column; }
-    .screen { display: none; flex-direction: column; height: 100%; }
-    .active-screen { display: flex; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #0f171a; color: #e9edef; height: 100vh; display: flex; overflow: hidden; }
     
-    /* Auth UI */
-    .auth-container { flex: 1; display: flex; align-items: center; justify-content: center; }
-    .glass-card { background: rgba(22, 22, 32, 0.9); padding: 24px; border-radius: 16px; width: 90%; max-width: 350px; display: flex; flex-direction: column; gap: 12px; }
-    .input-box { width: 100%; padding: 12px; border-radius: 8px; background: #1c1c26; border: 1px solid #333; color: #fff; outline: none; }
-    .btn { padding: 12px; border-radius: 8px; background: #ff3b5c; border: none; color: #fff; cursor: pointer; font-weight: bold; transition: 0.3s; }
-    .btn:hover { box-shadow: 0 0 15px rgba(255, 59, 92, 0.7); }
+    /* Full Screen Wrapper like WhatsApp Web App */
+    .app-container { display: flex; width: 100vw; height: 100vh; background: #111b21; }
     
-    /* App UI */
-    .header { display: flex; justify-content: space-between; padding: 16px; background: #121218; border-bottom: 1px solid #222; align-items: center; }
-    .search-bar { padding: 8px; border-radius: 20px; border: none; background: #222; color: #fff; width: 60%; outline: none; text-align: center; }
-    .menu-btn { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
-    .typing-text { font-size: 12px; color: #00ff88; font-style: italic; display: none; }
+    /* Left Panel: Sidebar with Tabs */
+    .sidebar { width: 35%; min-width: 320px; background: #111b21; border-right: 1px solid #222d34; display: flex; flex-direction: column; }
+    .side-header { background: #202c33; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; }
+    .side-header span { font-weight: 600; color: #00a884; font-size: 18px; }
     
-    /* Ticks */
-    .tick { font-size: 12px; margin-left: 6px; }
-    .tick-sent { color: #888; }
-    .tick-delivered { color: #bbb; }
-    .tick-seen { color: #00ff88; text-shadow: 0 0 8px #00ff88; font-weight: bold; }
+    /* Tabs Nav Bar */
+    .wa-tabs { display: flex; background: #202c33; border-bottom: 1px solid #222d34; }
+    .wa-tab { flex: 1; text-align: center; padding: 12px 0; color: #8696a0; font-weight: 600; font-size: 13px; cursor: pointer; border-bottom: 3px solid transparent; letter-spacing: 0.5px; }
+    .wa-tab.active { color: #00a884; border-bottom-color: #00a884; }
+    
+    .tab-pane { flex: 1; overflow-y: auto; display: none; }
+    .tab-pane.active { display: block; }
+    
+    /* Right Panel: Chat Room */
+    .chat-pane { flex: 1; background: #0b141a; display: flex; flex-direction: column; position: relative; background-image: radial-gradient(#1f2c34 1px, transparent 1px); background-size: 20px 20px; }
+    .chat-pane-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #8696a0; font-size: 16px; background: #222d34; }
+    
+    .chat-header { background: #202c33; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; height: 60px; border-left: 1px solid #222d34; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 6px; }
+    .chat-input-box { background: #202c33; padding: 10px 16px; display: flex; align-items: center; gap: 10px; height: 60px; }
+    
+    /* Bubbles */
+    .msg-bubble { max-width: 65%; padding: 8px 12px; border-radius: 7.5px; font-size: 14px; line-height: 19px; word-wrap: break-word; position: relative; }
+    .msg-bubble.me { background: #005c4b; margin-left: auto; border-top-right-radius: 0; }
+    .msg-bubble.other { background: #202c33; margin-right: auto; border-top-left-radius: 0; }
+    
+    /* ListItem layout */
+    .item-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #222d34; cursor: pointer; }
+    .item-row:hover { background: #202c33; }
+    
+    /* Auth Overlay */
+    #authOverlay { position: fixed; inset: 0; background: #111b21; z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: #202c33; padding: 30px; border-radius: 12px; width: 360px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #2a3942; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .input-field { width: 100%; padding: 12px; border-radius: 8px; background: #2a3942; border: none; color: #fff; outline: none; font-size: 14px; }
+    .wa-btn { width: 100%; padding: 12px; border-radius: 8px; background: #00a884; border: none; color: #fff; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .wa-btn-sec { background: transparent; color: #00a884; border: 1px solid #00a884; }
+
+    /* Call Notification Popup */
+    #incomingCallModal { display: none; position: fixed; top: 20px; right: 20px; background: #202c33; padding: 16px; border-radius: 10px; border: 1px solid #00a884; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
   </style>
 </head>
 <body>
 
   <!-- AUTH SCREEN -->
-  <div id="authScreen" class="screen active-screen auth-container">
-    <!-- Step 1 -->
-    <div class="glass-card" id="step1">
-      <h3>Step 1: Info</h3>
-      <input type="text" id="regName" class="input-box" placeholder="Full Name">
-      <input type="number" id="regPhone" class="input-box" placeholder="Phone (10 digits)">
-      <select id="regGender" class="input-box">
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-      </select>
-      <button class="btn" onclick="nextStep()">Next</button>
-      <p style="text-align:center; font-size:12px; margin-top:10px; cursor:pointer;" onclick="showLogin()">Already have an account? Login</p>
-    </div>
-
-    <!-- Step 2 -->
-    <div class="glass-card" id="step2" style="display:none;">
-      <h3>Step 2: ID & Password</h3>
-      <input type="text" id="regUserId" class="input-box" placeholder="User ID (e.g. @amit)">
-      <input type="password" id="regPass" class="input-box" placeholder="Password (6-8 chars)" maxlength="8">
-      <button class="btn" onclick="registerUser()">Submit</button>
-    </div>
-
-    <!-- Login -->
-    <div class="glass-card" id="loginBox" style="display:none;">
-      <h3>Login</h3>
-      <input type="text" id="logUserId" class="input-box" placeholder="User ID">
-      <input type="password" id="logPass" class="input-box" placeholder="Password">
-      <button class="btn" onclick="loginUser()">Login</button>
+  <div id="authOverlay">
+    <div class="auth-card">
+      <h2 style="color: #00a884; margin-bottom: 5px;">WhatsApp Web</h2>
+      <p style="color: #8696a0; font-size: 13px; margin-bottom: 10px;">Sign in or create account instantly</p>
+      <input type="text" id="userIdInput" class="input-field" placeholder="User ID (e.g. @amit)">
+      <input type="password" id="passInput" class="input-field" placeholder="Password (6-8 chars)">
+      <input type="text" id="phoneInput" class="input-field" placeholder="Phone number (for registration)">
+      <button class="wa-btn" onclick="authAction(false)">Login</button>
+      <button class="wa-btn wa-btn-sec" onclick="authAction(true)">Register New Account</button>
     </div>
   </div>
 
-  <!-- MAIN APP SCREEN -->
-  <div id="mainApp" class="screen">
-    <div class="header">
-      <h3 id="chatTitle">Chats</h3>
-      <input type="text" id="searchUser" class="search-bar" placeholder="Search ID or Phone..." onkeypress="if(event.key === 'Enter') search()">
-      <button class="menu-btn" onclick="toggleMenu()">⋮</button>
+  <!-- INCOMING AUDIO CALL MODAL -->
+  <div id="incomingCallModal">
+    <p id="callerText" style="font-weight: bold; margin-bottom: 10px;"></p>
+    <div style="display: flex; gap: 10px;">
+      <button class="wa-btn" style="background: #00a884; padding: 6px;" onclick="answerCall()">Answer</button>
+      <button class="wa-btn" style="background: #ea0038; padding: 6px;" onclick="rejectCall()">Decline</button>
     </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="app-container">
     
-    <!-- 3 Dot Menu -->
-    <div id="threeDotMenu" style="display:none; position:absolute; right:10px; top:60px; background:#222; padding:10px; border-radius:8px;">
-      <p style="padding:8px; cursor:pointer;" onclick="editProfile()">Edit Profile</p>
-      <p style="padding:8px; cursor:pointer;" onclick="alert('Block feature active')">Block User</p>
-      <p style="padding:8px; cursor:pointer; color:#ff3b5c;" onclick="location.reload()">Logout</p>
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar">
+      <div class="side-header">
+        <span id="myProfileHeader">WhatsApp</span>
+        <button onclick="addContactPrompt()" style="background:none; border:none; color:#00a884; cursor:pointer; font-size:14px; font-weight:bold;">+ Add Contact</button>
+      </div>
+      
+      <!-- TABS -->
+      <div class="wa-tabs">
+        <div class="wa-tab active" onclick="switchTab('chats')">CHATS</div>
+        <div class="wa-tab" onclick="switchTab('status')">STATUS</div>
+        <div class="wa-tab" onclick="switchTab('calls')">CALLS</div>
+      </div>
+
+      <!-- CHATS TAB PANE -->
+      <div id="pane-chats" class="tab-pane active">
+        <div id="contactsListContainer"></div>
+      </div>
+
+      <!-- STATUS TAB PANE -->
+      <div id="pane-status" class="tab-pane" style="padding: 15px;">
+        <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+          <input type="text" id="statusInputText" class="input-field" placeholder="Type a 24-hr status update...">
+          <button class="wa-btn" onclick="postStatusUpdate()">Add Status</button>
+        </div>
+        <div id="statusListContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+      </div>
+
+      <!-- CALLS TAB PANE -->
+      <div id="pane-calls" class="tab-pane">
+        <div id="callLogsContainer"></div>
+      </div>
     </div>
 
-    <div id="chatMessages" style="flex:1; overflow-y:auto; padding:16px;"></div>
-    
-    <div style="padding:10px; background:#121218; display:flex;">
-      <span id="typingIndicator" class="typing-text">typing...</span>
-      <input type="text" id="msgInput" class="input-box" placeholder="Message..." oninput="handleTyping()" onkeypress="if(event.key === 'Enter') sendMsg()" style="flex:1;">
-      <button class="btn" style="margin-left:10px;" onclick="sendMsg()">Send</button>
+    <!-- RIGHT CHAT ROOM PANE -->
+    <div class="chat-pane" id="rightChatPane">
+      <div class="chat-pane-empty" id="emptyPlaceholder">
+        Select a contact from chat list to start messaging
+      </div>
+
+      <div id="activeChatBox" style="display: none; flex-direction: column; height: 100%;">
+        <div class="chat-header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div id="chatAvatarBadge" style="width: 40px; height: 40px; border-radius: 50%; background: #00a884; display: flex; align-items: center; justify-content: center; font-weight: bold;">W</div>
+            <div>
+              <h4 id="activeChatName" style="font-size: 15px; font-weight: 500;"></h4>
+              <small style="color: #8696a0; font-size: 11px;">online</small>
+            </div>
+          </div>
+          <div>
+            <button onclick="triggerAudioCall()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: #00a884;" title="Audio Call">📞</button>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessagesArea"></div>
+
+        <div class="chat-input-box">
+          <input type="text" id="messageInputField" class="input-field" placeholder="Type a message" onkeypress="if(event.key==='Enter') sendChatMessage()" style="flex: 1;">
+          <button class="wa-btn" style="width: auto; padding: 10px 20px;" onclick="sendChatMessage()">Send</button>
+        </div>
+      </div>
     </div>
+
   </div>
 
   <script>
     const socket = io();
     let myCode = '';
     let currentPartner = '';
-    let typingTimer;
+    let currentPartnerName = '';
+    let activeCallCaller = '';
 
-    // --- AUTH LOGIC ---
-    function nextStep() {
-      const phone = document.getElementById('regPhone').value;
-      if (!/^[6-9]\d{9}$/.test(phone)) return alert("Enter valid 10-digit Indian Mobile Number");
-      document.getElementById('step1').style.display = 'none';
-      document.getElementById('step2').style.display = 'flex';
-    }
+    function authAction(isRegister) {
+      const userCode = document.getElementById('userIdInput').value.trim();
+      const password = document.getElementById('passInput').value;
+      const phone = document.getElementById('phoneInput').value.trim();
+      if(!userCode || !password) return alert("Please fill User ID and Password.");
 
-    function showLogin() {
-      document.getElementById('step1').style.display = 'none';
-      document.getElementById('loginBox').style.display = 'flex';
-    }
-
-    function registerUser() {
-      const uId = document.getElementById('regUserId').value;
-      const pass = document.getElementById('regPass').value;
-      if(!/^[a-z0-9]+$/.test(uId.replace('@',''))) return alert("User ID: Only lowercase letters and numbers allowed");
-      if(pass.length < 6 || pass.length > 8) return alert("Password must be 6-8 characters long");
-
-      socket.emit('auth-user', {
-        isRegister: true, userCode: uId, password: pass,
-        phone: document.getElementById('regPhone').value,
-        fullName: document.getElementById('regName').value, gender: document.getElementById('regGender').value
-      }, handleAuthResponse);
-    }
-
-    function loginUser() {
-      socket.emit('auth-user', {
-        isRegister: false, userCode: document.getElementById('logUserId').value,
-        password: document.getElementById('logPass').value
-      }, handleAuthResponse);
-    }
-
-    function handleAuthResponse(res) {
-      if(res.success) {
-        myCode = res.user.userCode;
-        document.getElementById('authScreen').classList.remove('active-screen');
-        document.getElementById('mainApp').classList.add('active-screen');
-      } else alert(res.error);
-    }
-
-    // --- APP LOGIC ---
-    function search() {
-      const query = document.getElementById('searchUser').value;
-      socket.emit('search-user', query, (res) => {
+      socket.emit('auth-user', { isRegister, userCode, password, phone, fullName: userCode }, (res) => {
         if(res.success) {
-          currentPartner = res.user.userCode;
-          document.getElementById('chatTitle').innerText = res.user.fullName || currentPartner;
-          socket.emit('open-room', { myCode, targetCode: currentPartner });
-        } else alert("User not found in database.");
+          myCode = res.user.userCode;
+          document.getElementById('authOverlay').style.display = 'none';
+          document.getElementById('myProfileHeader').innerText = myCode;
+          loadContactsList();
+        } else {
+          alert(res.error);
+        }
       });
     }
 
-    function toggleMenu() {
-      const menu = document.getElementById('threeDotMenu');
-      menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-    }
+    function switchTab(tabName) {
+      document.querySelectorAll('.wa-tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
 
-    function handleTyping() {
-      if(currentPartner) socket.emit('typing', { targetCode: currentPartner, userCode: myCode });
-    }
-
-    socket.on('user-typing', ({ userCode }) => {
-      if (userCode === currentPartner) {
-        const ind = document.getElementById('typingIndicator');
-        ind.style.display = 'block';
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => ind.style.display = 'none', 1500);
+      if(tabName === 'chats') {
+        document.querySelectorAll('.wa-tab')[0].classList.add('active');
+        document.getElementById('pane-chats').classList.add('active');
+        loadContactsList();
+      } else if(tabName === 'status') {
+        document.querySelectorAll('.wa-tab')[1].classList.add('active');
+        document.getElementById('pane-status').classList.add('active');
+        loadStatusesList();
+      } else if(tabName === 'calls') {
+        document.querySelectorAll('.wa-tab')[2].classList.add('active');
+        document.getElementById('pane-calls').classList.add('active');
+        loadCallHistory();
       }
-    });
+    }
 
-    function sendMsg() {
-      const text = document.getElementById('msgInput').value;
+    function addContactPrompt() {
+      const target = prompt("Enter Contact User ID (e.g. @friend):");
+      if(target) {
+        socket.emit('add-contact', { myCode, targetCode: target }, (res) => {
+          if(res.success) {
+            loadContactsList();
+          } else {
+            alert(res.error);
+          }
+        });
+      }
+    }
+
+    function loadContactsList() {
+      socket.emit('get-contacts', { myCode }, (res) => {
+        const container = document.getElementById('contactsListContainer');
+        if(!res.contacts || res.contacts.length === 0) {
+          container.innerHTML = '<p style="color:#8696a0; text-align:center; margin-top:30px; font-size:13px;">No chats yet. Click "+ Add Contact" above.</p>';
+          return;
+        }
+        container.innerHTML = res.contacts.map(c => `
+          <div class="item-row" onclick="openChatRoom('${c.userCode}', '${c.name}')">
+            <div style="width:45px; height:45px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:bold; margin-right:12px;">${c.name[0].toUpperCase()}</div>
+            <div style="flex:1;">
+              <div style="font-size:15px; font-weight:500;">${c.name}</div>
+              <div style="font-size:12px; color:#8696a0;">${c.userCode}</div>
+            </div>
+          </div>
+        `).join('');
+      });
+    }
+
+    function openChatRoom(code, name) {
+      currentPartner = code;
+      currentPartnerName = name;
+      document.getElementById('emptyPlaceholder').style.display = 'none';
+      document.getElementById('activeChatBox').style.display = 'flex';
+      document.getElementById('activeChatName').innerText = name;
+      document.getElementById('chatAvatarBadge').innerText = name[0].toUpperCase();
+
+      socket.emit('open-room', { myCode, targetCode: code }, (res) => {
+        renderMessages(res.msgs);
+      });
+    }
+
+    function sendChatMessage() {
+      const text = document.getElementById('messageInputField').value.trim();
       if(!text || !currentPartner) return;
       socket.emit('send-message', { senderCode: myCode, targetCode: currentPartner, text });
-      document.getElementById('msgInput').value = '';
+      document.getElementById('messageInputField').value = '';
     }
 
     socket.on('chat-message', (msg) => {
-      const div = document.createElement('div');
-      div.id = `msg_${msg._id}`;
+      if(msg.senderCode === currentPartner || msg.targetCode === currentPartner) {
+        appendMessageBubble(msg);
+      }
+    });
+
+    function appendMessageBubble(msg) {
+      const box = document.getElementById('chatMessagesArea');
       const isMe = msg.senderCode === myCode;
-      
-      let ticks = '';
-      if(isMe) {
-        if(msg.status === 'sent') ticks = '<span class="tick tick-sent">✓</span>';
-        if(msg.status === 'delivered') ticks = '<span class="tick tick-delivered">✓✓</span>';
-        if(msg.status === 'seen') ticks = '<span class="tick tick-seen">✓✓</span>';
-      }
-      
-      div.innerHTML = `<p style="background:${isMe ? '#ff3b5c' : '#222'}; padding:10px; border-radius:10px; margin:5px 0; width:fit-content; ${isMe ? 'margin-left:auto;' : ''}">${msg.text} ${ticks}</p>`;
-      document.getElementById('chatMessages').appendChild(div);
+      box.innerHTML += `
+        <div class="msg-bubble ${isMe ? 'me' : 'other'}">
+          <div>${msg.text}</div>
+          <div style="font-size:10px; color:#8696a0; text-align:right; margin-top:2px;">${msg.time}</div>
+        </div>
+      `;
+      box.scrollTop = box.scrollHeight;
+    }
 
-      // Auto mark seen if I am receiving it
-      if(!isMe && msg.status !== 'seen') {
-        socket.emit('mark-seen', { id: msg._id, targetCode: msg.senderCode });
-      }
-    });
+    function renderMessages(msgs) {
+      const box = document.getElementById('chatMessagesArea');
+      box.innerHTML = '';
+      msgs.forEach(m => appendMessageBubble(m));
+    }
 
-    socket.on('msg-seen', ({ id }) => {
-      const msgDiv = document.getElementById(`msg_${id}`);
-      if(msgDiv) msgDiv.innerHTML = msgDiv.innerHTML.replace(/tick-sent|tick-delivered/g, 'tick-seen');
-    });
-
-    socket.on('load-history', (msgs) => {
-      document.getElementById('chatMessages').innerHTML = '';
-      msgs.forEach(msg => {
-         // Render logic is same as chat-message
-         const div = document.createElement('div');
-         const isMe = msg.senderCode === myCode;
-         let ticks = isMe ? `<span class="tick tick-${msg.status}">${msg.status==='sent'?'✓':'✓✓'}</span>` : '';
-         div.innerHTML = `<p style="background:${isMe ? '#ff3b5c' : '#222'}; padding:10px; border-radius:10px; margin:5px 0; width:fit-content; ${isMe ? 'margin-left:auto;' : ''}">${msg.text} ${ticks}</p>`;
-         document.getElementById('chatMessages').appendChild(div);
+    function postStatusUpdate() {
+      const text = document.getElementById('statusInputText').value.trim();
+      if(!text) return;
+      socket.emit('post-status', { userCode: myCode, text }, () => {
+        document.getElementById('statusInputText').value = '';
+        loadStatusesList();
+        alert('Status posted! It will auto-delete in 24 hours.');
       });
+    }
+
+    function loadStatusesList() {
+      socket.emit('get-statuses', (res) => {
+        const list = document.getElementById('statusListContainer');
+        if(!res.statuses || res.statuses.length === 0) {
+          list.innerHTML = '<p style="color:#8696a0; font-size:13px;">No recent status updates available.</p>';
+          return;
+        }
+        list.innerHTML = res.statuses.map(s => `
+          <div style="background:#202c33; padding:12px; border-radius:8px; border-left:4px solid #00a884;">
+            <div style="font-weight:bold; color:#00a884; font-size:13px;">${s.userCode}</div>
+            <div style="margin-top:4px; font-size:14px;">${s.text}</div>
+            <div style="font-size:10px; color:#8696a0; margin-top:6px;">Expires in 24 hours</div>
+          </div>
+        `).join('');
+      });
+    }
+
+    function triggerAudioCall() {
+      if(!currentPartner) return;
+      socket.emit('make-call', { caller: myCode, receiver: currentPartner });
+      alert(`Calling ${currentPartnerName}...`);
+    }
+
+    socket.on('incoming-call', ({ caller, time }) => {
+      activeCallCaller = caller;
+      document.getElementById('callerText').innerText = `Incoming audio call from ${caller} at ${time}`;
+      document.getElementById('incomingCallModal').style.display = 'block';
     });
+
+    function answerCall() {
+      document.getElementById('incomingCallModal').style.display = 'none';
+      alert(`Connected audio call with ${activeCallCaller}`);
+    }
+
+    function rejectCall() {
+      document.getElementById('incomingCallModal').style.display = 'none';
+    }
+
+    function loadCallHistory() {
+      socket.emit('get-calls', { myCode }, (res) => {
+        const container = document.getElementById('callLogsContainer');
+        if(!res.logs || res.logs.length === 0) {
+          container.innerHTML = '<p style="color:#8696a0; text-align:center; margin-top:30px; font-size:13px;">No recent call logs.</p>';
+          return;
+        }
+        container.innerHTML = res.logs.map(l => `
+          <div class="item-row">
+            <div style="flex:1;">
+              <div style="font-size:14px; font-weight:500;">${l.caller === myCode ? 'Outgoing Call to ' + l.receiver : 'Incoming Call from ' + l.caller}</div>
+              <div style="font-size:12px; color:#8696a0;">Audio call • ${l.time}</div>
+            </div>
+          </div>
+        `).join('');
+      });
+    }
   </script>
 </body>
 </html>
