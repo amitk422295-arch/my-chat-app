@@ -22,8 +22,6 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 3000;
 
-// Secrets are intentionally loaded only from Render Environment Variables.
-// Never put MongoDB credentials or Cloudinary API secrets in GitHub source code.
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || '';
@@ -190,7 +188,7 @@ async function contactListFor(userCode) {
       userCode: code,
       name: u.fullName,
       avatar: u.avatar || '',
-      lastMessage: last ? (last.text || (last.mediaType === 'audio' ? '[Voice Note]' : last.mediaType === 'pdf' ? '[PDF Document]' : `[${last.mediaType || 'Media'}]`)) : 'Tap to chat',
+      lastMessage: last ? (last.text || (last.mediaType === 'audio' ? '[Voice Note]' : last.mediaType === 'pdf' || last.mediaType === 'document' ? '📄 [Document]' : `[${last.mediaType || 'Media'}]`)) : 'Tap to chat',
       lastMessageAt: last ? last.sentAt : null
     });
   }
@@ -283,17 +281,22 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('update-profile', async ({ fullName, mobileNumber, avatar }, callback = () => {}) => {
+  socket.on('update-profile', async ({ fullName, avatar, newPassword }, callback = () => {}) => {
     try {
       const me = socketToUser.get(socket.id);
       if (!me) return callback({ success: false, error: 'Please login again.' });
       const name = String(fullName || '').trim();
       if (!name || !/[\p{L}]/u.test(name)) return callback({ success: false, error: 'Name must contain at least one letter.' });
-      if (!validIndianMobile(mobileNumber)) return callback({ success: false, error: 'Enter a valid Indian mobile number.' });
-      const mobile = normalizeMobile(mobileNumber);
-      const user = await User.findOneAndUpdate({ userCode: me }, { $set: { fullName: name, mobileNumber: mobile, avatar: String(avatar || '') } }, { new: true, runValidators: true });
+      
+      let updateData = { fullName: name, avatar: String(avatar || '') };
+      if (newPassword && String(newPassword).trim().length >= 4) {
+         updateData.passwordHash = await bcrypt.hash(String(newPassword).trim(), 10);
+      }
+
+      const user = await User.findOneAndUpdate({ userCode: me }, { $set: updateData }, { new: true, runValidators: true });
       if (!user) return callback({ success: false, error: 'User not found.' });
       callback({ success: true, user: publicUser(user) });
+      
       const links = await Connection.find({ $or: [{ ownerCode: me }, { contactCode: me }] }).lean();
       const otherCodes = new Set();
       links.forEach(x => { if (x.ownerCode !== me) otherCodes.add(x.ownerCode); if (x.contactCode !== me) otherCodes.add(x.contactCode); });
@@ -399,7 +402,7 @@ io.on('connection', socket => {
       io.to(roomId).emit('chat-message', payload);
       if (!targetOnline) sendToUser(target, 'chat-message', payload);
       if (targetOnline) sendToUser(sender, 'message-delivered', { id: msg.id, deliveredAt: msg.deliveredAt });
-      sendToUser(target, 'notify-incoming-msg', { senderName: (await User.findOne({ userCode: sender }).lean())?.fullName || 'New Message', body: data.text || (data.mediaType === 'audio' ? '🎤 Voice Note' : data.mediaType === 'pdf' ? '📄 PDF Document' : `Sent a ${data.mediaType || 'file'}`) });
+      sendToUser(target, 'notify-incoming-msg', { senderName: (await User.findOne({ userCode: sender }).lean())?.fullName || 'New Message', body: data.text || (data.mediaType === 'audio' ? '🎤 Voice Note' : data.mediaType === 'pdf' || data.mediaType === 'document' ? '📄 PDF Document' : `Sent a ${data.mediaType || 'file'}`) });
       sendToUser(sender, 'update-contact-lastmsg', { targetCode: target, lastMsg: payload.text || `[${payload.mediaType || 'Media'}]` });
       sendToUser(target, 'update-contact-lastmsg', { targetCode: sender, lastMsg: payload.text || `[${payload.mediaType || 'Media'}]` });
       callback({ success: true, id: msg.id, delivered: targetOnline });
@@ -590,6 +593,19 @@ io.on('connection', socket => {
       sendToUser(me, 'refresh-call-history');
       sendToUser(target, 'refresh-call-history');
     } catch (err) { console.error('end-call', err); }
+  });
+
+  // --- REAL-TIME ONLINE/TYPING STATUS ---
+  socket.on('check-online', ({ targetCode }) => {
+    const cleanTarget = cleanUserCode(targetCode);
+    const isOnline = (userSockets.get(cleanTarget)?.size || 0) > 0;
+    socket.emit('user-online-status', { targetCode: cleanTarget, isOnline });
+  });
+
+  socket.on('typing', ({ targetCode, roomId }) => {
+    const me = socketToUser.get(socket.id);
+    if (!me) return;
+    sendToUser(cleanUserCode(targetCode), 'user-typing', { targetCode: me, roomId });
   });
 
   socket.on('disconnect', () => {
