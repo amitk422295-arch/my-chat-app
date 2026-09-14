@@ -97,7 +97,7 @@
     }
     .msg-bubble:active { transform: scale(0.98); }
     .msg-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #ff3b5c 0%, #e02447 100%); color: #fff; border-bottom-right-radius: 4px; }
-    .msg-bubble.other { align-self: flex-start; background: #1c1c28; color: #f0f0f5; border-bottom-left-radius: 4px; }
+    .msg-bubble.other { align-self: flex-start; background: #1c1c28; color: #f0f2f5; border-bottom-left-radius: 4px; }
 
     #deleteSheetModal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 180; display: none; align-items: flex-end; justify-content: center; }
     .delete-sheet-card { width: 100%; max-width: 500px; background: #181824; border-radius: 20px 20px 0 0; padding: 20px 16px 30px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #2d2d3c; }
@@ -537,7 +537,6 @@
       socket.emit('get-contacts');
       socket.emit('get-statuses');
 
-      // ऑटो-सिंक इंटरवल
       setInterval(() => {
         if (socket && socket.connected) {
           socket.emit('get-contacts');
