@@ -602,6 +602,12 @@ io.on('connection', socket => {
   });
 });
 
+// Render Keep-Alive (Prevents Sleep Mode)
+setInterval(() => {
+  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  fetch(`${url}/health`).catch(() => {});
+}, 14 * 60 * 1000);
+
 async function start() {
   if (!MONGODB_URI) {
     console.error('❌ MONGODB_URI is missing.');
