@@ -501,14 +501,6 @@
       color: #fff;
     }
 
-    .room-header-actions button {
-      background: none;
-      border: none;
-      font-size: 21px;
-      color: #ff3b5c;
-      cursor: pointer;
-    }
-
     #roomMessages {
       flex: 1;
       overflow-y: auto;
@@ -1438,10 +1430,10 @@
           </div>
 
           <div
-            style="font-size:11px;color:#00ff88;"
+            style="font-size:11px;color:#8a8a9e; transition: color 0.3s;"
             id="roomPartnerStatus"
           >
-            Online
+            Loading...
           </div>
 
         </div>
@@ -1572,7 +1564,7 @@
           id="chatMsgInp"
           placeholder="Message..."
           autocomplete="off"
-          oninput="handleInputState(this.value)"
+          oninput="handleInputState(this.value); emitTyping();"
           onkeydown="if(event.key==='Enter') sendMessage()"
         >
 
@@ -1846,8 +1838,8 @@
     let selectedMsgIsMine = false;
 
     let longPressTimer = null;
-
     let storyTimer = null;
+    let typingTimer = null;
 
     /* =========================================================
        TOAST
@@ -1903,7 +1895,6 @@
        ========================================================= */
 
     function sanitizePin(input) {
-      /* Password is intentionally unrestricted; keep function for compatibility. */
       input.value = String(input.value || '');
     }
 
@@ -1940,30 +1931,13 @@
 
       let isValid = true;
 
-      /*
-       * User ID:
-       * @ + at least one alphanumeric character.
-       * No maximum length is imposed here.
-       */
-
       if (!/^@[a-z0-9]+$/.test(uCode)) {
         isValid = false;
       }
 
-      /*
-       * PIN:
-       * Exactly 6 digits.
-       */
-
       if (!pass) {
         isValid = false;
       }
-
-      /*
-       * Full name:
-       * Any non-empty name is accepted.
-       * Multiple words/spaces are allowed.
-       */
 
       if (isRegisterMode) {
 
@@ -2002,15 +1976,11 @@
       });
 
       socket.on('connect', () => {
-
         console.log('Socket connected:', socket.id);
-
       });
 
       socket.on('disconnect', () => {
-
         console.log('Socket disconnected');
-
       });
     }
 
@@ -2191,46 +2161,38 @@
        ========================================================= */
 
     function openUserIdPopup() {
-
-      document.getElementById(
-        'userIdDropdownModal'
-      ).style.display = 'flex';
+      document.getElementById('userIdDropdownModal').style.display = 'flex';
     }
 
     function closeUserIdPopup(e) {
-
-      if (
-        !e ||
-        e.target.id === 'userIdDropdownModal'
-      ) {
-
-        document.getElementById(
-          'userIdDropdownModal'
-        ).style.display = 'none';
+      if (!e || e.target.id === 'userIdDropdownModal') {
+        document.getElementById('userIdDropdownModal').style.display = 'none';
       }
     }
 
     async function copyMyUserId() {
-
       try {
-
         await navigator.clipboard.writeText(myUserCode);
-
-        showToast(
-          'User ID copied to clipboard!',
-          'success'
-        );
-
+        showToast('User ID copied to clipboard!', 'success');
       } catch (err) {
-
-        showToast(
-          'Unable to copy automatically.',
-          'error'
-        );
+        showToast('Unable to copy automatically.', 'error');
       }
-
       closeUserIdPopup();
     }
+
+    /* =========================================================
+       INSTANT AUTO-SYNC (BACKGROUND WAKE-UP)
+       ========================================================= */
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && socket && socket.connected) {
+        socket.emit('get-contacts');
+        socket.emit('get-statuses');
+        socket.emit('get-call-history');
+        if (currentRoomId && currentPartner) {
+           socket.emit('check-online', { targetCode: currentPartner });
+        }
+      }
+    });
 
     /* =========================================================
        APP ENGINE
@@ -2243,11 +2205,9 @@
       }
 
       if (engineInitialized) {
-
         socket.emit('get-contacts');
         socket.emit('get-statuses');
         socket.emit('get-call-history');
-
         return;
       }
 
@@ -2257,248 +2217,130 @@
       socket.emit('get-statuses');
       socket.emit('get-call-history');
 
-      /*
-       * Existing refresh behavior retained.
-       */
-
+      // Auto fetch periodically
       setInterval(() => {
-
         if (socket && socket.connected) {
-
           socket.emit('get-contacts');
           socket.emit('get-statuses');
+          if (currentRoomId && currentPartner) {
+            socket.emit('check-online', { targetCode: currentPartner });
+          }
         }
+      }, 3000);
 
-      }, 2000);
+      // Instant refresh on events
+      socket.on('update-contact-lastmsg', () => {
+        socket.emit('get-contacts');
+      });
 
-      /* =====================================================
-         CONTACTS
-         ===================================================== */
+      socket.on('notify-incoming-msg', () => {
+        socket.emit('get-contacts');
+        socket.emit('get-statuses');
+      });
 
       socket.on(
         'contact-list-data',
         ({ contacts = [], pending = [] }) => {
-
           renderChats(contacts);
-
-          /*
-           * New direct-chat system does not require invite
-           * confirmation. Old pending invites are still
-           * supported so an older server won't completely
-           * break the interface.
-           */
-
           if (pending && pending.length > 0) {
-
-            /*
-             * If server still sends legacy invitations,
-             * display them.
-             */
             showInviteModal(pending[0]);
           }
         }
       );
 
-      socket.on(
-        'refresh-contacts',
-        () => socket.emit('get-contacts')
-      );
-
-      socket.on(
-        'refresh-statuses',
-        () => socket.emit('get-statuses')
-      );
-
-      socket.on(
-        'error-msg',
-        (msg) => showToast(msg, 'error')
-      );
+      socket.on('refresh-contacts', () => socket.emit('get-contacts'));
+      socket.on('refresh-statuses', () => socket.emit('get-statuses'));
+      socket.on('error-msg', (msg) => showToast(msg, 'error'));
 
       socket.on('message-status-updated', ({id,status,deliveredAt,seenAt})=>{const m=messageStore.get(String(id));if(m){m.status=status;if(deliveredAt)m.deliveredAt=deliveredAt;if(seenAt)m.seenAt=seenAt;}updateMessageTicks(id,status==='seen'?'read':'delivered');});
 
-      /* =====================================================
-         LEGACY INVITE
-         ===================================================== */
-
-
-
-      socket.on(
-        'invite-accepted-popup',
-        ({ byName, byCode }) => {
-
-          showToast(
-            `${byName} (${byCode}) accepted your invitation!`,
-            'success'
-          );
-
+      socket.on('invite-accepted-popup', ({ byName, byCode }) => {
+          showToast(`${byName} (${byCode}) accepted your invitation!`, 'success');
           socket.emit('get-contacts');
-        }
-      );
+      });
 
-      /* =====================================================
-         CHAT HISTORY
-         ===================================================== */
-
-      socket.on(
-        'load-history',
-        (msgs = []) => {
-
-          const box =
-            document.getElementById('roomMessages');
-
+      socket.on('load-history', (msgs = []) => {
+          const box = document.getElementById('roomMessages');
           box.innerHTML = '';
-
           msgs.forEach((m) => renderBubble(m));
-
           requestReadForCurrentRoom(msgs);
-        }
-      );
+      });
 
-      /* =====================================================
-         NEW CHAT MESSAGE
-         ===================================================== */
-
-      socket.on(
-        'chat-message',
-        (data) => {
-
-          if (!data) {
-            return;
-          }
-
+      socket.on('chat-message', (data) => {
+          if (!data) return;
           if (data.roomId === currentRoomId) {
-
             renderBubble(data);
-
-            /*
-             * We are currently viewing this room,
-             * therefore tell the server that this message
-             * has been read.
-             */
-
             if (data.senderCode !== myUserCode) {
-
               markMessageAsRead(data.id);
             }
-
           } else {
-
-            /*
-             * Message belongs to another chat.
-             * Server can use this to update unread count.
-             */
-            showToast(
-              'New message received 💬',
-              'info'
-            );
+            showToast('New message received 💬', 'info');
           }
-        }
-      );
+      });
 
-      /* =====================================================
-         MESSAGE DELIVERY / READ TICKS
-         ===================================================== */
+      socket.on('message-delivered', ({ id }) => updateMessageTicks(id, 'delivered'));
+      socket.on('message-read', ({ id }) => updateMessageTicks(id, 'read'));
+      socket.on('message-delivery-confirmed', ({ id }) => updateMessageTicks(id, 'delivered'));
+      socket.on('message-read-confirmed', ({ id }) => updateMessageTicks(id, 'read'));
 
-      socket.on(
-        'message-delivered',
-        ({ id }) => {
+      socket.on('message-deleted-for-everyone', ({ id }) => {
+          const el = document.getElementById(`msg-${id}`);
+          if (el) el.remove();
+      });
 
-          updateMessageTicks(id, 'delivered');
-        }
-      );
+      socket.on('status-data', renderStatusSections);
 
-      socket.on(
-        'message-read',
-        ({ id }) => {
-
-          updateMessageTicks(id, 'read');
-        }
-      );
-
-      /*
-       * Alternative names for compatibility with different
-       * backend implementations.
-       */
-
-      socket.on(
-        'message-delivery-confirmed',
-        ({ id }) => {
-
-          updateMessageTicks(id, 'delivered');
-        }
-      );
-
-      socket.on(
-        'message-read-confirmed',
-        ({ id }) => {
-
-          updateMessageTicks(id, 'read');
-        }
-      );
-
-      /* =====================================================
-         MESSAGE DELETED
-         ===================================================== */
-
-      socket.on(
-        'message-deleted-for-everyone',
-        ({ id }) => {
-
-          const el =
-            document.getElementById(`msg-${id}`);
-
-          if (el) {
-            el.remove();
-          }
-        }
-      );
-
-      /* =====================================================
-         STATUS
-         ===================================================== */
-
-      socket.on(
-        'status-data',
-        renderStatusSections
-      );
-
-      socket.on(
-        'status-viewed-updated',
-        ({ statusId, viewers = [] }) => {
-
-          if (!currentMyStatusObj) {
-            return;
-          }
-
-          const item =
-            currentMyStatusObj.items.find(
-              s => s.id === statusId
-            );
-
+      socket.on('status-viewed-updated', ({ statusId, viewers = [] }) => {
+          if (!currentMyStatusObj) return;
+          const item = currentMyStatusObj.items.find(s => s.id === statusId);
           if (item) {
-
             item.viewers = viewers;
-
-            if (activeStoryItem &&
-                activeStoryItem.id === statusId) {
-
-              document.getElementById(
-                'storyViewersNum'
-              ).textContent = viewers.length;
+            if (activeStoryItem && activeStoryItem.id === statusId) {
+              document.getElementById('storyViewersNum').textContent = viewers.length;
             }
           }
-        }
-      );
-
-      /* =====================================================
-         CALL
-         ===================================================== */
+      });
 
       socket.on('call-record-created', ({callId}) => activeCallId = callId);
       socket.on('refresh-call-history', () => socket.emit('get-call-history'));
       socket.on('call-history-data', renderCallHistory);
 
+      // Typing and Online Status Events
+      socket.on('user-online-status', ({ targetCode, isOnline }) => {
+          if(currentPartner === targetCode) {
+              const el = document.getElementById('roomPartnerStatus');
+              if(isOnline) {
+                  el.textContent = 'Online';
+                  el.style.color = '#00ff88';
+              } else {
+                  el.textContent = 'Offline';
+                  el.style.color = '#8a8a9e';
+              }
+          }
+      });
+
+      socket.on('user-typing', ({ targetCode, roomId }) => {
+          if(currentPartner === targetCode && currentRoomId === roomId) {
+              const el = document.getElementById('roomPartnerStatus');
+              el.textContent = 'Typing...';
+              el.style.color = '#5ac8fa';
+          }
+      });
+
       setupAudioWebRTC();
+    }
+
+    /* =========================================================
+       TYPING INDICATOR
+       ========================================================= */
+    function emitTyping() {
+        if(!currentPartner || !socket) return;
+        socket.emit('typing', { targetCode: currentPartner, roomId: currentRoomId });
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            // Typing stopped logic handled by check-online or custom logic
+            socket.emit('check-online', { targetCode: currentPartner });
+        }, 1500);
     }
 
     /* =========================================================
@@ -2518,38 +2360,15 @@
        ========================================================= */
 
     function showInviteModal(data) {
-
-      currentPendingInviter =
-        data.fromCode || data.userCode;
-
-      document.getElementById(
-        'invitePeerAvatar'
-      ).src =
-        data.fromAvatar || data.avatar || '';
-
-      document.getElementById(
-        'invitePeerName'
-      ).textContent =
-        data.fromName || data.name || 'User';
-
-      document.getElementById(
-        'inviteModal'
-      ).style.display = 'flex';
+      currentPendingInviter = data.fromCode || data.userCode;
+      document.getElementById('invitePeerAvatar').src = data.fromAvatar || data.avatar || '';
+      document.getElementById('invitePeerName').textContent = data.fromName || data.name || 'User';
+      document.getElementById('inviteModal').style.display = 'flex';
     }
 
     function respondInvite(confirm) {
-
-      document.getElementById(
-        'inviteModal'
-      ).style.display = 'none';
-
-      socket.emit(
-        'respond-invitation',
-        {
-          fromCode: currentPendingInviter,
-          confirm
-        }
-      );
+      document.getElementById('inviteModal').style.display = 'none';
+      socket.emit('respond-invitation', { fromCode: currentPendingInviter, confirm });
     }
 
     /* =========================================================
@@ -2557,59 +2376,29 @@
        ========================================================= */
 
     function renderChats(contacts = []) {
-
-      const box =
-        document.getElementById('chatsList');
-
+      const box = document.getElementById('chatsList');
       if (!contacts.length) {
-
-        box.innerHTML =
-          '<div style="padding:24px;text-align:center;color:#7e7e92;">No chats yet. Enter a User ID above!</div>';
-
+        box.innerHTML = '<div style="padding:24px;text-align:center;color:#7e7e92;">No chats yet. Enter a User ID above!</div>';
         return;
       }
-
       box.innerHTML = '';
-
       contacts.forEach(c => {
-
-        const row =
-          document.createElement('div');
-
+        const row = document.createElement('div');
         row.className = 'chat-row';
-
         row.onclick = () => {
           if (row.dataset.longPressed === '1') { row.dataset.longPressed = ''; return; }
-          openRoom(
-            c.userCode,
-            c.name || c.fullName || 'User',
-            c.avatar
-          );
+          openRoom(c.userCode, c.name || c.fullName || 'User', c.avatar);
         };
         addPersonLongPress(row, c.userCode, c.name || c.fullName || 'User');
-
         row.innerHTML = `
-
           <img data-dp-view="1" data-dp-name="${escapeHtml(c.name || c.fullName || 'User')}" src="${safeMediaUrl(c.avatar) || defaultAvatar(c.name || c.fullName || 'User')}">
-
           <div style="flex:1;min-width:0;">
-
-            <div
-              style="font-weight:700;font-size:15px;color:#fff;"
-            >
-              ${escapeHtml(c.name || c.fullName || 'User')}
-            </div>
-
-            <div
-              style="font-size:13px;color:#8a8a9e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-            >
+            <div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(c.name || c.fullName || 'User')}</div>
+            <div style="font-size:13px;color:#8a8a9e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               ${escapeHtml(c.lastMessage || '')}
             </div>
-
           </div>
-
         `;
-
         box.appendChild(row);
       });
     }
@@ -2619,98 +2408,40 @@
        ========================================================= */
 
     function openRoom(code, name, avatar) {
-
-      if (!code) {
-        return;
-      }
-
+      if (!code) return;
       currentPartner = code;
-
-      currentRoomId =
-        [myUserCode, code]
-          .sort()
-          .join('_');
-
-      document.getElementById(
-        'roomPartnerName'
-      ).textContent =
-        name || code;
-
+      currentRoomId = [myUserCode, code].sort().join('_');
+      
+      document.getElementById('roomPartnerName').textContent = name || code;
       const partnerImg = document.getElementById('roomPartnerAvatar');
       partnerImg.src = avatar || defaultAvatar(name || code);
       partnerImg.dataset.dpView = '1';
       partnerImg.dataset.dpName = name || code;
 
-      document.getElementById(
-        'chatRoom'
-      ).style.display = 'flex';
+      document.getElementById('roomPartnerStatus').textContent = 'Loading...';
+      document.getElementById('roomPartnerStatus').style.color = '#8a8a9e';
 
-      socket.emit(
-        'open-room',
-        {
-          targetCode: code
-        }
-      );
+      document.getElementById('chatRoom').style.display = 'flex';
 
-      /*
-       * Also tell server that the user is viewing this room.
-       */
-      socket.emit(
-        'chat-room-opened',
-        {
-          roomId: currentRoomId,
-          targetCode: currentPartner
-        }
-      );
+      socket.emit('open-room', { targetCode: code });
+      socket.emit('chat-room-opened', { roomId: currentRoomId, targetCode: currentPartner });
+      
+      // Fetch online status
+      socket.emit('check-online', { targetCode: currentPartner });
 
-      /*
-       * Request unread messages for this room to be
-       * marked as read.
-       */
       setTimeout(() => {
-
-        socket.emit(
-          'mark-room-read',
-          {
-            roomId: currentRoomId,
-            targetCode: currentPartner
-          }
-        );
-
+        socket.emit('mark-room-read', { roomId: currentRoomId, targetCode: currentPartner });
       }, 100);
     }
 
-    /* =========================================================
-       CLOSE ROOM
-       ========================================================= */
-
     function closeRoom() {
-
-      socket.emit(
-        'chat-room-closed',
-        {
-          roomId: currentRoomId,
-          targetCode: currentPartner
-        }
-      );
-
-      document.getElementById(
-        'chatRoom'
-      ).style.display = 'none';
-
+      socket.emit('chat-room-closed', { roomId: currentRoomId, targetCode: currentPartner });
+      document.getElementById('chatRoom').style.display = 'none';
       currentPartner = '';
       currentRoomId = '';
-
-      document.getElementById(
-        'roomMessages'
-      ).innerHTML = '';
-
-      document.getElementById(
-        'chatMsgInp'
-      ).value = '';
-
+      document.getElementById('roomMessages').innerHTML = '';
+      document.getElementById('chatMsgInp').value = '';
       handleInputState('');
-
       socket.emit('get-contacts');
     }
 
@@ -2719,69 +2450,30 @@
        ========================================================= */
 
     function triggerLongPressSheet(id, isMine) {
-
       selectedMsgId = id;
       selectedMsgIsMine = isMine;
-
-      document.getElementById(
-        'btnDeleteEveryone'
-      ).style.display =
-        isMine
-          ? 'block'
-          : 'none';
-
-      document.getElementById(
-        'deleteSheetModal'
-      ).style.display = 'flex';
+      document.getElementById('btnDeleteEveryone').style.display = isMine ? 'block' : 'none';
+      document.getElementById('deleteSheetModal').style.display = 'flex';
     }
 
     function closeDeleteSheet(e) {
-
-      if (
-        !e ||
-        e.target.id === 'deleteSheetModal'
-      ) {
-
-        document.getElementById(
-          'deleteSheetModal'
-        ).style.display = 'none';
-
+      if (!e || e.target.id === 'deleteSheetModal') {
+        document.getElementById('deleteSheetModal').style.display = 'none';
         selectedMsgId = null;
       }
     }
 
     function executeDeleteForMe() {
-
       if (selectedMsgId) {
-
-        const el =
-          document.getElementById(
-            `msg-${selectedMsgId}`
-          );
-
-        if (el) {
-          el.remove();
-        }
-
+        const el = document.getElementById(`msg-${selectedMsgId}`);
+        if (el) el.remove();
         closeDeleteSheet();
       }
     }
 
     function executeDeleteForEveryone() {
-
-      if (
-        selectedMsgId &&
-        selectedMsgIsMine
-      ) {
-
-        socket.emit(
-          'delete-message-for-everyone',
-          {
-            roomId: currentRoomId,
-            id: selectedMsgId
-          }
-        );
-
+      if (selectedMsgId && selectedMsgIsMine) {
+        socket.emit('delete-message-for-everyone', { roomId: currentRoomId, id: selectedMsgId });
         executeDeleteForMe();
       }
     }
@@ -2796,70 +2488,22 @@
        ========================================================= */
 
     function getTicksHtml(status, isMine) {
-
-      if (!isMine) {
-        return '';
-      }
-
-      if (status === 'read') {
-
-        return `
-          <span class="message-ticks read"
-                aria-label="Read">
-            ✓✓
-          </span>
-        `;
-      }
-
-      if (status === 'delivered') {
-
-        return `
-          <span class="message-ticks delivered"
-                aria-label="Delivered">
-            ✓✓
-          </span>
-        `;
-      }
-
-      return `
-        <span class="message-ticks sent"
-              aria-label="Sent">
-          ✓
-        </span>
-      `;
+      if (!isMine) return '';
+      if (status === 'read') return `<span class="message-ticks read" aria-label="Read">✓✓</span>`;
+      if (status === 'delivered') return `<span class="message-ticks delivered" aria-label="Delivered">✓✓</span>`;
+      return `<span class="message-ticks sent" aria-label="Sent">✓</span>`;
     }
 
     function updateMessageTicks(id, status) {
-
-      const el =
-        document.querySelector(
-          `#msg-${CSS.escape(String(id))} .message-ticks`
-        );
-
-      if (!el) {
-        return;
-      }
-
+      const el = document.querySelector(`#msg-${CSS.escape(String(id))} .message-ticks`);
+      if (!el) return;
       if (status === 'read') {
-
         el.textContent = '✓✓';
-
-        el.className =
-          'message-ticks read';
-
+        el.className = 'message-ticks read';
       } else if (status === 'delivered') {
-
-        /*
-         * Don't downgrade a message already marked read.
-         */
-        if (el.classList.contains('read')) {
-          return;
-        }
-
+        if (el.classList.contains('read')) return;
         el.textContent = '✓✓';
-
-        el.className =
-          'message-ticks delivered';
+        el.className = 'message-ticks delivered';
       }
     }
 
@@ -2868,60 +2512,20 @@
        ========================================================= */
 
     function markMessageAsRead(id) {
-
-      if (!id || !socket || !socket.connected) {
-        return;
-      }
-
-      socket.emit(
-        'mark-message-read',
-        {
-          roomId: currentRoomId,
-          messageId: id,
-          targetCode: currentPartner
-        }
-      );
+      if (!id || !socket || !socket.connected) return;
+      socket.emit('mark-message-read', { roomId: currentRoomId, messageId: id, targetCode: currentPartner });
     }
 
     function requestReadForCurrentRoom(msgs = []) {
-
-      if (!currentRoomId || !currentPartner) {
-        return;
-      }
-
+      if (!currentRoomId || !currentPartner) return;
       const ids = [];
-
       msgs.forEach(m => {
-
-        if (
-          m &&
-          m.senderCode !== myUserCode &&
-          m.id
-        ) {
-
-          ids.push(m.id);
-        }
+        if (m && m.senderCode !== myUserCode && m.id) { ids.push(m.id); }
       });
-
       if (ids.length) {
-
-        socket.emit(
-          'mark-messages-read',
-          {
-            roomId: currentRoomId,
-            messageIds: ids,
-            targetCode: currentPartner
-          }
-        );
+        socket.emit('mark-messages-read', { roomId: currentRoomId, messageIds: ids, targetCode: currentPartner });
       }
-
-      socket.emit(
-        'mark-room-read',
-        {
-          roomId: currentRoomId,
-          targetCode: currentPartner
-        }
-      );
+      socket.emit('mark-room-read', { roomId: currentRoomId, targetCode: currentPartner });
     }
 
     /* =========================================================
@@ -2929,174 +2533,40 @@
        ========================================================= */
 
     function renderBubble(data) {
-
-      if (!data || !data.id) {
-        return;
-      }
-
-      if (
-        document.getElementById(
-          `msg-${data.id}`
-        )
-      ) {
-        return;
-      }
-
+      if (!data || !data.id) return;
+      if (document.getElementById(`msg-${data.id}`)) return;
       messageStore.set(String(data.id), data);
       const isMine = data.senderCode === myUserCode;
-
-      const b =
-        document.createElement('div');
-
-      b.id =
-        `msg-${data.id}`;
-
-      b.className =
-        `msg-bubble ${isMine ? 'mine' : 'other'}`;
-
-      /*
-       * Long press delete.
-       */
-
+      const b = document.createElement('div');
+      b.id = `msg-${data.id}`;
+      b.className = `msg-bubble ${isMine ? 'mine' : 'other'}`;
       b.addEventListener('dblclick', () => showMessageInfo(data.id));
-
-      b.addEventListener(
-        'pointerdown',
-        () => {
-
-          clearTimeout(longPressTimer);
-
-          longPressTimer =
-            setTimeout(() => {
-
-              triggerLongPressSheet(
-                data.id,
-                isMine
-              );
-
-            }, 500);
-        }
-      );
-
-      b.addEventListener(
-        'pointerup',
-        () => {
-          clearTimeout(longPressTimer);
-        }
-      );
-
-      b.addEventListener(
-        'pointerleave',
-        () => {
-          clearTimeout(longPressTimer);
-        }
-      );
-
-      b.addEventListener(
-        'pointercancel',
-        () => {
-          clearTimeout(longPressTimer);
-        }
-      );
+      b.addEventListener('pointerdown', () => { clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { triggerLongPressSheet(data.id, isMine); }, 500); });
+      b.addEventListener('pointerup', () => clearTimeout(longPressTimer));
+      b.addEventListener('pointerleave', () => clearTimeout(longPressTimer));
+      b.addEventListener('pointercancel', () => clearTimeout(longPressTimer));
 
       let mediaHtml = '';
-
-      /*
-       * Media URL is expected to be a data URL from the
-       * current app. safeMediaUrl prevents dangerous schemes.
-       */
-
       if (data.media) {
-
-        const safeMedia =
-          safeMediaUrl(data.media);
-
-        if (data.mediaType === 'image') {
-
-          mediaHtml = `
-            <img
-              src="${safeMedia}"
-              style="max-width:100%;border-radius:10px;margin-top:4px;"
-              loading="lazy"
-            >
-          `;
-
-        } else if (data.mediaType === 'video') {
-
-          mediaHtml = `
-            <video
-              src="${safeMedia}"
-              controls
-              playsinline
-              style="max-width:100%;border-radius:10px;margin-top:4px;"
-            ></video>
-          `;
-
-        } else if (data.mediaType === 'audio') {
-
-          mediaHtml = `
-            <audio
-              src="${safeMedia}"
-              controls
-              style="max-width:230px;margin-top:4px;"
-            ></audio>
-          `;
-        }
+        const safeMedia = safeMediaUrl(data.media);
+        if (data.mediaType === 'image') mediaHtml = `<img src="${safeMedia}" style="max-width:100%;border-radius:10px;margin-top:4px;" loading="lazy">`;
+        else if (data.mediaType === 'video') mediaHtml = `<video src="${safeMedia}" controls playsinline style="max-width:100%;border-radius:10px;margin-top:4px;"></video>`;
+        else if (data.mediaType === 'audio') mediaHtml = `<audio src="${safeMedia}" controls style="max-width:230px;margin-top:4px;"></audio>`;
       }
-
-      /*
-       * Initial tick:
-       * single grey tick = sent.
-       * Server will later emit delivered/read.
-       */
-
-      const initialStatus =
-        isMine
-          ? (data.status || 'sent')
-          : '';
-
+      const initialStatus = isMine ? (data.status || 'sent') : '';
       b.innerHTML = `
-
-        ${
-          data.text
-            ? `<div>${escapeHtml(data.text)}</div>`
-            : ''
-        }
-
+        ${data.text ? `<div>${escapeHtml(data.text)}</div>` : ''}
         ${mediaHtml}
-
         <div class="message-meta">
-
-          <span class="message-time">
-            ${escapeHtml(data.time || '')}
-          </span>
-
+          <span class="message-time">${escapeHtml(data.time || '')}</span>
           ${getTicksHtml(initialStatus, isMine)}
           <button onclick="event.stopPropagation();showMessageInfo('${data.id}')" style="background:none;border:0;color:rgba(255,255,255,.6);font-size:10px;padding:0 0 0 3px;cursor:pointer;">ⓘ</button>
-
         </div>
-
       `;
-
-      const box =
-        document.getElementById(
-          'roomMessages'
-        );
-
+      const box = document.getElementById('roomMessages');
       box.appendChild(b);
-
-      box.scrollTop =
-        box.scrollHeight;
-
-      /*
-       * If incoming message is currently being displayed,
-       * immediately notify server that it has been read.
-       */
-
-      if (!isMine) {
-
-        markMessageAsRead(data.id);
-      }
+      box.scrollTop = box.scrollHeight;
+      if (!isMine) markMessageAsRead(data.id);
     }
 
     /* =========================================================
@@ -3104,74 +2574,15 @@
        ========================================================= */
 
     function sendMessage() {
-
-      const inp =
-        document.getElementById(
-          'chatMsgInp'
-        );
-
-      const text =
-        inp.value.trim();
-
-      if (!text) {
-        return;
-      }
-
-      if (!currentPartner) {
-
-        showToast(
-          'Open a chat first.',
-          'error'
-        );
-
-        return;
-      }
-
-      /*
-       * Give every message a client ID.
-       * Server may replace it with its own ID.
-       */
-
-      const clientMessageId =
-        'msg_' +
-        Date.now() +
-        '_' +
-        Math.random()
-          .toString(36)
-          .substring(2, 8);
-
-      socket.emit(
-        'send-message',
-        {
-          id: clientMessageId,
-          roomId: currentRoomId,
-          targetCode: currentPartner,
-          text,
-          status: 'sent'
-        },
-        (res) => {
-
-          /*
-           * If server explicitly acknowledges delivery,
-           * update the local message if it exists.
-           */
-
-          if (
-            res &&
-            res.success &&
-            res.delivered
-          ) {
-
-            updateMessageTicks(
-              res.id || clientMessageId,
-              'delivered'
-            );
-          }
-        }
-      );
-
+      const inp = document.getElementById('chatMsgInp');
+      const text = inp.value.trim();
+      if (!text) return;
+      if (!currentPartner) return showToast('Open a chat first.', 'error');
+      const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+      socket.emit('send-message', { id: clientMessageId, roomId: currentRoomId, targetCode: currentPartner, text, status: 'sent' }, (res) => {
+          if (res && res.success && res.delivered) { updateMessageTicks(res.id || clientMessageId, 'delivered'); }
+      });
       inp.value = '';
-
       handleInputState('');
     }
 
@@ -3180,24 +2591,12 @@
        ========================================================= */
 
     function handleInputState(val) {
-
-      const mic =
-        document.getElementById('micIcon');
-
-      const send =
-        document.getElementById('sendIcon');
-
-      if (
-        String(val || '').trim().length > 0
-      ) {
-
-        mic.style.display = 'none';
-        send.style.display = 'block';
-
+      const mic = document.getElementById('micIcon');
+      const send = document.getElementById('sendIcon');
+      if (String(val || '').trim().length > 0) {
+        mic.style.display = 'none'; send.style.display = 'block';
       } else {
-
-        mic.style.display = 'block';
-        send.style.display = 'none';
+        mic.style.display = 'block'; send.style.display = 'none';
       }
     }
 
@@ -3205,327 +2604,58 @@
        AUDIO RECORDING
        ========================================================= */
 
-    let mediaRecorder = null;
-    let audioChunks = [];
-
-    let isHoldingMic = false;
-    let isLocked = false;
-
-    let startY = 0;
-    let startX = 0;
-
-    let recordSeconds = 0;
-    let timerInterval = null;
-
-    let isCancelled = false;
-
+    let mediaRecorder = null; let audioChunks = []; let isHoldingMic = false; let isLocked = false; let startY = 0; let startX = 0; let recordSeconds = 0; let timerInterval = null; let isCancelled = false;
     async function handleMicDown(e) {
-
-      const textInput =
-        document.getElementById(
-          'chatMsgInp'
-        );
-
-      if (
-        textInput.value.trim().length > 0
-      ) {
-
-        sendMessage();
-
-        return;
-      }
-
-      if (
-        !navigator.mediaDevices ||
-        !navigator.mediaDevices.getUserMedia
-      ) {
-
-        showToast(
-          'Microphone is not supported in this browser.',
-          'error'
-        );
-
-        return;
-      }
-
+      const textInput = document.getElementById('chatMsgInp');
+      if (textInput.value.trim().length > 0) { sendMessage(); return; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return showToast('Microphone is not supported in this browser.', 'error');
       try {
-
-        const stream =
-          await navigator.mediaDevices.getUserMedia({
-            audio: true
-          });
-
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         let mimeType = '';
-
-        if (
-          MediaRecorder.isTypeSupported &&
-          MediaRecorder.isTypeSupported('audio/webm')
-        ) {
-
-          mimeType = 'audio/webm';
-
-        } else if (
-          MediaRecorder.isTypeSupported &&
-          MediaRecorder.isTypeSupported('audio/mp4')
-        ) {
-
-          mimeType = 'audio/mp4';
-        }
-
-        mediaRecorder =
-          mimeType
-            ? new MediaRecorder(
-                stream,
-                { mimeType }
-              )
-            : new MediaRecorder(stream);
-
+        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+        else if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+        mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         audioChunks = [];
-
-        mediaRecorder.ondataavailable =
-          (ev) => {
-
-            if (ev.data && ev.data.size > 0) {
-              audioChunks.push(ev.data);
-            }
-          };
-
+        mediaRecorder.ondataavailable = (ev) => { if (ev.data && ev.data.size > 0) audioChunks.push(ev.data); };
         mediaRecorder.onstop = () => {
-
-          /*
-           * Always stop microphone tracks.
-           */
-
-          stream
-            .getTracks()
-            .forEach(t => t.stop());
-
-          if (
-            audioChunks.length > 0 &&
-            !isCancelled
-          ) {
-
-            const type =
-              mimeType || 'audio/webm';
-
-            const blob =
-              new Blob(
-                audioChunks,
-                { type }
-              );
-
+          stream.getTracks().forEach(t => t.stop());
+          if (audioChunks.length > 0 && !isCancelled) {
+            const type = mimeType || 'audio/webm';
+            const blob = new Blob(audioChunks, { type });
             uploadToCloudinary(blob,'your-chat-app/audio').then(url=>socket.emit('send-message',{id:'msg_'+Date.now()+'_'+Math.random().toString(36).substring(2,8),roomId:currentRoomId,targetCode:currentPartner,text:'',media:url,mediaType:'audio',fileSize:blob.size,status:'sent'})).catch(err=>{console.error(err);showToast('Voice upload failed.','error');});
           }
-
-          mediaRecorder = null;
-          audioChunks = [];
+          mediaRecorder = null; audioChunks = [];
         };
-
-        isCancelled = false;
-
-        mediaRecorder.start();
-
-        isHoldingMic = true;
-        isLocked = false;
-
-        startY = e.clientY;
-        startX = e.clientX;
-
-        document
-          .getElementById('actionBtn')
-          .classList.add('recording-active');
-
-        document
-          .getElementById('swipeLockBox')
-          .style.display = 'flex';
-
-        document
-          .getElementById('slideCancelText')
-          .style.display = 'flex';
-
-        recordSeconds = 0;
-
-        document.getElementById(
-          'lockedTimer'
-        ).textContent = '0:00';
-
+        isCancelled = false; mediaRecorder.start(); isHoldingMic = true; isLocked = false; startY = e.clientY; startX = e.clientX;
+        document.getElementById('actionBtn').classList.add('recording-active');
+        document.getElementById('swipeLockBox').style.display = 'flex';
+        document.getElementById('slideCancelText').style.display = 'flex';
+        recordSeconds = 0; document.getElementById('lockedTimer').textContent = '0:00';
         clearInterval(timerInterval);
-
-        timerInterval =
-          setInterval(() => {
-
-            recordSeconds++;
-
-            const m =
-              Math.floor(
-                recordSeconds / 60
-              );
-
-            const s =
-              recordSeconds % 60;
-
-            document.getElementById(
-              'lockedTimer'
-            ).textContent =
-              `${m}:${s < 10 ? '0' : ''}${s}`;
-
-          }, 1000);
-
-      } catch (err) {
-
-        console.error(err);
-
-        showToast(
-          'Microphone permission required!',
-          'error'
-        );
-      }
+        timerInterval = setInterval(() => { recordSeconds++; const m = Math.floor(recordSeconds / 60); const s = recordSeconds % 60; document.getElementById('lockedTimer').textContent = `${m}:${s < 10 ? '0' : ''}${s}`; }, 1000);
+      } catch (err) { showToast('Microphone permission required!', 'error'); }
     }
-
     function handleMicMove(e) {
-
-      if (
-        !isHoldingMic ||
-        isLocked
-      ) {
-        return;
-      }
-
-      if (
-        startY - e.clientY > 60
-      ) {
-
-        isLocked = true;
-
-        document
-          .getElementById('actionBtn')
-          .classList.remove('recording-active');
-
-        document
-          .getElementById('swipeLockBox')
-          .style.display = 'none';
-
-        document
-          .getElementById('slideCancelText')
-          .style.display = 'none';
-
-        document
-          .getElementById('lockedRecordingBar')
-          .style.display = 'flex';
-      }
-
-      if (
-        startX - e.clientX > 80
-      ) {
-
-        cancelHoldRecording();
-      }
+      if (!isHoldingMic || isLocked) return;
+      if (startY - e.clientY > 60) { isLocked = true; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; document.getElementById('lockedRecordingBar').style.display = 'flex'; }
+      if (startX - e.clientX > 80) cancelHoldRecording();
     }
-
     function handleMicUp() {
-
-      if (
-        !isHoldingMic ||
-        isLocked
-      ) {
-        return;
-      }
-
-      isHoldingMic = false;
-
-      document
-        .getElementById('actionBtn')
-        .classList.remove('recording-active');
-
-      document
-        .getElementById('swipeLockBox')
-        .style.display = 'none';
-
-      document
-        .getElementById('slideCancelText')
-        .style.display = 'none';
-
-      clearInterval(timerInterval);
-
-      if (
-        mediaRecorder &&
-        mediaRecorder.state === 'recording'
-      ) {
-
-        mediaRecorder.stop();
-      }
+      if (!isHoldingMic || isLocked) return;
+      isHoldingMic = false; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; clearInterval(timerInterval);
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
     }
-
     function cancelHoldRecording() {
-
-      isCancelled = true;
-
-      isHoldingMic = false;
-      isLocked = false;
-
-      clearInterval(timerInterval);
-
-      document
-        .getElementById('actionBtn')
-        .classList.remove('recording-active');
-
-      document
-        .getElementById('swipeLockBox')
-        .style.display = 'none';
-
-      document
-        .getElementById('slideCancelText')
-        .style.display = 'none';
-
-      if (
-        mediaRecorder &&
-        mediaRecorder.state === 'recording'
-      ) {
-
-        mediaRecorder.stop();
-      }
+      isCancelled = true; isHoldingMic = false; isLocked = false; clearInterval(timerInterval); document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none';
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
     }
-
     function cancelLockedRecording() {
-
-      isCancelled = true;
-      isLocked = false;
-      isHoldingMic = false;
-
-      clearInterval(timerInterval);
-
-      document
-        .getElementById('lockedRecordingBar')
-        .style.display = 'none';
-
-      if (
-        mediaRecorder &&
-        mediaRecorder.state === 'recording'
-      ) {
-
-        mediaRecorder.stop();
-      }
+      isCancelled = true; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none';
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
     }
-
     function stopAndSendRecording() {
-
-      isCancelled = false;
-      isLocked = false;
-      isHoldingMic = false;
-
-      clearInterval(timerInterval);
-
-      document
-        .getElementById('lockedRecordingBar')
-        .style.display = 'none';
-
-      if (
-        mediaRecorder &&
-        mediaRecorder.state === 'recording'
-      ) {
-
-        mediaRecorder.stop();
-      }
+      isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none';
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
     }
 
     /* =========================================================
@@ -3533,16 +2663,8 @@
        ========================================================= */
 
     function toggleMediaMenu() {
-
-      const menu =
-        document.getElementById(
-          'mediaMenu'
-        );
-
-      menu.style.display =
-        menu.style.display === 'flex'
-          ? 'none'
-          : 'flex';
+      const menu = document.getElementById('mediaMenu');
+      menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
     }
 
     async function handleFileSelected(inp,type){toggleMediaMenu();const file=inp.files&&inp.files[0];if(!file)return;if(file.size>100*1024*1024){showToast('File is too large. Maximum 100 MB.','error');inp.value='';return;}try{showToast('Media uploading...','info');const url=await uploadToCloudinary(file,`your-chat-app/${type}`);socket.emit('send-message',{id:'msg_'+Date.now()+'_'+Math.random().toString(36).substring(2,8),roomId:currentRoomId,targetCode:currentPartner,text:'',media:url,mediaType:type,fileName:file.name,fileSize:file.size,status:'sent'});}catch(e){console.error(e);showToast('Media upload failed.','error');}inp.value='';}
@@ -3552,182 +2674,40 @@
        ========================================================= */
 
     function handleMyStatusClick() {
-
-      if (
-        currentMyStatusObj &&
-        currentMyStatusObj.items &&
-        currentMyStatusObj.items.length > 0
-      ) {
-
-        viewStatusStory(
-          currentMyStatusObj,
-          true
-        );
-
+      if (currentMyStatusObj && currentMyStatusObj.items && currentMyStatusObj.items.length > 0) {
+        viewStatusStory(currentMyStatusObj, true);
       } else {
-
-        document
-          .getElementById('statusMediaInput')
-          .click();
+        document.getElementById('statusMediaInput').click();
       }
     }
 
     /* =========================================================
-       STATUS PICK
+       STATUS PICK (FIXED VIDEO UPLOAD)
        ========================================================= */
 
     function handleStatusPicked(inp) {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
 
-      const file =
-        inp.files && inp.files[0];
-
-      if (!file) {
-        return;
-      }
-
-      const isVideo =
-        file.type.startsWith('video/');
-
+      const isVideo = file.type.startsWith('video/');
       if (isVideo) {
-
-        showToast(
-          'वीडियो लोड हो रहा है...',
-          'info'
-        );
-
-        const video =
-          document.createElement('video');
-
-        video.src =
-          URL.createObjectURL(file);
-
-        video.muted = true;
-        video.playsInline = true;
-
-        video.onloadedmetadata =
-          async () => {
-
-            if (video.duration <= 15.5) {
-
-              postStatusFile(
-                file,
-                'video'
-              );
-
-              return;
-            }
-
-            showToast(
-              '15 सेकंड में ऑटो-कट हो रहा है...',
-              'info'
-            );
-
-            try {
-
-              await video.play();
-
-            } catch (err) {
-
-              console.error(err);
-            }
-
-            const stream =
-              video.captureStream
-                ? video.captureStream()
-                : (
-                    video.mozCaptureStream
-                      ? video.mozCaptureStream()
-                      : null
-                  );
-
-            if (!stream) {
-
-              showToast(
-                'This browser cannot automatically trim this video.',
-                'error'
-              );
-
-              URL.revokeObjectURL(video.src);
-
-              return;
-            }
-
-            let recorder;
-
-            try {
-
-              recorder =
-                new MediaRecorder(
-                  stream,
-                  { mimeType: 'video/webm' }
-                );
-
-            } catch (err) {
-
-              recorder =
-                new MediaRecorder(stream);
-            }
-
-            const chunks = [];
-
-            recorder.ondataavailable =
-              (e) => {
-
-                if (
-                  e.data &&
-                  e.data.size > 0
-                ) {
-
-                  chunks.push(e.data);
-                }
-              };
-
-            recorder.onstop = () => {
-
-              const trimmedBlob =
-                new Blob(
-                  chunks,
-                  { type: 'video/webm' }
-                );
-
-              postStatusFile(
-                trimmedBlob,
-                'video'
-              );
-            };
-
-            recorder.start();
-
-            setTimeout(() => {
-
-              if (
-                recorder.state === 'recording'
-              ) {
-
-                recorder.stop();
-              }
-
-              video.pause();
-
-              stream
-                .getTracks()
-                .forEach(t => t.stop());
-
-              URL.revokeObjectURL(
-                video.src
-              );
-
-            }, 15000);
-          };
-
+        showToast('वीडियो प्रोसेस हो रहा है...', 'info');
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(file);
+        
+        video.onloadedmetadata = () => {
+          if (video.duration > 31) {
+            showToast('वीडियो 30 सेकंड से छोटा होना चाहिए।', 'error');
+            URL.revokeObjectURL(video.src);
+            return;
+          }
+          // Video upload safely without auto-trim crashing
+          postStatusFile(file, 'video');
+          URL.revokeObjectURL(video.src);
+        };
       } else {
-
-        postStatusFile(
-          file,
-          'image'
-        );
+        postStatusFile(file, 'image');
       }
-
       inp.value = '';
     }
 
@@ -3741,272 +2721,69 @@
        STATUS RENDER
        ========================================================= */
 
-    function renderStatusSections({
-      myStatus,
-      contactStatuses = []
-    }) {
-
-      currentMyStatusObj =
-        myStatus;
-
-      const mySub =
-        document.getElementById(
-          'myStatusSubtitle'
-        );
-
-      if (
-        myStatus &&
-        myStatus.items &&
-        myStatus.items.length > 0
-      ) {
-
-        mySub.textContent =
-          `${myStatus.items.length} update • ${myStatus.items[0].time}`;
-
-        document
-          .getElementById(
-            'myStatusAvatarImg'
-          )
-          .classList.add(
-            'status-ring'
-          );
-
+    function renderStatusSections({ myStatus, contactStatuses = [] }) {
+      currentMyStatusObj = myStatus;
+      const mySub = document.getElementById('myStatusSubtitle');
+      if (myStatus && myStatus.items && myStatus.items.length > 0) {
+        mySub.textContent = `${myStatus.items.length} update • ${myStatus.items[0].time}`;
+        document.getElementById('myStatusAvatarImg').classList.add('status-ring');
       } else {
-
-        mySub.textContent =
-          'Tap to add status update';
-
-        document
-          .getElementById(
-            'myStatusAvatarImg'
-          )
-          .classList.remove(
-            'status-ring'
-          );
+        mySub.textContent = 'Tap to add status update';
+        document.getElementById('myStatusAvatarImg').classList.remove('status-ring');
       }
-
-      const listContainer =
-        document.getElementById(
-          'contactsStatusList'
-        );
-
-      listContainer.innerHTML =
-        contactStatuses.length
-          ? ''
-          : '<div style="padding:16px 18px;color:#7e7e92;font-size:13px;">No recent status updates from friends</div>';
-
-      contactStatuses.forEach(
-        userStatus => {
-
-          if (
-            !userStatus.items ||
-            !userStatus.items.length
-          ) {
-            return;
-          }
-
-          const row =
-            document.createElement('div');
-
-          row.className =
-            'chat-row';
-
-          row.onclick = () =>
-            viewStatusStory(
-              userStatus,
-              false
-            );
-
+      const listContainer = document.getElementById('contactsStatusList');
+      listContainer.innerHTML = contactStatuses.length ? '' : '<div style="padding:16px 18px;color:#7e7e92;font-size:13px;">No recent status updates from friends</div>';
+      contactStatuses.forEach(userStatus => {
+          if (!userStatus.items || !userStatus.items.length) return;
+          const row = document.createElement('div');
+          row.className = 'chat-row';
+          row.onclick = () => viewStatusStory(userStatus, false);
           row.innerHTML = `
-
-            <div
-              style="position:relative;width:50px;height:50px;"
-            >
-              <img data-dp-view="1" data-dp-name="${escapeHtml(userStatus.name || userStatus.fullName || 'User')}"
-                class="status-ring"
-                src="${safeMediaUrl(userStatus.avatar) || defaultAvatar(userStatus.name || userStatus.fullName || 'User')}"
-              >
+            <div style="position:relative;width:50px;height:50px;">
+              <img data-dp-view="1" data-dp-name="${escapeHtml(userStatus.name || userStatus.fullName || 'User')}" class="status-ring" src="${safeMediaUrl(userStatus.avatar) || defaultAvatar(userStatus.name || userStatus.fullName || 'User')}">
             </div>
-
             <div style="flex:1;">
-
-              <div
-                style="font-weight:700;font-size:15px;color:#fff;"
-              >
-                ${escapeHtml(userStatus.name || userStatus.fullName || 'User')}
-              </div>
-
-              <div
-                style="font-size:12px;color:#8a8a9e;margin-top:2px;"
-              >
-                ${escapeHtml(userStatus.items[0].time || '')}
-                •
-                ${userStatus.items.length}
-                update(s)
-              </div>
-
-            </div>
-
-          `;
-
+              <div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(userStatus.name || userStatus.fullName || 'User')}</div>
+              <div style="font-size:12px;color:#8a8a9e;margin-top:2px;">${escapeHtml(userStatus.items[0].time || '')} • ${userStatus.items.length} update(s)</div>
+            </div>`;
           listContainer.appendChild(row);
-        }
-      );
+      });
     }
 
     /* =========================================================
        STORY VIEWER
        ========================================================= */
 
-    function viewStatusStory(
-      userStatus,
-      isMine
-    ) {
-
-      if (
-        !userStatus.items ||
-        userStatus.items.length === 0
-      ) {
-        return;
-      }
-
-      activeStoryItem =
-        userStatus.items[0];
-
-      const modal =
-        document.getElementById(
-          'storyViewerModal'
-        );
-
-      const mediaBox =
-        document.getElementById(
-          'storyMediaBox'
-        );
-
-      const progressFill =
-        document.getElementById(
-          'storyProgressFill'
-        );
-
-      document.getElementById(
-        'storyUserAvatar'
-      ).src =
-        safeMediaUrl(
-          userStatus.avatar
-        );
-
-      document.getElementById(
-        'storyUserName'
-      ).textContent =
-        userStatus.name ||
-        userStatus.fullName ||
-        'User';
-
-      document.getElementById(
-        'storyTime'
-      ).textContent =
-        activeStoryItem.time || '';
-
-      if (
-        activeStoryItem.type === 'video'
-      ) {
-
-        mediaBox.innerHTML = `
-
-          <video
-            src="${safeMediaUrl(activeStoryItem.media)}"
-            autoplay
-            playsinline
-            controls
-          ></video>
-
-        `;
-
+    function viewStatusStory(userStatus, isMine) {
+      if (!userStatus.items || userStatus.items.length === 0) return;
+      activeStoryItem = userStatus.items[0];
+      const modal = document.getElementById('storyViewerModal');
+      const mediaBox = document.getElementById('storyMediaBox');
+      const progressFill = document.getElementById('storyProgressFill');
+      document.getElementById('storyUserAvatar').src = safeMediaUrl(userStatus.avatar);
+      document.getElementById('storyUserName').textContent = userStatus.name || userStatus.fullName || 'User';
+      document.getElementById('storyTime').textContent = activeStoryItem.time || '';
+      if (activeStoryItem.type === 'video') {
+        mediaBox.innerHTML = `<video src="${safeMediaUrl(activeStoryItem.media)}" autoplay playsinline controls></video>`;
       } else {
-
-        mediaBox.innerHTML = `
-
-          <img
-            src="${safeMediaUrl(activeStoryItem.media)}"
-          >
-
-        `;
+        mediaBox.innerHTML = `<img src="${safeMediaUrl(activeStoryItem.media)}">`;
       }
-
-      const viewersBar =
-        document.getElementById(
-          'storyViewersCountBar'
-        );
-
+      const viewersBar = document.getElementById('storyViewersCountBar');
       if (isMine) {
-
-        viewersBar.style.display =
-          'flex';
-
-        document.getElementById(
-          'storyViewersNum'
-        ).textContent =
-          (
-            activeStoryItem.viewers ||
-            []
-          ).length;
-
+        viewersBar.style.display = 'flex'; document.getElementById('storyViewersNum').textContent = (activeStoryItem.viewers || []).length;
       } else {
-
-        viewersBar.style.display =
-          'none';
-
-        socket.emit(
-          'mark-status-viewed',
-          {
-            authorCode:
-              userStatus.userCode,
-
-            statusId:
-              activeStoryItem.id
-          }
-        );
+        viewersBar.style.display = 'none'; socket.emit('mark-status-viewed', { authorCode: userStatus.userCode, statusId: activeStoryItem.id });
       }
-
-      modal.style.display =
-        'flex';
-
-      progressFill.style.width =
-        '0%';
-
-      let progress = 0;
-
-      clearInterval(storyTimer);
-
-      storyTimer =
-        setInterval(() => {
-
-          progress += 1;
-
-          progressFill.style.width =
-            progress + '%';
-
-          if (progress >= 100) {
-
-            closeStoryViewer();
-          }
-
-        }, 150);
+      modal.style.display = 'flex'; progressFill.style.width = '0%';
+      let progress = 0; clearInterval(storyTimer);
+      storyTimer = setInterval(() => {
+          progress += 1; progressFill.style.width = progress + '%';
+          if (progress >= 100) closeStoryViewer();
+      }, 150);
     }
 
     function closeStoryViewer() {
-
-      clearInterval(storyTimer);
-
-      document.getElementById(
-        'storyViewerModal'
-      ).style.display = 'none';
-
-      document.getElementById(
-        'storyMediaBox'
-      ).innerHTML = '';
-
-      closeViewersSheet();
+      clearInterval(storyTimer); document.getElementById('storyViewerModal').style.display = 'none'; document.getElementById('storyMediaBox').innerHTML = ''; closeViewersSheet();
     }
 
     /* =========================================================
@@ -4014,879 +2791,126 @@
        ========================================================= */
 
     function openViewersSheet() {
-
-      clearInterval(storyTimer);
-
-      const sheet =
-        document.getElementById(
-          'statusViewersSheet'
-        );
-
-      const container =
-        document.getElementById(
-          'viewersListContainer'
-        );
-
-      container.innerHTML = '';
-
-      const viewers =
-        (
-          activeStoryItem &&
-          activeStoryItem.viewers
-        )
-          ? activeStoryItem.viewers
-          : [];
-
+      clearInterval(storyTimer); const sheet = document.getElementById('statusViewersSheet'); const container = document.getElementById('viewersListContainer'); container.innerHTML = '';
+      const viewers = (activeStoryItem && activeStoryItem.viewers) ? activeStoryItem.viewers : [];
       if (!viewers.length) {
-
-        container.innerHTML =
-          '<div style="color:#8a8a9e;font-size:13px;padding:10px 0;">No views yet</div>';
-
+        container.innerHTML = '<div style="color:#8a8a9e;font-size:13px;padding:10px 0;">No views yet</div>';
       } else {
-
         viewers.forEach(v => {
-
-          const row =
-            document.createElement('div');
-
-          row.className =
-            'viewer-row';
-
-          row.innerHTML = `
-
-            <img
-              src="${safeMediaUrl(v.avatar)}"
-            >
-
-            <div style="flex:1;">
-
-              <div
-                style="font-weight:700;font-size:14px;color:#fff;"
-              >
-                ${escapeHtml(v.name || v.fullName || 'User')}
-              </div>
-
-              <div
-                style="font-size:11px;color:#bbb;"
-              >
-                ${escapeHtml(v.time || '')}
-              </div>
-
-            </div>
-
-          `;
-
+          const row = document.createElement('div'); row.className = 'viewer-row';
+          row.innerHTML = `<img src="${safeMediaUrl(v.avatar)}"><div style="flex:1;"><div style="font-weight:700;font-size:14px;color:#fff;">${escapeHtml(v.name || v.fullName || 'User')}</div><div style="font-size:11px;color:#bbb;">${escapeHtml(v.time || '')}</div></div>`;
           container.appendChild(row);
         });
       }
-
-      sheet.style.display =
-        'flex';
+      sheet.style.display = 'flex';
     }
 
     function closeViewersSheet() {
-
-      document.getElementById(
-        'statusViewersSheet'
-      ).style.display = 'none';
+      document.getElementById('statusViewersSheet').style.display = 'none';
     }
 
     /* =========================================================
        WEBRTC AUDIO CALL
        ========================================================= */
 
-    let peerConn = null;
-    let localAudioStream = null;
-
-    const rtcConfig = {
-
-      iceServers: [
-
-        {
-          urls:
-            'stun:stun.l.google.com:19302'
-        },
-
-        {
-          urls:
-            'stun:stun1.l.google.com:19302'
-        }
-
-      ]
-    };
-
-    let incomingCallerCode = null;
-    let incomingSignal = null;
-    let activeCallPartner = null;
-
-    /* =========================================================
-       START CALL
-       ========================================================= */
+    let peerConn = null; let localAudioStream = null;
+    const rtcConfig = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
+    let incomingCallerCode = null; let incomingSignal = null; let activeCallPartner = null;
 
     async function startAudioCall() {
-
-      if (!currentPartner) {
-
-        showToast(
-          'Open a chat before calling.',
-          'error'
-        );
-
-        return;
-      }
-
-      activeCallPartner =
-        currentPartner;
-
-      document.getElementById(
-        'phoneCallModal'
-      ).style.display = 'flex';
-
-      document.getElementById(
-        'phoneCallerAvatar'
-      ).src =
-        document.getElementById(
-          'roomPartnerAvatar'
-        ).src;
-
-      document.getElementById(
-        'phoneCallerName'
-      ).textContent =
-        document.getElementById(
-          'roomPartnerName'
-        ).textContent;
-
-      document.getElementById(
-        'phoneCallState'
-      ).textContent =
-        'Calling...';
-
-      document.getElementById(
-        'btnAcceptCall'
-      ).style.display =
-        'none';
-
+      if (!currentPartner) return showToast('Open a chat before calling.', 'error');
+      activeCallPartner = currentPartner; document.getElementById('phoneCallModal').style.display = 'flex'; document.getElementById('phoneCallerAvatar').src = document.getElementById('roomPartnerAvatar').src; document.getElementById('phoneCallerName').textContent = document.getElementById('roomPartnerName').textContent; document.getElementById('phoneCallState').textContent = 'Calling...'; document.getElementById('btnAcceptCall').style.display = 'none';
       try {
-
-        if (
-          !navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia
-        ) {
-
-          throw new Error(
-            'Microphone API unavailable'
-          );
-        }
-
-        localAudioStream =
-          await navigator.mediaDevices
-            .getUserMedia({
-              audio: true
-            });
-
-        peerConn =
-          new RTCPeerConnection(
-            rtcConfig
-          );
-
-        localAudioStream
-          .getTracks()
-          .forEach(track => {
-
-            peerConn.addTrack(
-              track,
-              localAudioStream
-            );
-          });
-
-        peerConn.onicecandidate =
-          (e) => {
-
-            if (e.candidate) {
-
-              socket.emit(
-                'ice-candidate',
-                {
-                  targetCode:
-                    activeCallPartner,
-
-                  candidate:
-                    e.candidate
-                }
-              );
-            }
-          };
-
-        peerConn.ontrack =
-          (e) => {
-
-            const audio =
-              document.getElementById(
-                'remoteAudioPlayer'
-              );
-
-            audio.srcObject =
-              e.streams[0];
-
-            audio.play()
-              .catch(() => {});
-          };
-
-        peerConn.onconnectionstatechange =
-          () => {
-
-            if (!peerConn) {
-              return;
-            }
-
-            const state =
-              peerConn.connectionState;
-
-            if (
-              state === 'connected'
-            ) {
-
-              document.getElementById(
-                'phoneCallState'
-              ).textContent =
-                'Connected (Live)';
-
-            } else if (
-              state === 'failed'
-            ) {
-
-              showToast(
-                'Call connection failed.',
-                'error'
-              );
-
-              endPhoneCall(
-                true
-              );
-            }
-          };
-
-        const offer =
-          await peerConn.createOffer();
-
-        await peerConn.setLocalDescription(
-          offer
-        );
-
-        socket.emit(
-          'call-user',
-          {
-            targetCode:
-              activeCallPartner,
-
-            signal:
-              offer,
-
-            callerData: {
-              name:
-                myFullName,
-
-              avatar:
-                myAvatar
-            }
-          }
-        );
-
-      } catch (err) {
-
-        console.error(err);
-
-        showToast(
-          'Mic permission required for call',
-          'error'
-        );
-
-        endPhoneCall(false);
-      }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Microphone API unavailable');
+        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        peerConn = new RTCPeerConnection(rtcConfig);
+        localAudioStream.getTracks().forEach(track => { peerConn.addTrack(track, localAudioStream); });
+        peerConn.onicecandidate = (e) => { if (e.candidate) { socket.emit('ice-candidate', { targetCode: activeCallPartner, candidate: e.candidate }); } };
+        peerConn.ontrack = (e) => { const audio = document.getElementById('remoteAudioPlayer'); audio.srcObject = e.streams[0]; audio.play().catch(() => {}); };
+        peerConn.onconnectionstatechange = () => {
+            if (!peerConn) return; const state = peerConn.connectionState;
+            if (state === 'connected') { document.getElementById('phoneCallState').textContent = 'Connected (Live)'; }
+            else if (state === 'failed') { showToast('Call connection failed.', 'error'); endPhoneCall(true); }
+        };
+        const offer = await peerConn.createOffer(); await peerConn.setLocalDescription(offer);
+        socket.emit('call-user', { targetCode: activeCallPartner, signal: offer, callerData: { name: myFullName, avatar: myAvatar } });
+      } catch (err) { showToast('Mic permission required for call', 'error'); endPhoneCall(false); }
     }
-
-    /* =========================================================
-       SETUP WEBRTC
-       ========================================================= */
 
     function setupAudioWebRTC() {
-
-      socket.on(
-        'incoming-call',
-        async ({
-          from,
-          signal,
-          callerData,
-          callId
-        }) => {
-
-          incomingCallerCode =
-            from;
-
-          activeCallId = callId || null;
-
-          incomingSignal =
-            signal;
-
-          activeCallPartner =
-            from;
-
-          document.getElementById(
-            'phoneCallModal'
-          ).style.display =
-            'flex';
-
-          document.getElementById(
-            'phoneCallerAvatar'
-          ).src =
-            safeMediaUrl(
-              callerData &&
-              callerData.avatar
-            );
-
-          document.getElementById(
-            'phoneCallerName'
-          ).textContent =
-            callerData &&
-            callerData.name
-              ? callerData.name
-              : 'Caller';
-
-          document.getElementById(
-            'phoneCallState'
-          ).textContent =
-            'Incoming Call...';
-
-          document.getElementById(
-            'btnAcceptCall'
-          ).style.display =
-            'flex';
-        }
-      );
-
-      socket.on(
-        'call-accepted',
-        async ({ signal }) => {
-
-          document.getElementById(
-            'phoneCallState'
-          ).textContent =
-            'Connected (Live)';
-
-          if (
-            peerConn &&
-            signal
-          ) {
-
-            await peerConn.setRemoteDescription(
-              new RTCSessionDescription(
-                signal
-              )
-            );
-          }
-        }
-      );
-
-      socket.on(
-        'ice-candidate',
-        async ({ candidate }) => {
-
-          if (
-            peerConn &&
-            candidate
-          ) {
-
-            try {
-
-              await peerConn.addIceCandidate(
-                new RTCIceCandidate(
-                  candidate
-                )
-              );
-
-            } catch (err) {
-
-              console.error(
-                'ICE error:',
-                err
-              );
-            }
-          }
-        }
-      );
-
-      socket.on(
-        'call-ended',
-        () => {
-
-          endPhoneCall(
-            false
-          );
-        }
-      );
+      socket.on('incoming-call', async ({ from, signal, callerData, callId }) => {
+          incomingCallerCode = from; activeCallId = callId || null; incomingSignal = signal; activeCallPartner = from;
+          document.getElementById('phoneCallModal').style.display = 'flex'; document.getElementById('phoneCallerAvatar').src = safeMediaUrl(callerData && callerData.avatar); document.getElementById('phoneCallerName').textContent = callerData && callerData.name ? callerData.name : 'Caller'; document.getElementById('phoneCallState').textContent = 'Incoming Call...'; document.getElementById('btnAcceptCall').style.display = 'flex';
+      });
+      socket.on('call-accepted', async ({ signal }) => {
+          document.getElementById('phoneCallState').textContent = 'Connected (Live)';
+          if (peerConn && signal) { await peerConn.setRemoteDescription(new RTCSessionDescription(signal)); }
+      });
+      socket.on('ice-candidate', async ({ candidate }) => {
+          if (peerConn && candidate) { try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {} }
+      });
+      socket.on('call-ended', () => { endPhoneCall(false); });
     }
-
-    /* =========================================================
-       ACCEPT CALL
-       ========================================================= */
 
     async function acceptIncomingCall() {
-
-      document.getElementById(
-        'btnAcceptCall'
-      ).style.display =
-        'none';
-
-      document.getElementById(
-        'phoneCallState'
-      ).textContent =
-        'Connecting...';
-
+      document.getElementById('btnAcceptCall').style.display = 'none'; document.getElementById('phoneCallState').textContent = 'Connecting...';
       try {
-
-        localAudioStream =
-          await navigator.mediaDevices
-            .getUserMedia({
-              audio: true
-            });
-
-        peerConn =
-          new RTCPeerConnection(
-            rtcConfig
-          );
-
-        localAudioStream
-          .getTracks()
-          .forEach(track => {
-
-            peerConn.addTrack(
-              track,
-              localAudioStream
-            );
-          });
-
-        peerConn.onicecandidate =
-          (e) => {
-
-            if (e.candidate) {
-
-              socket.emit(
-                'ice-candidate',
-                {
-                  targetCode:
-                    incomingCallerCode,
-
-                  candidate:
-                    e.candidate
-                }
-              );
-            }
-          };
-
-        peerConn.ontrack =
-          (e) => {
-
-            const audio =
-              document.getElementById(
-                'remoteAudioPlayer'
-              );
-
-            audio.srcObject =
-              e.streams[0];
-
-            audio.play()
-              .catch(() => {});
-          };
-
-        await peerConn.setRemoteDescription(
-          new RTCSessionDescription(
-            incomingSignal
-          )
-        );
-
-        const answer =
-          await peerConn.createAnswer();
-
-        await peerConn.setLocalDescription(
-          answer
-        );
-
-        socket.emit(
-          'answer-call',
-          {
-            targetCode:
-              incomingCallerCode,
-
-            signal:
-              answer,
-            callId: activeCallId
-          }
-        );
-
-        document.getElementById(
-          'phoneCallState'
-        ).textContent =
-          'Connected (Live)';
-
-      } catch (err) {
-
-        console.error(err);
-
-        showToast(
-          'Mic permission required',
-          'error'
-        );
-
-        endPhoneCall(
-          false
-        );
-      }
+        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        peerConn = new RTCPeerConnection(rtcConfig);
+        localAudioStream.getTracks().forEach(track => { peerConn.addTrack(track, localAudioStream); });
+        peerConn.onicecandidate = (e) => { if (e.candidate) { socket.emit('ice-candidate', { targetCode: incomingCallerCode, candidate: e.candidate }); } };
+        peerConn.ontrack = (e) => { const audio = document.getElementById('remoteAudioPlayer'); audio.srcObject = e.streams[0]; audio.play().catch(() => {}); };
+        await peerConn.setRemoteDescription(new RTCSessionDescription(incomingSignal));
+        const answer = await peerConn.createAnswer(); await peerConn.setLocalDescription(answer);
+        socket.emit('answer-call', { targetCode: incomingCallerCode, signal: answer, callId: activeCallId });
+        document.getElementById('phoneCallState').textContent = 'Connected (Live)';
+      } catch (err) { showToast('Mic permission required', 'error'); endPhoneCall(false); }
     }
 
-    /* =========================================================
-       END CALL
-       ========================================================= */
-
-    function endPhoneCall(
-      notify = true
-    ) {
-
-      if (
-        notify &&
-        activeCallPartner
-      ) {
-
-        socket.emit(
-          'end-call',
-          {
-            targetCode:
-              activeCallPartner,
-            callId: activeCallId
-          }
-        );
-      }
-
-      if (localAudioStream) {
-
-        localAudioStream
-          .getTracks()
-          .forEach(
-            t => t.stop()
-          );
-
-        localAudioStream =
-          null;
-      }
-
-      if (peerConn) {
-
-        peerConn.close();
-
-        peerConn =
-          null;
-      }
-
-      document.getElementById(
-        'phoneCallModal'
-      ).style.display =
-        'none';
-
-      document.getElementById(
-        'remoteAudioPlayer'
-      ).srcObject =
-        null;
-
-      incomingCallerCode =
-        null;
-
-      incomingSignal =
-        null;
-
-      activeCallPartner =
-        null;
+    function endPhoneCall(notify = true) {
+      if (notify && activeCallPartner) { socket.emit('end-call', { targetCode: activeCallPartner, callId: activeCallId }); }
+      if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); localAudioStream = null; }
+      if (peerConn) { peerConn.close(); peerConn = null; }
+      document.getElementById('phoneCallModal').style.display = 'none'; document.getElementById('remoteAudioPlayer').srcObject = null; incomingCallerCode = null; incomingSignal = null; activeCallPartner = null;
     }
 
     function renderCallHistory(calls=[]){const box=document.getElementById('paneCalls');if(!calls.length){box.innerHTML='<div style="padding:24px;text-align:center;color:#8a8a9e;">No recent calls</div>';return;}box.innerHTML='';calls.forEach(c=>{const row=document.createElement('div');row.className='chat-row';row.onclick=()=>openRoom(c.otherUser,c.otherName||c.otherUser,c.otherAvatar||'');const d=c.duration?`${Math.floor(c.duration/60)}:${String(c.duration%60).padStart(2,'0')}`:(c.status==='missed'?'Missed':'No answer');row.innerHTML=`<img src="${safeMediaUrl(c.otherAvatar||defaultAvatar(c.otherName))}"><div style="flex:1"><div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(c.otherName||c.otherUser)}</div><div style="font-size:12px;color:#8a8a9e;">${c.callerCode===myUserCode?'Outgoing':'Incoming'} • ${escapeHtml(c.status)} • ${escapeHtml(d)} • ${escapeHtml(c.time||'')}</div></div><div style="font-size:18px;">📞</div>`;box.appendChild(row);});}
 
     /* =========================================================
-       NAVIGATION
+       NAVIGATION & HELPERS
        ========================================================= */
 
     function switchNav(idx) {
-
-      document
-        .querySelectorAll('.nav-tab')
-        .forEach(
-          (t, i) => {
-
-            t.classList.toggle(
-              'active',
-              i === idx
-            );
-          }
-        );
-
-      document
-        .querySelectorAll('.tab-pane')
-        .forEach(
-          (p, i) => {
-
-            p.classList.toggle(
-              'active',
-              i === idx
-            );
-          }
-        );
-
-      if (
-        idx === 1 &&
-        socket
-      ) {
-
-        socket.emit(
-          'get-statuses'
-        );
-      }
-
-      if (
-        idx === 0 &&
-        socket
-      ) {
-
-        socket.emit(
-          'get-contacts'
-        );
-      }
+      document.querySelectorAll('.nav-tab').forEach((t, i) => { t.classList.toggle('active', i === idx); });
+      document.querySelectorAll('.tab-pane').forEach((p, i) => { p.classList.toggle('active', i === idx); });
+      if (idx === 1 && socket) { socket.emit('get-statuses'); }
+      if (idx === 0 && socket) { socket.emit('get-contacts'); }
     }
 
-    /* =========================================================
-       HTML ESCAPE
-       ========================================================= */
-
-    function escapeHtml(s) {
-
-      return String(
-        s == null
-          ? ''
-          : s
-      ).replace(
-        /[&<>"']/g,
-        e => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        }[e])
-      );
-    }
-
-    /* =========================================================
-       SAFE MEDIA URL
-       ========================================================= */
-
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, e => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[e])); }
     function defaultAvatar(name='User'){const letter=(String(name).trim().charAt(0)||'U').toUpperCase();return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#222230"/><text x="60" y="72" text-anchor="middle" font-size="52" fill="#ff6b8b" font-family="Arial">${letter}</text></svg>`);}
-
-    function safeMediaUrl(url) {
-
-      if (!url) {
-        return '';
-      }
-
-      const value =
-        String(url);
-
-      /*
-       * Current application uses data URLs.
-       * Blob URLs are also allowed for local browser media.
-       */
-
-      if (
-        value.startsWith('data:image/') ||
-        value.startsWith('data:video/') ||
-        value.startsWith('data:audio/') ||
-        value.startsWith('blob:')
-      ) {
-
-        return value;
-      }
-
-      /*
-       * Allow normal HTTPS media URLs if the backend
-       * ever stores media remotely.
-       */
-
-      if (
-        value.startsWith('https://')
-      ) {
-
-        return value;
-      }
-
-      return '';
-    }
+    function safeMediaUrl(url) { if (!url) return ''; const value = String(url); if (value.startsWith('data:image/') || value.startsWith('data:video/') || value.startsWith('data:audio/') || value.startsWith('blob:')) { return value; } if (value.startsWith('https://')) { return value; } return ''; }
 
     /* =========================================================
        PROFILE / MENU / BLOCK / FULL DP
        ========================================================= */
+    let editDpFile = null; let selectedBlockUser = '';
+    function toggleTopMenu(event) { if (event) event.stopPropagation(); const panel = document.getElementById('topMenuPanel'); panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex'; }
+    document.addEventListener('click', (event) => { const dpImg = event.target.closest && event.target.closest('img[data-dp-view="1"]'); if (dpImg) { event.preventDefault(); event.stopPropagation(); openFullDp(dpImg.src, dpImg.dataset.dpName || ''); return; } const panel = document.getElementById('topMenuPanel'); const btn = document.getElementById('topThreeDotBtn'); if (panel && panel.style.display === 'flex' && !panel.contains(event.target) && event.target !== btn) panel.style.display = 'none'; });
+    function openFullDp(src, name='') { const modal = document.getElementById('fullDpModal'); const img = document.getElementById('fullDpImage'); img.src = src || defaultAvatar(name); document.getElementById('fullDpName').textContent = name || ''; modal.style.display = 'flex'; }
+    function closeFullDp(event) { if (event && event.target && event.target.id !== 'fullDpModal') return; document.getElementById('fullDpModal').style.display = 'none'; }
+    function openEditProfile() { document.getElementById('topMenuPanel').style.display = 'none'; document.getElementById('editNameInput').value = myFullName || ''; document.getElementById('editMobileInput').value = myMobileNumber || ''; document.getElementById('editUserIdInput').value = myUserCode || ''; document.getElementById('editDpPreview').src = myAvatar || defaultAvatar(myFullName); editDpFile = null; document.getElementById('editDpInput').value = ''; document.getElementById('editProfileModal').style.display = 'flex'; }
+    function closeEditProfile(event) { if (event && event.target && event.target.id !== 'editProfileModal') return; document.getElementById('editProfileModal').style.display = 'none'; }
+    function previewEditDp(input) { const file = input.files && input.files[0]; if (!file) return; if (!file.type.startsWith('image/')) return showToast('Please select an image.', 'error'); editDpFile = file; const reader = new FileReader(); reader.onload = e => document.getElementById('editDpPreview').src = e.target.result; reader.readAsDataURL(file); }
+    async function saveEditProfile() { const name = document.getElementById('editNameInput').value.trim(); const mobile = document.getElementById('editMobileInput').value.trim(); if (!name || !/[\p{L}]/u.test(name)) return showToast('❌ Name must contain at least one letter.', 'error'); if (!/^((\+91|91|0)?[6-9]\d{9})$/.test(mobile.replace(/[\s-]/g,''))) return showToast('❌ Enter a valid Indian mobile number.', 'error'); let avatar = myAvatar || ''; try { if (editDpFile) { showToast('Profile photo syncing...', 'info'); avatar = await uploadToCloudinary(editDpFile, 'your-chat-app/profile'); } socket.emit('update-profile', { fullName:name, mobileNumber:mobile, avatar }, res => { if (!res?.success) return showToast(res?.error || 'Profile update failed.', 'error'); myFullName = res.user.fullName; myMobileNumber = res.user.mobileNumber || mobile; myAvatar = res.user.avatar || ''; document.getElementById('myNameTopBadge').textContent = myFullName; document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName); document.getElementById('roomPartnerAvatar').dataset.dpView = '1'; document.getElementById('editProfileModal').style.display = 'none'; showToast('Profile updated and synced.', 'success'); socket.emit('get-contacts'); socket.emit('get-statuses'); }); } catch (e) { console.error(e); showToast('Profile photo upload failed.', 'error'); } }
+    function addPersonLongPress(row, code, name) { let timer = null; const start = (e) => { if (e.target.closest && e.target.closest('button,input')) return; clearTimeout(timer); timer = setTimeout(() => { row.dataset.longPressed = '1'; selectedBlockUser = code; openBlockSheet(code, name); }, 600); }; const cancel = () => clearTimeout(timer); row.addEventListener('pointerdown', start); row.addEventListener('pointerup', cancel); row.addEventListener('pointerleave', cancel); row.addEventListener('pointercancel', cancel); row.addEventListener('contextmenu', e => { e.preventDefault(); selectedBlockUser = code; openBlockSheet(code, name); }); }
+    function openBlockSheet(code, name) { selectedBlockUser = code; document.getElementById('blockSheetName').textContent = name || code; socket.emit('get-block-status', { targetCode: code }, res => { const btn = document.getElementById('blockSheetAction'); btn.textContent = res?.blockedByMe ? 'Unblock User' : 'Block User'; document.getElementById('blockSheetModal').style.display = 'flex'; }); }
+    function closeBlockSheet(event) { if (event && event.target && event.target.id !== 'blockSheetModal') return; document.getElementById('blockSheetModal').style.display = 'none'; }
+    function toggleSelectedBlock() { if (!selectedBlockUser) return; socket.emit('toggle-block', { targetCode: selectedBlockUser }, res => { if (!res?.success) return showToast(res?.error || 'Could not change block status.', 'error'); document.getElementById('blockSheetAction').textContent = res.blockedByMe ? 'Unblock User' : 'Block User'; showToast(res.blockedByMe ? 'User blocked.' : 'User unblocked.', 'success'); }); }
+    function logoutUser() { document.getElementById('topMenuPanel').style.display = 'none'; localStorage.removeItem('wa_userCode'); localStorage.removeItem('wa_password'); if (socket) socket.disconnect(); location.reload(); }
 
-    let editDpFile = null;
-    let selectedBlockUser = '';
-
-    function toggleTopMenu(event) {
-      if (event) event.stopPropagation();
-      const panel = document.getElementById('topMenuPanel');
-      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
-    }
-
-    document.addEventListener('click', (event) => {
-      const dpImg = event.target.closest && event.target.closest('img[data-dp-view="1"]');
-      if (dpImg) { event.preventDefault(); event.stopPropagation(); openFullDp(dpImg.src, dpImg.dataset.dpName || ''); return; }
-      const panel = document.getElementById('topMenuPanel');
-      const btn = document.getElementById('topThreeDotBtn');
-      if (panel && panel.style.display === 'flex' && !panel.contains(event.target) && event.target !== btn) panel.style.display = 'none';
-
-    });
-
-    function openFullDp(src, name='') {
-      const modal = document.getElementById('fullDpModal');
-      const img = document.getElementById('fullDpImage');
-      img.src = src || defaultAvatar(name);
-      document.getElementById('fullDpName').textContent = name || '';
-      modal.style.display = 'flex';
-    }
-
-    function closeFullDp(event) {
-      if (event && event.target && event.target.id !== 'fullDpModal') return;
-      document.getElementById('fullDpModal').style.display = 'none';
-    }
-
-    function openEditProfile() {
-      document.getElementById('topMenuPanel').style.display = 'none';
-      document.getElementById('editNameInput').value = myFullName || '';
-      document.getElementById('editMobileInput').value = myMobileNumber || '';
-      document.getElementById('editUserIdInput').value = myUserCode || '';
-      document.getElementById('editDpPreview').src = myAvatar || defaultAvatar(myFullName);
-      editDpFile = null;
-      document.getElementById('editDpInput').value = '';
-      document.getElementById('editProfileModal').style.display = 'flex';
-    }
-
-    function closeEditProfile(event) {
-      if (event && event.target && event.target.id !== 'editProfileModal') return;
-      document.getElementById('editProfileModal').style.display = 'none';
-    }
-
-    function previewEditDp(input) {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) return showToast('Please select an image.', 'error');
-      editDpFile = file;
-      const reader = new FileReader();
-      reader.onload = e => document.getElementById('editDpPreview').src = e.target.result;
-      reader.readAsDataURL(file);
-    }
-
-    async function saveEditProfile() {
-      const name = document.getElementById('editNameInput').value.trim();
-      const mobile = document.getElementById('editMobileInput').value.trim();
-      if (!name || !/[\p{L}]/u.test(name)) return showToast('❌ Name must contain at least one letter.', 'error');
-      if (!/^((\+91|91|0)?[6-9]\d{9})$/.test(mobile.replace(/[\s-]/g,''))) return showToast('❌ Enter a valid Indian mobile number.', 'error');
-      let avatar = myAvatar || '';
-      try {
-        if (editDpFile) { showToast('Profile photo syncing...', 'info'); avatar = await uploadToCloudinary(editDpFile, 'your-chat-app/profile'); }
-        socket.emit('update-profile', { fullName:name, mobileNumber:mobile, avatar }, res => {
-          if (!res?.success) return showToast(res?.error || 'Profile update failed.', 'error');
-          myFullName = res.user.fullName;
-          myMobileNumber = res.user.mobileNumber || mobile;
-          myAvatar = res.user.avatar || '';
-          document.getElementById('myNameTopBadge').textContent = myFullName;
-          document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName);
-          document.getElementById('roomPartnerAvatar').dataset.dpView = '1';
-          document.getElementById('editProfileModal').style.display = 'none';
-          showToast('Profile updated and synced.', 'success');
-          socket.emit('get-contacts');
-          socket.emit('get-statuses');
-        });
-      } catch (e) { console.error(e); showToast('Profile photo upload failed.', 'error'); }
-    }
-
-    function addPersonLongPress(row, code, name) {
-      let timer = null;
-      const start = (e) => {
-        if (e.target.closest && e.target.closest('button,input')) return;
-        clearTimeout(timer);
-        timer = setTimeout(() => { row.dataset.longPressed = '1'; selectedBlockUser = code; openBlockSheet(code, name); }, 600);
-      };
-      const cancel = () => clearTimeout(timer);
-      row.addEventListener('pointerdown', start);
-      row.addEventListener('pointerup', cancel);
-      row.addEventListener('pointerleave', cancel);
-      row.addEventListener('pointercancel', cancel);
-      row.addEventListener('contextmenu', e => { e.preventDefault(); selectedBlockUser = code; openBlockSheet(code, name); });
-    }
-
-    function openBlockSheet(code, name) {
-      selectedBlockUser = code;
-      document.getElementById('blockSheetName').textContent = name || code;
-      socket.emit('get-block-status', { targetCode: code }, res => {
-        const btn = document.getElementById('blockSheetAction');
-        btn.textContent = res?.blockedByMe ? 'Unblock User' : 'Block User';
-        document.getElementById('blockSheetModal').style.display = 'flex';
-      });
-    }
-
-    function closeBlockSheet(event) {
-      if (event && event.target && event.target.id !== 'blockSheetModal') return;
-      document.getElementById('blockSheetModal').style.display = 'none';
-    }
-
-    function toggleSelectedBlock() {
-      if (!selectedBlockUser) return;
-      socket.emit('toggle-block', { targetCode: selectedBlockUser }, res => {
-        if (!res?.success) return showToast(res?.error || 'Could not change block status.', 'error');
-        document.getElementById('blockSheetAction').textContent = res.blockedByMe ? 'Unblock User' : 'Block User';
-        showToast(res.blockedByMe ? 'User blocked.' : 'User unblocked.', 'success');
-      });
-    }
-
-    function logoutUser() {
-      document.getElementById('topMenuPanel').style.display = 'none';
-      localStorage.removeItem('wa_userCode');
-      localStorage.removeItem('wa_password');
-      if (socket) socket.disconnect();
-      location.reload();
-    }
-
-
-    /* =========================================================
-       CLEANUP
-       ========================================================= */
-
-    window.addEventListener(
-      'beforeunload',
-      () => {
-
-        clearInterval(
-          timerInterval
-        );
-
-        clearInterval(
-          storyTimer
-        );
-
-        if (localAudioStream) {
-
-          localAudioStream
-            .getTracks()
-            .forEach(
-              t => t.stop()
-            );
-        }
-      }
-    );
+    window.addEventListener('beforeunload', () => { clearInterval(timerInterval); clearInterval(storyTimer); if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); } });
 
   </script>
-
 </body>
 </html>
