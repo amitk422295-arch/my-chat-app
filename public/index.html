@@ -3,331 +3,398 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WhatsApp Web</title>
+  <title>Private Chat App</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background: #0f171a; color: #e9edef; height: 100vh; display: flex; overflow: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #08080c; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .screen { display: none; flex-direction: column; height: 100%; }
+    .active-screen { display: flex; }
     
-    /* Full Screen Wrapper like WhatsApp Web App */
-    .app-container { display: flex; width: 100vw; height: 100vh; background: #111b21; }
-    
-    /* Left Panel: Sidebar with Tabs */
-    .sidebar { width: 35%; min-width: 320px; background: #111b21; border-right: 1px solid #222d34; display: flex; flex-direction: column; }
-    .side-header { background: #202c33; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; height: 60px; }
-    .side-header span { font-weight: 600; color: #00a884; font-size: 18px; }
-    
-    /* Tabs Nav Bar */
-    .wa-tabs { display: flex; background: #202c33; border-bottom: 1px solid #222d34; }
-    .wa-tab { flex: 1; text-align: center; padding: 12px 0; color: #8696a0; font-weight: 600; font-size: 13px; cursor: pointer; border-bottom: 3px solid transparent; letter-spacing: 0.5px; }
-    .wa-tab.active { color: #00a884; border-bottom-color: #00a884; }
-    
-    .tab-pane { flex: 1; overflow-y: auto; display: none; }
-    .tab-pane.active { display: block; }
-    
-    /* Right Panel: Chat Room */
-    .chat-pane { flex: 1; background: #0b141a; display: flex; flex-direction: column; position: relative; background-image: radial-gradient(#1f2c34 1px, transparent 1px); background-size: 20px 20px; }
-    .chat-pane-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #8696a0; font-size: 16px; background: #222d34; }
-    
-    .chat-header { background: #202c33; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; height: 60px; border-left: 1px solid #222d34; }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 6px; }
-    .chat-input-box { background: #202c33; padding: 10px 16px; display: flex; align-items: center; gap: 10px; height: 60px; }
-    
-    /* Bubbles */
-    .msg-bubble { max-width: 65%; padding: 8px 12px; border-radius: 7.5px; font-size: 14px; line-height: 19px; word-wrap: break-word; position: relative; }
-    .msg-bubble.me { background: #005c4b; margin-left: auto; border-top-right-radius: 0; }
-    .msg-bubble.other { background: #202c33; margin-right: auto; border-top-left-radius: 0; }
-    
-    /* ListItem layout */
-    .item-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #222d34; cursor: pointer; }
-    .item-row:hover { background: #202c33; }
-    
-    /* Auth Overlay */
-    #authOverlay { position: fixed; inset: 0; background: #111b21; z-index: 100; display: flex; align-items: center; justify-content: center; }
-    .auth-card { background: #202c33; padding: 30px; border-radius: 12px; width: 360px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #2a3942; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-    .input-field { width: 100%; padding: 12px; border-radius: 8px; background: #2a3942; border: none; color: #fff; outline: none; font-size: 14px; }
-    .wa-btn { width: 100%; padding: 12px; border-radius: 8px; background: #00a884; border: none; color: #fff; font-weight: bold; cursor: pointer; font-size: 14px; }
-    .wa-btn-sec { background: transparent; color: #00a884; border: 1px solid #00a884; }
+    /* Original Auth Theme with DP preview matching screenshot */
+    .auth-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #08080c; overflow-y: auto; padding: 20px; }
+    .glass-card { background: rgba(22, 22, 32, 0.95); padding: 24px; border-radius: 16px; width: 90%; max-width: 350px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #222; }
+    .input-box { width: 100%; padding: 12px; border-radius: 8px; background: #1c1c26; border: 1px solid #333; color: #fff; outline: none; }
+    .btn { padding: 12px; border-radius: 8px; background: #ff3b5c; border: none; color: #fff; cursor: pointer; font-weight: bold; transition: 0.3s; }
+    .btn:hover { box-shadow: 0 0 15px rgba(255, 59, 92, 0.7); }
+    .dp-circle { width: 90px; height: 90px; border-radius: 50%; border: 2px dashed #ff3b5c; margin: 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; background: #1c1c26; position: relative; }
+    .dp-circle img { width: 100%; height: 100%; object-fit: cover; }
 
-    /* Call Notification Popup */
-    #incomingCallModal { display: none; position: fixed; top: 20px; right: 20px; background: #202c33; padding: 16px; border-radius: 10px; border: 1px solid #00a884; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+    /* Main App Custom Theme (#08080c background & #ff3b5c highlights) */
+    .app-main { display: flex; flex-direction: column; height: 100vh; background: #08080c; }
+    .app-header { display: flex; justify-content: space-between; padding: 14px 16px; background: #121218; border-bottom: 1px solid #222; align-items: center; }
+    
+    .nav-tabs { display: flex; background: #121218; border-bottom: 1px solid #222; }
+    .nav-tab { flex: 1; text-align: center; padding: 12px; color: #888; font-weight: bold; cursor: pointer; font-size: 13px; border-bottom: 3px solid transparent; }
+    .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
+
+    .pane-content { flex: 1; overflow-y: auto; display: none; padding: 12px; }
+    .pane-content.active { display: block; }
+
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #1c1c26; cursor: pointer; border-radius: 8px; margin-bottom: 6px; background: #121218; }
+    .list-item:hover { background: #1c1c26; }
+
+    /* Chat Room Screen */
+    #chatRoomScreen { display: none; flex-direction: column; height: 100vh; background: #08080c; position: absolute; inset: 0; z-index: 50; }
+    .chat-top-bar { background: #121218; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
+    .msg-bubble { background: #1c1c26; padding: 10px 14px; border-radius: 10px; margin: 6px 0; max-width: 75%; width: fit-content; font-size: 14px; position: relative; cursor: pointer; }
+    .msg-bubble.me { background: #ff3b5c; margin-left: auto; }
+    
+    /* 3-Dot Menu */
+    #dropdownMenu { display: none; position: absolute; right: 15px; top: 60px; background: #1c1c26; border: 1px solid #333; border-radius: 8px; z-index: 100; width: 150px; }
+    #dropdownMenu div { padding: 10px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #222; }
+    #dropdownMenu div:hover { background: #252533; }
+
+    /* Big DP Modal */
+    #bigDpModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; flex-direction: column; gap: 15px; }
+    #bigDpModal img { width: 280px; height: 280px; border-radius: 50%; object-fit: cover; border: 3px solid #ff3b5c; }
+
+    /* Edit Profile Modal */
+    #editProfileModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
   </style>
 </head>
 <body>
 
-  <!-- AUTH SCREEN -->
-  <div id="authOverlay">
-    <div class="auth-card">
-      <h2 style="color: #00a884; margin-bottom: 5px;">WhatsApp Web</h2>
-      <p style="color: #8696a0; font-size: 13px; margin-bottom: 10px;">Sign in or create account instantly</p>
-      <input type="text" id="userIdInput" class="input-field" placeholder="User ID (e.g. @amit)">
-      <input type="password" id="passInput" class="input-field" placeholder="Password (6-8 chars)">
-      <input type="text" id="phoneInput" class="input-field" placeholder="Phone number (for registration)">
-      <button class="wa-btn" onclick="authAction(false)">Login</button>
-      <button class="wa-btn wa-btn-sec" onclick="authAction(true)">Register New Account</button>
+  <!-- AUTH SCREEN (Exact match reference layout + DP sync) -->
+  <div id="authScreen" class="screen active-screen auth-container">
+    <div class="glass-card">
+      <div style="text-align:center;">
+        <span style="font-size:24px;">💖✨</span>
+        <h3 style="color:#fff; margin-top:8px;">Create Account</h3>
+        <p style="font-size:11px; color:#888;">Session remains saved even after refresh</p>
+      </div>
+      
+      <div class="dp-circle" onclick="document.getElementById('dpFileReg').click()" id="regDpPreview">
+        <span style="font-size:12px; color:#888; text-align:center;">Tap to Set Profile DP *</span>
+      </div>
+      <input type="file" id="dpFileReg" style="display:none;" accept="image/*" onchange="previewDp(event, 'regDpPreview')">
+
+      <input type="text" id="regName" class="input-box" placeholder="Test y" value="Test y">
+      <input type="text" id="regUserId" class="input-box" placeholder="@test453">
+      <input type="password" id="regPass" class="input-box" placeholder="Password">
+      <input type="text" id="regPhone" class="input-box" placeholder="Phone Number">
+      <button class="btn" onclick="authAction(true)">Register & Start</button>
+      <p style="text-align:center; font-size:12px; color:#ff3b5c; cursor:pointer;" onclick="toggleAuthMode(false)">Already have an ID? Login here</p>
     </div>
   </div>
 
-  <!-- INCOMING AUDIO CALL MODAL -->
-  <div id="incomingCallModal">
-    <p id="callerText" style="font-weight: bold; margin-bottom: 10px;"></p>
-    <div style="display: flex; gap: 10px;">
-      <button class="wa-btn" style="background: #00a884; padding: 6px;" onclick="answerCall()">Answer</button>
-      <button class="wa-btn" style="background: #ea0038; padding: 6px;" onclick="rejectCall()">Decline</button>
+  <!-- LOGIN CONTAINER (Hidden by default, toggled) -->
+  <div id="loginScreen" class="screen auth-container" style="display:none;">
+    <div class="glass-card">
+      <h3 style="color:#ff3b5c; text-align:center;">Login</h3>
+      <input type="text" id="logUserId" class="input-box" placeholder="User ID (@...)">
+      <input type="password" id="logPass" class="input-box" placeholder="Password">
+      <button class="btn" onclick="authAction(false)">Login</button>
+      <p style="text-align:center; font-size:12px; color:#888; cursor:pointer;" onclick="toggleAuthMode(true)">Create new account</p>
     </div>
   </div>
 
   <!-- MAIN APP CONTAINER -->
-  <div class="app-container">
-    
-    <!-- LEFT SIDEBAR -->
-    <div class="sidebar">
-      <div class="side-header">
-        <span id="myProfileHeader">WhatsApp</span>
-        <button onclick="addContactPrompt()" style="background:none; border:none; color:#00a884; cursor:pointer; font-size:14px; font-weight:bold;">+ Add Contact</button>
-      </div>
-      
-      <!-- TABS -->
-      <div class="wa-tabs">
-        <div class="wa-tab active" onclick="switchTab('chats')">CHATS</div>
-        <div class="wa-tab" onclick="switchTab('status')">STATUS</div>
-        <div class="wa-tab" onclick="switchTab('calls')">CALLS</div>
-      </div>
-
-      <!-- CHATS TAB PANE -->
-      <div id="pane-chats" class="tab-pane active">
-        <div id="contactsListContainer"></div>
-      </div>
-
-      <!-- STATUS TAB PANE -->
-      <div id="pane-status" class="tab-pane" style="padding: 15px;">
-        <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
-          <input type="text" id="statusInputText" class="input-field" placeholder="Type a 24-hr status update...">
-          <button class="wa-btn" onclick="postStatusUpdate()">Add Status</button>
-        </div>
-        <div id="statusListContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
-      </div>
-
-      <!-- CALLS TAB PANE -->
-      <div id="pane-calls" class="tab-pane">
-        <div id="callLogsContainer"></div>
-      </div>
-    </div>
-
-    <!-- RIGHT CHAT ROOM PANE -->
-    <div class="chat-pane" id="rightChatPane">
-      <div class="chat-pane-empty" id="emptyPlaceholder">
-        Select a contact from chat list to start messaging
-      </div>
-
-      <div id="activeChatBox" style="display: none; flex-direction: column; height: 100%;">
-        <div class="chat-header">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div id="chatAvatarBadge" style="width: 40px; height: 40px; border-radius: 50%; background: #00a884; display: flex; align-items: center; justify-content: center; font-weight: bold;">W</div>
-            <div>
-              <h4 id="activeChatName" style="font-size: 15px; font-weight: 500;"></h4>
-              <small style="color: #8696a0; font-size: 11px;">online</small>
-            </div>
-          </div>
-          <div>
-            <button onclick="triggerAudioCall()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: #00a884;" title="Audio Call">📞</button>
-          </div>
-        </div>
-
-        <div class="chat-messages" id="chatMessagesArea"></div>
-
-        <div class="chat-input-box">
-          <input type="text" id="messageInputField" class="input-field" placeholder="Type a message" onkeypress="if(event.key==='Enter') sendChatMessage()" style="flex: 1;">
-          <button class="wa-btn" style="width: auto; padding: 10px 20px;" onclick="sendChatMessage()">Send</button>
+  <div id="mainApp" class="screen app-main">
+    <div class="app-header">
+      <span style="font-weight:bold; color:#ff3b5c; font-size:18px;" id="profileHeaderName">Messenger</span>
+      <div style="position:relative;">
+        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:22px; cursor:pointer;">⋮</button>
+        <div id="dropdownMenu">
+          <div onclick="searchAndAddContact()">Add Contact</div>
+          <div onclick="openEditProfile()">Edit Profile</div>
+          <div onclick="location.reload()" style="color:#ff3b5c;">Logout</div>
         </div>
       </div>
     </div>
 
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchTab('chats')">CHATS</div>
+      <div class="nav-tab" onclick="switchTab('status')">STATUS (24H)</div>
+      <div class="nav-tab" onclick="switchTab('calls')">CALLS</div>
+    </div>
+
+    <!-- CHATS PANE -->
+    <div id="pane-chats" class="pane-content active">
+      <div id="contactsList"></div>
+    </div>
+
+    <!-- STATUS PANE -->
+    <div id="pane-status" class="pane-content">
+      <div style="margin-bottom:15px; display:flex; gap:10px;">
+        <input type="text" id="statusInput" class="input-box" placeholder="Post 24hr status...">
+        <button class="btn" onclick="postStatus()">Post</button>
+      </div>
+      <div id="statusList"></div>
+    </div>
+
+    <!-- CALLS PANE -->
+    <div id="pane-calls" class="pane-content">
+      <div id="callLogsList"></div>
+    </div>
+  </div>
+
+  <!-- CHAT ROOM SCREEN -->
+  <div id="chatRoomScreen" class="screen">
+    <div class="chat-top-bar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button onclick="closeChat()" style="background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">←</button>
+        <img id="chatPartnerDp" src="" style="width:36px; height:36px; border-radius:50%; object-fit:cover; cursor:pointer; background:#333;" onclick="showBigDp(currentPartnerDpUrl, currentPartnerName)">
+        <h4 id="chatRoomTitle" style="cursor:pointer;" onclick="showBigDp(currentPartnerDpUrl, currentPartnerName)">Chat</h4>
+      </div>
+      <button onclick="simulateAudioCall()" style="background:none; border:none; color:#ff3b5c; font-size:20px; cursor:pointer;" title="Audio Call">📞</button>
+    </div>
+
+    <div id="chatMessagesArea" style="flex:1; overflow-y:auto; padding:16px;"></div>
+
+    <div style="padding:10px; background:#121218; display:flex; gap:10px;">
+      <input type="text" id="msgInputBox" class="input-box" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+      <button class="btn" onclick="sendMsg()">Send</button>
+    </div>
+  </div>
+
+  <!-- BIG DP MODAL -->
+  <div id="bigDpModal" onclick="this.style.display='none'">
+    <img id="bigDpImg" src="" alt="DP">
+    <h3 id="bigDpName" style="color:#fff;"></h3>
+    <small style="color:#aaa;">Tap anywhere to close</small>
+  </div>
+
+  <!-- EDIT PROFILE MODAL -->
+  <div id="editProfileModal">
+    <div class="glass-card" style="width:90%; max-width:350px;">
+      <h3>Edit Profile</h3>
+      <div class="dp-circle" onclick="document.getElementById('dpFileEdit').click()" id="editDpPreview">
+        <span>Change DP</span>
+      </div>
+      <input type="file" id="dpFileEdit" style="display:none;" accept="image/*" onchange="previewDp(event, 'editDpPreview')">
+      <input type="text" id="editName" class="input-box" placeholder="Name">
+      <input type="text" id="editPhone" class="input-box" placeholder="Phone">
+      <button class="btn" onclick="saveProfileChanges()">Save Changes</button>
+      <button class="btn" style="background:#1c1c26;" onclick="document.getElementById('editProfileModal').style.display='none'">Cancel</button>
+    </div>
   </div>
 
   <script>
     const socket = io();
     let myCode = '';
+    let currentUserData = {};
     let currentPartner = '';
     let currentPartnerName = '';
-    let activeCallCaller = '';
+    let currentPartnerDpUrl = '';
+    let regDpDataUrl = '';
+    let editDpDataUrl = '';
+    let callStartTime = 0;
+
+    function previewDp(event, previewId) {
+      const file = event.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const url = e.target.result;
+        document.getElementById(previewId).innerHTML = `<img src="${url}" />`;
+        if(previewId === 'regDpPreview') regDpDataUrl = url;
+        if(previewId === 'editDpPreview') editDpDataUrl = url;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function toggleAuthMode(toRegister) {
+      document.getElementById('authScreen').style.display = toRegister ? 'flex' : 'none';
+      document.getElementById('loginScreen').style.display = toRegister ? 'none' : 'flex';
+    }
 
     function authAction(isRegister) {
-      const userCode = document.getElementById('userIdInput').value.trim();
-      const password = document.getElementById('passInput').value;
-      const phone = document.getElementById('phoneInput').value.trim();
-      if(!userCode || !password) return alert("Please fill User ID and Password.");
+      let userCode, password, phone, fullName, avatar;
+      if(isRegister) {
+        userCode = document.getElementById('regUserId').value.trim();
+        password = document.getElementById('regPass').value;
+        phone = document.getElementById('regPhone').value.trim();
+        fullName = document.getElementById('regName').value.trim() || 'Test y';
+        avatar = regDpDataUrl;
+      } else {
+        userCode = document.getElementById('logUserId').value.trim();
+        password = document.getElementById('logPass').value;
+      }
+      if(!userCode || !password) return alert("Fill ID & Password");
 
-      socket.emit('auth-user', { isRegister, userCode, password, phone, fullName: userCode }, (res) => {
+      socket.emit('auth-user', { isRegister, userCode, password, phone, fullName, avatar }, res => {
         if(res.success) {
+          currentUserData = res.user;
           myCode = res.user.userCode;
-          document.getElementById('authOverlay').style.display = 'none';
-          document.getElementById('myProfileHeader').innerText = myCode;
-          loadContactsList();
-        } else {
-          alert(res.error);
+          document.getElementById('authScreen').style.display = 'none';
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('mainApp').classList.add('active-screen');
+          document.getElementById('profileHeaderName').innerText = myCode;
+          loadContacts();
+        } else alert(res.error);
+      });
+    }
+
+    function openEditProfile() {
+      toggleMenu();
+      document.getElementById('editName').value = currentUserData.fullName || '';
+      document.getElementById('editPhone').value = currentUserData.phone || '';
+      if(currentUserData.avatar) {
+        document.getElementById('editDpPreview').innerHTML = `<img src="${currentUserData.avatar}" />`;
+      }
+      document.getElementById('editProfileModal').style.display = 'flex';
+    }
+
+    function saveProfileChanges() {
+      const fullName = document.getElementById('editName').value;
+      const phone = document.getElementById('editPhone').value;
+      socket.emit('update-profile', { userCode: myCode, fullName, phone, avatar: editDpDataUrl }, res => {
+        if(res.success) {
+          currentUserData = res.user;
+          document.getElementById('editProfileModal').style.display = 'none';
+          loadContacts();
+          alert('Profile updated!');
         }
       });
     }
 
-    function switchTab(tabName) {
-      document.querySelectorAll('.wa-tab').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-
-      if(tabName === 'chats') {
-        document.querySelectorAll('.wa-tab')[0].classList.add('active');
-        document.getElementById('pane-chats').classList.add('active');
-        loadContactsList();
-      } else if(tabName === 'status') {
-        document.querySelectorAll('.wa-tab')[1].classList.add('active');
-        document.getElementById('pane-status').classList.add('active');
-        loadStatusesList();
-      } else if(tabName === 'calls') {
-        document.querySelectorAll('.wa-tab')[2].classList.add('active');
-        document.getElementById('pane-calls').classList.add('active');
-        loadCallHistory();
-      }
+    function showBigDp(url, name) {
+      document.getElementById('bigDpImg.src', url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23333"/><text x="50%" y="50%" fill="%23aaa" font-size="40" dominant-baseline="middle" text-anchor="middle">?</text></svg>');
+      document.getElementById('bigDpImg').src = url || 'https://via.placeholder.com/280';
+      document.getElementById('bigDpName').innerText = name;
+      document.getElementById('bigDpModal').style.display = 'flex';
     }
 
-    function addContactPrompt() {
-      const target = prompt("Enter Contact User ID (e.g. @friend):");
-      if(target) {
-        socket.emit('add-contact', { myCode, targetCode: target }, (res) => {
-          if(res.success) {
-            loadContactsList();
-          } else {
-            alert(res.error);
-          }
-        });
-      }
+    function switchTab(tab) {
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.pane-content').forEach(el => el.classList.remove('active'));
+      if(tab === 'chats') { document.querySelectorAll('.nav-tab')[0].classList.add('active'); document.getElementById('pane-chats').classList.add('active'); loadContacts(); }
+      if(tab === 'status') { document.querySelectorAll('.nav-tab')[1].classList.add('active'); document.getElementById('pane-status').classList.add('active'); loadStatuses(); }
+      if(tab === 'calls') { document.querySelectorAll('.nav-tab')[2].classList.add('active'); document.getElementById('pane-calls').classList.add('active'); loadCalls(); }
     }
 
-    function loadContactsList() {
-      socket.emit('get-contacts', { myCode }, (res) => {
-        const container = document.getElementById('contactsListContainer');
-        if(!res.contacts || res.contacts.length === 0) {
-          container.innerHTML = '<p style="color:#8696a0; text-align:center; margin-top:30px; font-size:13px;">No chats yet. Click "+ Add Contact" above.</p>';
-          return;
-        }
-        container.innerHTML = res.contacts.map(c => `
-          <div class="item-row" onclick="openChatRoom('${c.userCode}', '${c.name}')">
-            <div style="width:45px; height:45px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:bold; margin-right:12px;">${c.name[0].toUpperCase()}</div>
-            <div style="flex:1;">
-              <div style="font-size:15px; font-weight:500;">${c.name}</div>
-              <div style="font-size:12px; color:#8696a0;">${c.userCode}</div>
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function searchAndAddContact() {
+      toggleMenu();
+      const target = prompt("Enter User ID or Phone to chat:");
+      if(!target) return;
+      socket.emit('search-user', { query: target }, res => {
+        if(res.success) {
+          socket.emit('add-contact', { myCode, targetCode: res.user.userCode }, () => loadContacts());
+          openChat(res.user.userCode, res.user.name, res.user.avatar);
+        } else alert(res.error);
+      });
+    }
+
+    function loadContacts() {
+      socket.emit('get-contacts', { myCode }, res => {
+        const div = document.getElementById('contactsList');
+        div.innerHTML = res.contacts.map(c => `
+          <div class="list-item" onclick="openChat('${c.userCode}', '${c.name.replace(/'/g, "\\'")}', '${c.avatar || ''}')">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <img src="${c.avatar || 'https://via.placeholder.com/45'}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; background:#333;" onclick="event.stopPropagation(); showBigDp('${c.avatar || ''}', '${c.name.replace(/'/g, "\\'")}')">
+              <div><strong>${c.name}</strong><br><small style="color:#888;">${c.userCode}</small></div>
             </div>
+            <span style="color:#ff3b5c; font-size:13px;">Chat →</span>
           </div>
-        `).join('');
+        `).join('') || '<p style="color:#888; text-align:center; margin-top:20px;">No chats yet. Click ⋮ -> Add Contact</p>';
       });
     }
 
-    function openChatRoom(code, name) {
+    function openChat(code, name, avatar) {
       currentPartner = code;
       currentPartnerName = name;
-      document.getElementById('emptyPlaceholder').style.display = 'none';
-      document.getElementById('activeChatBox').style.display = 'flex';
-      document.getElementById('activeChatName').innerText = name;
-      document.getElementById('chatAvatarBadge').innerText = name[0].toUpperCase();
-
-      socket.emit('open-room', { myCode, targetCode: code }, (res) => {
-        renderMessages(res.msgs);
-      });
+      currentPartnerDpUrl = avatar;
+      document.getElementById('mainApp').classList.remove('active-screen');
+      document.getElementById('chatRoomScreen').classList.add('active-screen');
+      document.getElementById('chatRoomTitle').innerText = name;
+      document.getElementById('chatPartnerDp').src = avatar || 'https://via.placeholder.com/36';
+      socket.emit('open-room', { myCode, targetCode: code }, res => renderMsgs(res.msgs));
     }
 
-    function sendChatMessage() {
-      const text = document.getElementById('messageInputField').value.trim();
+    function closeChat() {
+      document.getElementById('chatRoomScreen').classList.remove('active-screen');
+      document.getElementById('mainApp').classList.add('active-screen');
+      loadContacts();
+    }
+
+    function sendMsg() {
+      const text = document.getElementById('msgInputBox').value.trim();
       if(!text || !currentPartner) return;
       socket.emit('send-message', { senderCode: myCode, targetCode: currentPartner, text });
-      document.getElementById('messageInputField').value = '';
+      document.getElementById('msgInputBox').value = '';
     }
 
     socket.on('chat-message', (msg) => {
-      if(msg.senderCode === currentPartner || msg.targetCode === currentPartner) {
-        appendMessageBubble(msg);
-      }
+      if(msg.senderCode === currentPartner || msg.targetCode === currentPartner) appendBubble(msg);
     });
 
-    function appendMessageBubble(msg) {
-      const box = document.getElementById('chatMessagesArea');
-      const isMe = msg.senderCode === myCode;
-      box.innerHTML += `
-        <div class="msg-bubble ${isMe ? 'me' : 'other'}">
-          <div>${msg.text}</div>
-          <div style="font-size:10px; color:#8696a0; text-align:right; margin-top:2px;">${msg.time}</div>
+    function appendBubble(m) {
+      const area = document.getElementById('chatMessagesArea');
+      const isMe = m.senderCode === myCode;
+      area.innerHTML += `
+        <div class="msg-bubble ${isMe ? 'me' : ''}" id="msg_${m._id}" onclick="showDeleteOptions('${m._id}', ${isMe})">
+          <div>${m.text}</div>
+          <div style="font-size:10px; color:#aaa; text-align:right; margin-top:2px;">${m.time}</div>
         </div>
       `;
-      box.scrollTop = box.scrollHeight;
+      area.scrollTop = area.scrollHeight;
     }
 
-    function renderMessages(msgs) {
-      const box = document.getElementById('chatMessagesArea');
-      box.innerHTML = '';
-      msgs.forEach(m => appendMessageBubble(m));
+    function renderMsgs(msgs) {
+      const area = document.getElementById('chatMessagesArea');
+      area.innerHTML = '';
+      msgs.forEach(m => appendBubble(m));
     }
 
-    function postStatusUpdate() {
-      const text = document.getElementById('statusInputText').value.trim();
-      if(!text) return;
-      socket.emit('post-status', { userCode: myCode, text }, () => {
-        document.getElementById('statusInputText').value = '';
-        loadStatusesList();
-        alert('Status posted! It will auto-delete in 24 hours.');
-      });
+    function showDeleteOptions(id, isMe) {
+      const choice = confirm("Delete message? OK for Delete for Me, Cancel for exit.");
+      if(choice) {
+        socket.emit('delete-msg', { msgId: id, type: 'me', myCode });
+        document.getElementById(`msg_${id}`).remove();
+      }
     }
 
-    function loadStatusesList() {
-      socket.emit('get-statuses', (res) => {
-        const list = document.getElementById('statusListContainer');
-        if(!res.statuses || res.statuses.length === 0) {
-          list.innerHTML = '<p style="color:#8696a0; font-size:13px;">No recent status updates available.</p>';
-          return;
-        }
-        list.innerHTML = res.statuses.map(s => `
-          <div style="background:#202c33; padding:12px; border-radius:8px; border-left:4px solid #00a884;">
-            <div style="font-weight:bold; color:#00a884; font-size:13px;">${s.userCode}</div>
-            <div style="margin-top:4px; font-size:14px;">${s.text}</div>
-            <div style="font-size:10px; color:#8696a0; margin-top:6px;">Expires in 24 hours</div>
-          </div>
-        `).join('');
-      });
-    }
-
-    function triggerAudioCall() {
-      if(!currentPartner) return;
-      socket.emit('make-call', { caller: myCode, receiver: currentPartner });
-      alert(`Calling ${currentPartnerName}...`);
-    }
-
-    socket.on('incoming-call', ({ caller, time }) => {
-      activeCallCaller = caller;
-      document.getElementById('callerText').innerText = `Incoming audio call from ${caller} at ${time}`;
-      document.getElementById('incomingCallModal').style.display = 'block';
+    socket.on('msg-deleted', (updated) => {
+      const el = document.getElementById(`msg_${updated._id}`);
+      if(el) el.innerHTML = `<div>${updated.text}</div>`;
     });
 
-    function answerCall() {
-      document.getElementById('incomingCallModal').style.display = 'none';
-      alert(`Connected audio call with ${activeCallCaller}`);
+    function postStatus() {
+      const text = document.getElementById('statusInput').value.trim();
+      if(!text) return;
+      socket.emit('post-status', { userCode: myCode, text }, () => {
+        document.getElementById('statusInput').value = '';
+        loadStatuses();
+      });
     }
 
-    function rejectCall() {
-      document.getElementById('incomingCallModal').style.display = 'none';
+    function loadStatuses() {
+      socket.emit('get-statuses', res => {
+        document.getElementById('statusList').innerHTML = res.statuses.map(s => `
+          <div style="background:#121218; padding:12px; border-radius:8px; margin-bottom:8px; border-left:3px solid #ff3b5c;">
+            <strong style="color:#ff3b5c;">${s.userCode}</strong>
+            <p style="margin-top:4px; font-size:14px;">${s.text}</p>
+            <small style="color:#888;">Expires in 24 hours</small>
+          </div>
+        `).join('') || '<p style="color:#888;">No active statuses.</p>';
+      });
     }
 
-    function loadCallHistory() {
-      socket.emit('get-calls', { myCode }, (res) => {
-        const container = document.getElementById('callLogsContainer');
-        if(!res.logs || res.logs.length === 0) {
-          container.innerHTML = '<p style="color:#8696a0; text-align:center; margin-top:30px; font-size:13px;">No recent call logs.</p>';
-          return;
-        }
-        container.innerHTML = res.logs.map(l => `
-          <div class="item-row">
-            <div style="flex:1;">
-              <div style="font-size:14px; font-weight:500;">${l.caller === myCode ? 'Outgoing Call to ' + l.receiver : 'Incoming Call from ' + l.caller}</div>
-              <div style="font-size:12px; color:#8696a0;">Audio call • ${l.time}</div>
+    function simulateAudioCall() {
+      callStartTime = Date.now();
+      const confirmed = confirm(`Calling ${currentPartner}... Click OK to end and save call log.`);
+      const durationSec = Math.round((Date.now() - callStartTime) / 1000);
+      const durationStr = `${Math.floor(durationSec/60)}m ${durationSec%60}s`;
+      socket.emit('log-call', { caller: myCode, receiver: currentPartner, duration: durationStr });
+      alert(`Call ended. Duration: ${durationStr}`);
+    }
+
+    function loadCalls() {
+      socket.emit('get-calls', { myCode }, res => {
+        document.getElementById('callLogsList').innerHTML = res.logs.map(l => `
+          <div class="list-item">
+            <div>
+              <strong>${l.caller === myCode ? 'Outgoing to ' + l.receiver : 'Incoming from ' + l.caller}</strong>
+              <br><small style="color:#888;">Audio call • Duration: ${l.duration} • ${l.time}</small>
             </div>
           </div>
-        `).join('');
+        `).join('') || '<p style="color:#888; text-align:center; margin-top:20px;">No recent calls.</p>';
       });
     }
   </script>
