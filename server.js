@@ -5,8 +5,13 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { 
+  cors: { origin: "*" },
+  maxHttpBufferSize: 5e7 // 50MB तक मीडिया/फाइलों के लिए
+});
 
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const users = {};
@@ -31,7 +36,7 @@ io.on('connection', (socket) => {
       } else {
         const existing = users[userCode];
         if (!existing || existing.password !== password) {
-          return callback({ success: false, error: "Invalid ID or PIN" });
+          return callback({ success: false, error: "Invalid ID or 6-digit PIN" });
         }
       }
 
@@ -39,7 +44,7 @@ io.on('connection', (socket) => {
       socket.join(userCode);
       callback({ success: true, user: users[userCode] });
     } catch (err) {
-      callback({ success: false, error: "Server error" });
+      callback({ success: false, error: "Server error during auth" });
     }
   });
 
@@ -70,6 +75,46 @@ io.on('connection', (socket) => {
     socket.emit('contact-list-data', { contacts: userList, pending: pendingInvites[currentUserCode] || [] });
   });
 
+  socket.on('send-invitation', ({ targetCode }, callback) => {
+    if (!currentUserCode) return;
+    if (!users[targetCode]) {
+      return callback({ success: false, msg: "User ID not found!" });
+    }
+    if (targetCode === currentUserCode) {
+      return callback({ success: false, msg: "You cannot invite yourself!" });
+    }
+
+    if (!pendingInvites[targetCode]) pendingInvites[targetCode] = [];
+    const sender = users[currentUserCode];
+    
+    if (!pendingInvites[targetCode].some(i => i.fromCode === currentUserCode)) {
+      pendingInvites[targetCode].push({
+        fromCode: currentUserCode,
+        fromName: sender.fullName,
+        fromAvatar: sender.avatar
+      });
+    }
+
+    io.to(targetCode).emit('incoming-invite-popup', {
+      fromCode: currentUserCode,
+      fromName: sender.fullName,
+      fromAvatar: sender.avatar
+    });
+
+    callback({ success: true, msg: "Invitation sent successfully!" });
+  });
+
+  socket.on('respond-invitation', ({ fromCode, confirm }) => {
+    if (!currentUserCode) return;
+    if (pendingInvites[currentUserCode]) {
+      pendingInvites[currentUserCode] = pendingInvites[currentUserCode].filter(i => i.fromCode !== fromCode);
+    }
+    if (confirm) {
+      const me = users[currentUserCode];
+      io.to(fromCode).emit('invite-accepted-popup', { byName: me.fullName, byCode: me.userCode });
+    }
+  });
+
   socket.on('open-room', ({ targetCode }) => {
     if (!currentUserCode) return;
     const roomId = [currentUserCode, targetCode].sort().join('_');
@@ -83,7 +128,7 @@ io.on('connection', (socket) => {
     if (!messages[roomId]) messages[roomId] = [];
     
     const msgObj = {
-      id: 'msg_' + Date.now(),
+      id: 'msg_' + Date.now() + Math.random().toString(36).substr(2, 5),
       senderCode: currentUserCode,
       text: text || '',
       media: media || null,
