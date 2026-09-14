@@ -1,15 +1,22 @@
 {
   "name": "chat-app",
-  "version": "1.0.0",
-  "description": "Real-time chat with MongoDB & Cloudinary",
+  "version": "2.0.0",
+  "description": "Persistent chat app with MongoDB and Cloudinary",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "echo \"No tests configured\""
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
-    "cloudinary": "^2.0.3",
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.7.0",
     "express": "^5.2.1",
-    "mongoose": "^8.2.0",
+    "mongoose": "^8.18.0",
+    "nodemailer": "^10.0.9",
     "socket.io": "^4.8.3"
   }
 }
