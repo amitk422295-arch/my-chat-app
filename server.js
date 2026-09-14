@@ -2,110 +2,191 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-
 const io = new Server(server, {
-  cors: { origin: "*" },
-  maxHttpBufferSize: 5e7 // 50MB तक फोटो/वीडियो सपोर्ट
+  cors: { origin: "*" }
 });
 
-// JSON बॉडी साइज 50MB तक सपोर्ट
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// इन-मेमोरी डेटा स्टोरेज
-let users = {};          // socketId -> userData
-let statuses = [];       // स्टेटस लिस्ट
-let messages = [];       // चैट हिस्ट्री
+// इन-मेमोरी डेटाबेस (लाखों यूजर्स के लिए इसे बाद में MongoDB से जोड़ सकते हैं)
+const users = {}; // userCode -> { userCode, password, fullName, avatar }
+const messages = {}; // roomId -> [ { id, senderCode, text, media, mediaType, time } ]
+const statuses = {}; // userCode -> { userCode, name, avatar, items: [...] }
+const pendingInvites = {}; // targetCode -> [ { fromCode, fromName, fromAvatar } ]
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  let currentUserCode = null;
 
-  // 1. यूज़र जॉइन होना
-  socket.on('user_join', (userData) => {
-    users[socket.id] = { id: socket.id, ...userData };
-    io.emit('active_users', Object.values(users));
-    // पुराने स्टेटस भेजें
-    socket.emit('initial_statuses', statuses);
+  // रजिस्ट्रेशन या लॉगिन
+  socket.on('auth-user', ({ userCode, password, fullName, avatar, isRegister }, callback) => {
+    try {
+      if (!userCode || !password) {
+        return callback({ success: false, error: "User ID and Password required" });
+      }
+
+      if (isRegister) {
+        if (users[userCode]) {
+          return callback({ success: false, error: "User ID already exists! Choose another." });
+        }
+        users[userCode] = { userCode, password, fullName, avatar };
+      } else {
+        const existing = users[userCode];
+        if (!existing || existing.password !== password) {
+          return callback({ success: false, error: "Invalid User ID or 6-digit PIN" });
+        }
+      }
+
+      currentUserCode = userCode;
+      socket.join(userCode);
+
+      callback({
+        success: true,
+        user: users[userCode]
+      });
+    } catch (err) {
+      callback({ success: false, error: "Server error during auth" });
+    }
   });
 
-  // 2. फ़ास्ट ऑटो-सिंक चैट (WhatsApp स्पीड)
-  socket.on('send_message', (data) => {
-    const messageData = {
-      id: 'msg_' + Date.now(),
-      senderId: socket.id,
-      senderName: users[socket.id]?.name || 'Unknown',
-      text: data.text || '',
-      media: data.media || null, // Base64 फोटो या ऑडियो
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    messages.push(messageData);
-    io.emit('new_message', messageData); // तुरंत सबको लाइव डिलीवर
+  // रिफ्रेश होने पर सेशन रिस्टोर करना
+  socket.on('restore-session', ({ userCode, password }, callback) => {
+    const existing = users[userCode];
+    if (existing && existing.password === password) {
+      currentUserCode = userCode;
+      socket.join(userCode);
+      callback({ success: true, user: existing });
+    } else {
+      callback({ success: false });
+    }
   });
 
-  // 3. स्टेटस अपलोड (फोटो / वीडियो / टेक्स्ट)
-  socket.on('upload_status', (statusData) => {
-    const newStatus = {
-      id: 'status_' + Date.now(),
-      authorId: socket.id,
-      authorName: users[socket.id]?.name || 'User',
-      authorAvatar: users[socket.id]?.avatar || '',
-      text: statusData.text || '',
-      media: statusData.media || null,       // Base64 इमेज/वीडियो
-      mediaType: statusData.mediaType || '', // 'image' या 'video'
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      viewers: [] // स्टेटस देखने वालों की लिस्ट
-    };
-
-    statuses.unshift(newStatus);
-    io.emit('status_published', newStatus); // सभी यूज़र्स को तुरंत लाइव दिखाओ
-  });
-
-  // 4. "किस-किस ने देखा" (Status Seen Logic)
-  socket.on('view_status', ({ statusId, viewerName }) => {
-    const targetStatus = statuses.find(s => s.id === statusId);
-    if (targetStatus) {
-      if (!targetStatus.viewers.includes(viewerName)) {
-        targetStatus.viewers.push(viewerName);
-        io.emit('status_viewed_update', {
-          statusId,
-          viewers: targetStatus.viewers
+  // контакты / चैट्स लिस्ट भेजना
+  socket.on('get-contacts', () => {
+    if (!currentUserCode) return;
+    const userList = [];
+    // सभी रजिस्टर्ड यूजर्स को चैट लिस्ट में दिखाना (10 लाख यूजर्स के लिए इसे बाद में ऑप्टिमाइज़ करेंगे)
+    for (let code in users) {
+      if (code !== currentUserCode) {
+        userList.push({
+          userCode: code,
+          name: users[code].fullName,
+          avatar: users[code].avatar,
+          lastMessage: "Tap to chat"
         });
+      }
+    }
+    socket.emit('contact-list-data', { contacts: userList, pending: pendingInvites[currentUserCode] || [] });
+  });
+
+  // कमरा खोलना और पुरानी चैट लोड करना
+  socket.on('open-room', ({ targetCode }) => {
+    if (!currentUserCode) return;
+    const roomId = [currentUserCode, targetCode].sort().join('_');
+    socket.join(roomId);
+    socket.emit('load-history', messages[roomId] || []);
+  });
+
+  // मैसेज भेजना
+  socket.on('send-message', ({ targetCode, text, media, mediaType }) => {
+    if (!currentUserCode) return;
+    const roomId = [currentUserCode, targetCode].sort().join('_');
+    
+    if (!messages[roomId]) messages[roomId] = [];
+    const msgObj = {
+      id: 'msg_' + Date.now() + Math.random().toString(36.substr(2, 5)),
+      senderCode: currentUserCode,
+      text: text || '',
+      media: media || null,
+      mediaType: mediaType || null,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      roomId
+    };
+    
+    messages[roomId].push(msgObj);
+    io.to(roomId).emit('chat-message', msgObj);
+  });
+
+  // सबके लिए मैसेज डिलीट करना
+  socket.on('delete-message-for-everyone', ({ roomId, id }) => {
+    if (messages[roomId]) {
+      messages[roomId] = messages[roomId].filter(m => m.id !== id);
+      io.to(roomId).emit('message-deleted-for-everyone', { id });
+    }
+  });
+
+  // स्टेटस पोस्ट करना
+  socket.on('post-status', ({ id, media, type }) => {
+    if (!currentUserCode) return;
+    if (!statuses[currentUserCode]) {
+      statuses[currentUserCode] = {
+        userCode: currentUserCode,
+        name: users[currentUserCode].fullName,
+        avatar: users[currentUserCode].avatar,
+        items: []
+      };
+    }
+    statuses[currentUserCode].items.unshift({
+      id,
+      media,
+      type,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      viewers: []
+    });
+    io.emit('refresh-statuses');
+  });
+
+  // स्टेटस फेच करना
+  socket.on('get-statuses', () => {
+    if (!currentUserCode) return;
+    const myStatus = statuses[currentUserCode] || null;
+    const contactStatuses = [];
+    for (let code in statuses) {
+      if (code !== currentUserCode) {
+        contactStatuses.push(statuses[code]);
+      }
+    }
+    socket.emit('status-data', { myStatus, contactStatuses });
+  });
+
+  // स्टेटस व्यू करना
+  socket.on('mark-status-viewed', ({ authorCode, statusId }) => {
+    if (!currentUserCode || !statuses[authorCode]) return;
+    const item = statuses[authorCode].items.find(s => s.id === statusId);
+    if (item) {
+      if (!item.viewers.some(v => v.userCode === currentUserCode)) {
+        item.viewers.push({
+          userCode: currentUserCode,
+          name: users[currentUserCode].fullName,
+          avatar: users[currentUserCode].avatar,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        io.to(authorCode).emit('status-viewed-updated', { statusId, viewers: item.viewers });
       }
     }
   });
 
-  // 5. कॉलिंग सिग्नलिंग (WebRTC Audio/Video Call)
-  socket.on('call_user', (data) => {
-    socket.to(data.userToCall).emit('incoming_call', {
-      signal: data.signalData,
-      from: socket.id,
-      callerName: users[socket.id]?.name || 'Unknown',
-      callType: data.callType // 'audio' या 'video'
-    });
+  // WebRTC कॉलिंग सिग्नलिंग
+  socket.on('call-user', ({ targetCode, signal, callerData }) => {
+    io.to(targetCode).emit('incoming-call', { from: currentUserCode, signal, callerData });
   });
 
-  socket.on('answer_call', (data) => {
-    socket.to(data.to).emit('call_accepted', data.signal);
+  socket.on('answer-call', ({ targetCode, signal }) => {
+    io.to(targetCode).emit('call-accepted', { signal });
   });
 
-  socket.on('reject_call', (data) => {
-    socket.to(data.to).emit('call_rejected');
+  socket.on('ice-candidate', ({ targetCode, candidate }) => {
+    io.to(targetCode).emit('ice-candidate', { candidate });
   });
 
-  socket.on('end_call', (data) => {
-    socket.to(data.to).emit('call_ended');
+  socket.on('end-call', ({ targetCode }) => {
+    io.to(targetCode).emit('call-ended');
   });
 
-  // 6. डिस्कनेक्ट होना
   socket.on('disconnect', () => {
-    delete users[socket.id];
-    io.emit('active_users', Object.values(users));
-    console.log('User disconnected:', socket.id);
+    currentUserCode = null;
   });
 });
 
