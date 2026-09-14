@@ -32,7 +32,15 @@
     
     .input-box { width: 100%; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; }
     .input-box:focus { border-color: #ff3b5c; }
-    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; }
+    
+    .btn-gradient { 
+      background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); 
+      color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; 
+      cursor: pointer; opacity: 0.4; pointer-events: none; transition: all 0.3s ease;
+    }
+    .btn-gradient.active-glow {
+      opacity: 1; pointer-events: auto; box-shadow: 0 0 20px rgba(255, 59, 92, 0.6);
+    }
     
     .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; }
     .dp-circle.has-image { border-style: solid; }
@@ -91,7 +99,6 @@
     .msg-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #ff3b5c 0%, #e02447 100%); color: #fff; border-bottom-right-radius: 4px; }
     .msg-bubble.other { align-self: flex-start; background: #1c1c28; color: #f0f0f5; border-bottom-left-radius: 4px; }
 
-    /* Delete Action Sheet */
     #deleteSheetModal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 180; display: none; align-items: flex-end; justify-content: center; }
     .delete-sheet-card { width: 100%; max-width: 500px; background: #181824; border-radius: 20px 20px 0 0; padding: 20px 16px 30px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #2d2d3c; }
     .sheet-btn { width: 100%; padding: 14px; background: #222230; border: none; border-radius: 12px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
@@ -103,7 +110,6 @@
     .input-wrapper input { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; user-select: text; }
     .action-pin-btn { background: none; border: none; font-size: 20px; color: #8a8a9e; cursor: pointer; margin-right: 8px; }
 
-    /* Voice Note Recording Bar & Gestures */
     .mic-container { position: relative; }
     .btn-circle-action {
       width: 44px; height: 44px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff;
@@ -141,7 +147,6 @@
     .viewer-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .viewer-row img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
 
-    /* Calling Modal */
     #phoneCallModal { position: fixed; inset: 0; background: radial-gradient(circle at center, #1b1e2c 0%, #08080c 100%); z-index: 250; display: none; flex-direction: column; justify-content: space-between; padding: 60px 24px 50px; align-items: center; }
     .caller-details-box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
     .caller-dp-pulse { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00c853; animation: callPulse 1.8s infinite; }
@@ -168,15 +173,15 @@
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Upload DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
         <p style="font-size: 11px; color:#ff6b8b; margin-top:4px;" onclick="document.getElementById('dpFileInput').click()">Tap to Set Profile DP *</p>
-        <input type="text" id="fullNameInp" class="input-box" placeholder="Your Full Name *" style="margin-top:10px;">
+        <input type="text" id="fullNameInp" class="input-box" placeholder="Your Full Name *" style="margin-top:10px;" oninput="validateAuthInputs()">
       </div>
 
-      <!-- User ID: @ अनिवार्य + केवल स्मॉल लेटर्स/नंबर्स -->
-      <input type="text" id="userCodeInp" class="input-box" placeholder="User ID (@amit123) *" autocomplete="off" oninput="formatUserCode(this)">
+      <!-- User ID: @ अनिवार्य और कोई भी स्मॉल लेटर/नंबर संयोजन -->
+      <input type="text" id="userCodeInp" class="input-box" placeholder="User ID (@myname) *" autocomplete="off" oninput="formatUserCode(this); validateAuthInputs()">
       <!-- Password: केवल 6-Digit PIN -->
-      <input type="password" id="passwordInp" class="input-box" placeholder="6-Digit PIN (e.g. 123456) *" maxlength="6" inputmode="numeric">
+      <input type="password" id="passwordInp" class="input-box" placeholder="6-Digit PIN (e.g. 123456) *" maxlength="6" inputmode="numeric" oninput="validateAuthInputs()">
 
-      <button class="btn-gradient" onclick="handleAuthSubmit()" id="authActionBtn">Register & Start</button>
+      <button class="btn-gradient" id="authActionBtn" onclick="handleAuthSubmit()">Register & Start</button>
       <p style="font-size: 12px; color: #7e7e92; cursor: pointer;" onclick="toggleAuthMode()" id="authSwitchText">Already have an ID? Login here</p>
     </div>
   </div>
@@ -234,7 +239,7 @@
     <div class="id-popup-card">
       <div style="font-size:12px; color:#8a8a9e;">YOUR USER ID</div>
       <div id="dropdownUserCode" style="font-size:18px; font-weight:800; color:#ff6b8b;">@user</div>
-      <button class="btn-gradient" style="padding:10px; font-size:13px;" onclick="copyMyUserId()">Copy User ID</button>
+      <button class="btn-gradient active-glow" style="padding:10px; font-size:13px;" onclick="copyMyUserId()">Copy User ID</button>
     </div>
   </div>
 
@@ -250,7 +255,6 @@
     </div>
   </div>
 
-  <!-- Chat Room -->
   <div id="chatRoom">
     <div class="room-header">
       <div class="room-header-profile">
@@ -275,7 +279,6 @@
       <button class="menu-item" onclick="document.getElementById('videoInput').click()">🎥 Videos</button>
     </div>
 
-    <!-- Input Bar with Voice Note Swipe Gestures -->
     <div class="bottom-input-bar">
       <div id="swipeLockBox">
         <svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6-5c1.66 0 3 1.34 3 3v2H9V6c0-1.66 1.34-3 3-3z"/></svg>
@@ -311,7 +314,6 @@
     </div>
   </div>
 
-  <!-- Delete Message Sheet Modal -->
   <div id="deleteSheetModal" onclick="closeDeleteSheet(event)">
     <div class="delete-sheet-card">
       <button class="sheet-btn" onclick="executeDeleteForMe()">Delete For Me</button>
@@ -320,7 +322,6 @@
     </div>
   </div>
 
-  <!-- Status Story Viewer Modal -->
   <div id="storyViewerModal">
     <div class="story-progress-bar"><div id="storyProgressFill" class="story-progress-fill"></div></div>
     <div class="story-top-info">
@@ -339,7 +340,6 @@
     </div>
   </div>
 
-  <!-- Viewers Sheet Modal -->
   <div id="statusViewersSheet" onclick="closeViewersSheet(event)">
     <div class="viewers-card" onclick="event.stopPropagation()">
       <div style="font-size:15px; font-weight:700; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Viewed by</div>
@@ -347,7 +347,6 @@
     </div>
   </div>
 
-  <!-- Calling Modal -->
   <div id="phoneCallModal">
     <div class="caller-details-box">
       <img id="phoneCallerAvatar" class="caller-dp-pulse" src="">
@@ -384,7 +383,7 @@
       setTimeout(() => { t.style.display = 'none'; }, 3500);
     }
 
-    // 1. User ID Format (@ अनिवार्य + केवल स्मॉल लेटर्स/नंबर्स)
+    // User ID: @ अनिवार्य और उसके बाद कोई भी स्मॉल लेटर्स/नंबर्स
     function formatUserCode(input) {
       let val = input.value.trim().toLowerCase();
       if (!val.startsWith('@')) {
@@ -392,6 +391,25 @@
       }
       val = '@' + val.substring(1).replace(/[^a-z0-9]/g, '');
       input.value = val;
+    }
+
+    // स्मार्ट डायनेमिक बटन वेलिडेशन
+    function validateAuthInputs() {
+      const uCode = document.getElementById('userCodeInp').value.trim();
+      const pass = document.getElementById('passwordInp').value.trim();
+      const fName = isRegisterMode ? document.getElementById('fullNameInp').value.trim() : 'Valid';
+      const btn = document.getElementById('authActionBtn');
+
+      let isValid = true;
+      if (!uCode.startsWith('@') || uCode.length < 2) isValid = false;
+      if (!pass || pass.length !== 6 || !/^\d{6}$/.test(pass)) isValid = false;
+      if (isRegisterMode && (!fName || !myAvatar)) isValid = false;
+
+      if (isValid) {
+        btn.classList.add('active-glow');
+      } else {
+        btn.classList.remove('active-glow');
+      }
     }
 
     function createSocketConnection() {
@@ -433,6 +451,7 @@
           const img = document.getElementById('dpViewer');
           img.src = myAvatar;
           img.classList.add('has-image');
+          validateAuthInputs();
         };
         reader.readAsDataURL(file);
       }
@@ -445,6 +464,7 @@
       document.getElementById('registerFields').style.display = isRegisterMode ? "block" : "none";
       document.getElementById('authActionBtn').textContent = isRegisterMode ? "Register & Start" : "Login";
       document.getElementById('authSwitchText').textContent = isRegisterMode ? "Already have an ID? Login here" : "Don't have an ID? Register here";
+      validateAuthInputs();
     }
 
     async function handleAuthSubmit() {
@@ -458,7 +478,7 @@
       }
 
       if (!uCode.startsWith('@') || uCode.length < 2) {
-        return showToast("❌ User ID must start with @ (e.g. @amit)", 'error');
+        return showToast("❌ User ID must start with @", 'error');
       }
 
       if (!pass || pass.length !== 6 || !/^\d{6}$/.test(pass)) {
@@ -517,6 +537,14 @@
       socket.emit('get-contacts');
       socket.emit('get-statuses');
 
+      // ऑटो-सिंक इंटरवल
+      setInterval(() => {
+        if (socket && socket.connected) {
+          socket.emit('get-contacts');
+          socket.emit('get-statuses');
+        }
+      }, 2000);
+
       socket.on('contact-list-data', ({ contacts, pending }) => {
         renderChats(contacts);
         if (pending && pending.length > 0) showInviteModal(pending[0]);
@@ -539,14 +567,12 @@
         msgs.forEach(m => renderBubble(m));
       });
 
-      // 💬 Instant Chat
       socket.on('chat-message', (data) => {
         if (data.roomId === currentRoomId) {
           renderBubble(data);
         }
       });
 
-      // 🗑️ Delete For Everyone Listener
       socket.on('message-deleted-for-everyone', ({ id }) => {
         const el = document.getElementById(`msg-${id}`);
         if (el) el.remove();
@@ -626,7 +652,6 @@
       socket.emit('get-contacts');
     }
 
-    // 🗑️ Long Press Message Menu & Deletion Logic
     function triggerLongPressSheet(id, isMine) {
       selectedMsgId = id;
       selectedMsgIsMine = isMine;
@@ -663,7 +688,6 @@
       b.id = `msg-${data.id}`;
       b.className = `msg-bubble ${isMine ? 'mine' : 'other'}`;
 
-      // Long Press Listener
       b.addEventListener('pointerdown', () => {
         longPressTimer = setTimeout(() => triggerLongPressSheet(data.id, isMine), 500);
       });
@@ -715,7 +739,6 @@
       handleInputState('');
     }
 
-    // 🎙️ Voice Note Recording Logic (Hold, Swipe to Lock, Slide to Cancel)
     let mediaRecorder = null, audioChunks = [];
     let isHoldingMic = false, isLocked = false;
     let startY = 0, startX = 0;
@@ -843,7 +866,6 @@
       reader.readAsDataURL(file);
     }
 
-    // 🟢 Status: WhatsApp जैसा 15s ऑटो-कट वीडियो + फोटो
     function handleMyStatusClick() {
       if (currentMyStatusObj && currentMyStatusObj.items.length > 0) {
         viewStatusStory(currentMyStatusObj, true);
@@ -1017,7 +1039,6 @@
       document.getElementById('statusViewersSheet').style.display = 'none';
     }
 
-    // 📞 Live WebRTC Audio Calling System
     let peerConn = null, localAudioStream = null;
     const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
     let incomingCallerCode = null, incomingSignal = null;
