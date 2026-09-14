@@ -44,7 +44,8 @@ const messageSchema = new mongoose.Schema({
   senderCode: String,
   targetCode: String,
   text: String,
-  status: { type: String, default: 'sent' },
+  deletedFor: [String],
+  deletedForEveryone: { type: Boolean, default: false },
   time: String,
   createdAt: { type: Date, default: Date.now }
 });
@@ -53,6 +54,7 @@ const Message = mongoose.model('Message', messageSchema);
 const callLogSchema = new mongoose.Schema({
   caller: String,
   receiver: String,
+  duration: String,
   time: String,
   createdAt: { type: Date, default: Date.now }
 });
@@ -66,13 +68,29 @@ io.on('connection', (socket) => {
     userSockets.get(uCode).add(socket.id);
   };
 
+  // DP Upload helper
+  const uploadAvatar = async (dataUrl) => {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) return '';
+    const res = await cloudinary.uploader.upload(dataUrl, { folder: 'chat_dps' });
+    return res.secure_url;
+  };
+
   socket.on('auth-user', async (data, cb) => {
     let cleanCode = data.userCode.trim().toLowerCase();
     if (!cleanCode.startsWith('@')) cleanCode = '@' + cleanCode;
+    
     if (data.isRegister) {
       const exists = await User.findOne({ $or: [{ userCode: cleanCode }, { phone: data.phone }] });
       if (exists) return cb({ success: false, error: 'User/Phone already exists' });
-      const user = new User({ ...data, userCode: cleanCode, fullName: data.fullName || cleanCode });
+      
+      const avatarUrl = await uploadAvatar(data.avatar);
+      const user = new User({ 
+        userCode: cleanCode, 
+        password: data.password, 
+        phone: data.phone, 
+        fullName: data.fullName || 'Test y', 
+        avatar: avatarUrl 
+      });
       await user.save();
       mapSocket(cleanCode);
       cb({ success: true, user });
@@ -84,12 +102,34 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('update-profile', async (data, cb) => {
+    let updateFields = { fullName: data.fullName, phone: data.phone };
+    if (data.avatar && data.avatar.startsWith('data:image')) {
+      updateFields.avatar = await uploadAvatar(data.avatar);
+    }
+    const updated = await User.findOneAndUpdate({ userCode: data.userCode }, { $set: updateFields }, { new: true });
+    cb({ success: true, user: updated });
+  });
+
+  socket.on('get-user-info', async ({ userCode }, cb) => {
+    const user = await User.findOne({ userCode }, { password: 0 });
+    cb({ user });
+  });
+
+  socket.on('search-user', async ({ query }, cb) => {
+    let clean = query.trim().toLowerCase();
+    if (!clean.startsWith('@')) clean = '@' + clean;
+    const user = await User.findOne({ $or: [{ userCode: clean }, { phone: query }] });
+    if (user) cb({ success: true, user: { userCode: user.userCode, name: user.fullName || user.userCode, avatar: user.avatar } });
+    else cb({ success: false, error: 'User not found' });
+  });
+
   socket.on('add-contact', async ({ myCode, targetCode }, cb) => {
     let cleanTarget = targetCode.trim().toLowerCase();
     if (!cleanTarget.startsWith('@')) cleanTarget = '@' + cleanTarget;
     if (cleanTarget === myCode) return cb({ success: false, error: 'Cannot add yourself' });
     const targetUser = await User.findOne({ userCode: cleanTarget });
-    if (!targetUser) return cb({ success: false, error: 'User not found in system' });
+    if (!targetUser) return cb({ success: false, error: 'User not found' });
     
     await User.findOneAndUpdate(
       { userCode: myCode }, 
@@ -100,13 +140,18 @@ io.on('connection', (socket) => {
 
   socket.on('get-contacts', async ({ myCode }, cb) => {
     const user = await User.findOne({ userCode: myCode });
-    cb({ contacts: user ? user.contacts : [] });
+    if (!user) return cb({ contacts: [] });
+    // Enrichen contacts with avatar & fullName
+    const enriched = await Promise.all(user.contacts.map(async c => {
+      const u = await User.findOne({ userCode: c.userCode });
+      return { userCode: c.userCode, name: c.name || u?.fullName || c.userCode, avatar: u?.avatar || '' };
+    }));
+    cb({ contacts: enriched });
   });
 
   socket.on('post-status', async ({ userCode, text }, cb) => {
     if(!text) return;
-    const st = new Status({ userCode, text });
-    await st.save();
+    await new Status({ userCode, text }).save();
     cb({ success: true });
   });
 
@@ -117,31 +162,31 @@ io.on('connection', (socket) => {
 
   socket.on('send-message', async (data) => {
     const roomId = [data.senderCode, data.targetCode].sort().join('_');
-    const isOnline = userSockets.has(data.targetCode) && userSockets.get(data.targetCode).size > 0;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    const newMsg = new Message({
-      roomId, senderCode: data.senderCode, targetCode: data.targetCode,
-      text: data.text, status: isOnline ? 'delivered' : 'sent', time: timeStr
-    });
+    const newMsg = new Message({ roomId, senderCode: data.senderCode, targetCode: data.targetCode, text: data.text, time: timeStr });
     await newMsg.save();
     io.to(roomId).emit('chat-message', newMsg);
-    if (isOnline) userSockets.get(data.targetCode).forEach(s => io.to(s).emit('notify-msg', newMsg));
   });
 
   socket.on('open-room', async ({ myCode, targetCode }, cb) => {
     const roomId = [myCode, targetCode].sort().join('_');
     socket.join(roomId);
-    const msgs = await Message.find({ roomId }).sort({ createdAt: 1 });
+    const msgs = await Message.find({ roomId, deletedFor: { $ne: myCode } }).sort({ createdAt: 1 });
     cb({ msgs });
   });
 
-  socket.on('make-call', async ({ caller, receiver }) => {
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    await new CallLog({ caller, receiver, time: timeStr }).save();
-    if (userSockets.has(receiver)) {
-      userSockets.get(receiver).forEach(s => io.to(s).emit('incoming-call', { caller, time: timeStr }));
+  socket.on('delete-msg', async ({ msgId, type, myCode }) => {
+    if (type === 'everyone') {
+      const updated = await Message.findByIdAndUpdate(msgId, { text: 'This message was deleted', deletedForEveryone: true }, { new: true });
+      io.emit('msg-deleted', updated);
+    } else {
+      await Message.findByIdAndUpdate(msgId, { $push: { deletedFor: myCode } });
     }
+  });
+
+  socket.on('log-call', async ({ caller, receiver, duration }) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    await new CallLog({ caller, receiver, duration, time: timeStr }).save();
   });
 
   socket.on('get-calls', async ({ myCode }, cb) => {
