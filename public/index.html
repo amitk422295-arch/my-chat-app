@@ -45,7 +45,6 @@
     .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
     
-    /* Original Layout Chat Room UI */
     #chatRoom { position: fixed; inset: 0; background: #09090e; z-index: 60; display: none; flex-direction: column; }
     .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
@@ -122,7 +121,7 @@
     </div>
   </div>
 
-  <!-- MAIN APP (Original Layout) -->
+  <!-- MAIN APP -->
   <div id="mainApp">
     <div class="top-navbar">
       <div style="font-size:20px;font-weight:800;display:flex;justify-content:space-between;align-items:center;">
@@ -182,7 +181,7 @@
     </div>
   </div>
 
-  <!-- CHAT ROOM UI (Original Layout) -->
+  <!-- CHAT ROOM UI -->
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
@@ -210,6 +209,32 @@
     let regDpBase64 = '';
     let currentUserData = null;
     let currentChatTarget = null;
+
+    // Persistent Login Check on Page Load & Auto-Sync on Reconnect
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedUser = localStorage.getItem('chatAppUser');
+      if (savedUser) {
+        try {
+          currentUserData = JSON.parse(savedUser);
+          if (currentUserData && currentUserData.userCode) {
+            launchMainApp();
+          }
+        } catch(e) {
+          localStorage.removeItem('chatAppUser');
+        }
+      }
+    });
+
+    socket.on('connect', () => {
+      if (currentUserData && currentUserData.userCode) {
+        loadContacts();
+        if (currentChatTarget) {
+          socket.emit('get-messages', { targetCode: currentChatTarget.userCode }, res => {
+            if (res?.success) renderMessages(res.messages || []);
+          });
+        }
+      }
+    });
 
     function showToast(msg, type='info') {
       const t = document.getElementById('toastBox');
@@ -280,6 +305,7 @@
       }, res => {
         if (res && res.success) {
           currentUserData = res.user;
+          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
           showToast('Registration successful!', 'success');
           launchMainApp();
         } else {
@@ -297,6 +323,7 @@
       socket.emit('auth-user', { userCode: id, password: pass }, res => {
         if (res && res.success) {
           currentUserData = res.user;
+          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
           showToast('Welcome back!', 'success');
           launchMainApp();
         } else {
@@ -508,9 +535,10 @@
     function saveMyProfile(){ 
       const fullName=document.getElementById('myProfileName').value.trim(); 
       const avatar=document.getElementById('myProfileAvatar').src||''; 
-      socket.emit('update-profile',{fullName,avatar},res=>{ 
+      socket.emit('update-profile',{fullName,avatar},res => { 
         if(res?.success){
           currentUserData=res.user; 
+          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
           closeMyProfile(); 
           loadContacts(); 
           showToast('Profile saved','success');
@@ -520,7 +548,16 @@
       }); 
     }
     
-    function logoutApp(){ closeAppMenu(); currentChatTarget=null; currentUserData=null; document.getElementById('mainApp').style.display='none'; document.getElementById('chatRoom').style.display='none'; document.getElementById('screenAuth').style.display='flex'; showToast('Logged out','success'); }
+    function logoutApp(){ 
+      closeAppMenu(); 
+      localStorage.removeItem('chatAppUser');
+      currentUserData=null; 
+      currentChatTarget=null; 
+      document.getElementById('mainApp').style.display='none'; 
+      document.getElementById('chatRoom').style.display='none'; 
+      document.getElementById('screenAuth').style.display='flex'; 
+      showToast('Logged out','success'); 
+    }
   </script>
 </body>
 </html>
