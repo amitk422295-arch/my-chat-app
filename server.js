@@ -4,7 +4,6 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -38,7 +37,6 @@ const userSchema = new mongoose.Schema({
   userCode: { type: String, unique: true, required: true, lowercase: true },
   password: { type: String, required: true },
   fullName: { type: String, default: 'User' },
-  email: { type: String, default: '' },
   mobile: { type: String, default: '' },
   avatar: { type: String, default: '' },
   dateOfBirth: { type: String, default: '' },
@@ -67,76 +65,26 @@ const messageSchema = new mongoose.Schema({
 messageSchema.index({ senderCode: 1, receiverCode: 1, createdAt: 1 });
 const Message = mongoose.model('Message', messageSchema);
 
-const otpStorage = new Map();
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || ''
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
-// REST API for Email OTP (Works universally for any user/friend)
-app.post('/api/send-email-otp', async (req, res) => {
-  const cleanEmail = String(req.body.email || '').trim().toLowerCase();
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    return res.status(400).json({ success: false, error: 'Invalid email address.' });
-  }
-
-  try {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStorage.set(cleanEmail, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
-
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      await transporter.sendMail({
-        from: `"Chat App Support" <${process.env.SMTP_USER}>`,
-        to: cleanEmail,
-        subject: 'Your Chat App Verification OTP',
-        text: `Your verification OTP is: ${otp}. It is valid for 5 minutes.`
-      });
-    } else {
-      console.log(`[DEV OTP] OTP for ${cleanEmail} is: ${otp}`);
-    }
-
-    res.json({ success: true });
-  } catch (e) {
-    console.error('SMTP Send Error:', e.message);
-    res.status(500).json({ success: false, error: 'Failed to send OTP email: ' + e.message });
-  }
-});
-
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  socket.on('verify-otp-and-register', async ({ email, otp, password, fullName, mobile, avatar }, callback) => {
-    const cleanEmail = String(email || '').trim().toLowerCase();
-    const cleanOtp = String(otp || '').trim();
+  // Custom User ID Registration
+  socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar }, callback) => {
+    const rawId = String(userCode || '').trim().toLowerCase();
     const passStr = String(password || '').trim();
 
     try {
-      const record = otpStorage.get(cleanEmail);
-      if (!record || record.expiresAt < Date.now() || record.otp !== cleanOtp) {
-        return callback({ success: false, error: 'Invalid or expired OTP.' });
+      if (!rawId.startsWith('@') || rawId.length < 5) {
+        return callback({ success: false, error: 'User ID must start with @ and have at least 4 characters after it.' });
       }
 
       if (passStr.length !== 8) {
         return callback({ success: false, error: 'Password must be strictly 8 digits.' });
       }
 
-      const emailPrefix = cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '');
-      const baseName = emailPrefix.slice(0, 6).padEnd(6, 'x');
-      let autoUserCode = '@' + baseName;
-      
-      let counter = 1;
-      while (await User.findOne({ userCode: autoUserCode })) {
-        autoUserCode = '@' + baseName.slice(0, 4) + counter;
-        counter++;
+      const existingUser = await User.findOne({ userCode: rawId });
+      if (existingUser) {
+        return callback({ success: false, error: 'This User ID is already taken. Choose another.' });
       }
 
       const existingMobile = await User.findOne({ mobile: String(mobile || '').trim() });
@@ -145,19 +93,17 @@ io.on('connection', (socket) => {
       }
 
       const newUser = await User.create({
-        userCode: autoUserCode,
+        userCode: rawId,
         password: passStr,
         fullName: fullName || 'User',
-        email: cleanEmail,
         mobile: String(mobile || '').trim(),
         avatar: avatar || '',
         blockedByMe: {}
       });
 
-      otpStorage.delete(cleanEmail);
-      currentUserCode = autoUserCode;
-      socket.join(autoUserCode);
-      io.emit('user-online-status', { targetCode: autoUserCode, isOnline: true });
+      currentUserCode = rawId;
+      socket.join(rawId);
+      io.emit('user-online-status', { targetCode: rawId, isOnline: true });
 
       callback({ success: true, user: newUser });
     } catch (e) {
@@ -165,68 +111,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('verify-forgot-otp', async ({ email, otp, mode }, callback) => {
-    const cleanEmail = String(email || '').trim().toLowerCase();
-    const cleanOtp = String(otp || '').trim();
-    try {
-      const record = otpStorage.get(cleanEmail);
-      if (!record || record.expiresAt < Date.now() || record.otp !== cleanOtp) {
-        return callback({ success: false, error: 'Invalid or expired OTP.' });
-      }
-      const userObj = await User.findOne({ email: cleanEmail });
-      if (!userObj) return callback({ success: false, error: 'Email not registered.' });
-
-      if (mode === 'userid') {
-        otpStorage.delete(cleanEmail);
-        return callback({ success: true, userCode: userObj.userCode });
-      } else {
-        return callback({ success: true });
-      }
-    } catch(e) {
-      callback({ success: false, error: 'Verification failed.' });
-    }
-  });
-
-  socket.on('update-forgot-password', async ({ email, newPassword }, callback) => {
-    const cleanEmail = String(email || '').trim().toLowerCase();
-    const passStr = String(newPassword || '').trim();
-    if(passStr.length !== 8) return callback({ success: false, error: 'Password must be 8 digits.' });
-    try {
-      const userObj = await User.findOneAndUpdate({ email: cleanEmail }, { password: passStr });
-      if(!userObj) return callback({ success: false, error: 'User not found.' });
-      otpStorage.delete(cleanEmail);
-      callback({ success: true });
-    } catch(e) {
-      callback({ success: false, error: 'Update failed.' });
-    }
-  });
-
-  socket.on('auth-user', async ({ userCode, password, isRegister }, callback) => {
+  socket.on('auth-user', async ({ userCode, password }, callback) => {
     const query = String(userCode || '').trim();
     const passStr = String(password || '').trim();
 
     try {
-      if (isRegister) {
-        return callback({ success: false, error: 'Use OTP registration flow.' });
-      } else {
-        const isMobileQuery = /^\d{10,13}$/.test(query);
-        const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
+      const isMobileQuery = /^\d{10,13}$/.test(query);
+      const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
 
-        const userObj = await User.findOne({
-          $or: [
-            ...(normalizedId ? [{ userCode: normalizedId }] : []),
-            ...(isMobileQuery ? [{ mobile: query }] : [])
-          ]
-        });
+      const userObj = await User.findOne({
+        $or: [
+          ...(normalizedId ? [{ userCode: normalizedId }] : []),
+          ...(isMobileQuery ? [{ mobile: query }] : [])
+        ]
+      });
 
-        if (!userObj) return callback({ success: false, error: 'Account not found by ID or mobile.' });
-        if (userObj.password !== passStr) return callback({ success: false, error: 'Incorrect password.' });
+      if (!userObj) return callback({ success: false, error: 'Account not found by ID or mobile.' });
+      if (userObj.password !== passStr) return callback({ success: false, error: 'Incorrect password.' });
 
-        currentUserCode = userObj.userCode;
-        socket.join(currentUserCode);
-        io.emit('user-online-status', { targetCode: currentUserCode, isOnline: true });
-        return callback({ success: true, user: userObj });
-      }
+      currentUserCode = userObj.userCode;
+      socket.join(currentUserCode);
+      io.emit('user-online-status', { targetCode: currentUserCode, isOnline: true });
+      return callback({ success: true, user: userObj });
     } catch (err) {
       return callback({ success: false, error: 'Auth error: ' + err.message });
     }
