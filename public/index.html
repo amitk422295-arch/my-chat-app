@@ -39,23 +39,6 @@
     .status-row { display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid rgba(255,255,255,.06); cursor:pointer; }
     .status-avatar { width:56px;height:56px;border-radius:50%;padding:3px;object-fit:cover;background:linear-gradient(135deg,#ff3b5c,#ff9aae); flex:none; }
     .status-avatar-inner { width:100%;height:100%;border-radius:50%;object-fit:cover;background:#222;display:block; }
-    .status-count { margin-left:auto;font-size:11px;color:#888; }
-    .status-viewer { width:100%; max-width:430px; height:78vh; background:#050509; border-radius:22px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
-    .status-viewer img,.status-viewer video { max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain; }
-    .status-close { position:absolute;right:10px;top:10px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:38px;height:38px;font-size:20px; }
-    .status-top { position:absolute;left:12px;right:52px;top:10px;z-index:2;color:#fff;text-shadow:0 1px 4px #000; }
-    .status-progress { display:flex;gap:3px;margin-bottom:7px; }
-    .status-progress i { height:3px;flex:1;background:rgba(255,255,255,.35);border-radius:3px; }
-    .status-progress i.active { background:#fff; }
-    .status-nav { position:absolute;inset:60px 0 0;z-index:1;display:flex; }
-    .status-nav button { flex:1;border:0;background:transparent; }
-    .audio-controls { display:flex;align-items:center;gap:8px;margin-top:4px; }
-    .voice-btn { width:40px;height:40px;border-radius:50%;border:0;background:#262631;color:#fff;font-size:18px;cursor:pointer; }
-    .volume-control { width:90px; accent-color:#ff3b5c; }
-    .voice-player { display:flex;align-items:center;gap:8px;min-width:170px; }
-    .voice-player audio { width:145px;height:30px; }
-    .profile-card img { image-rendering:auto; }
-    .profile-edit-avatar { width:110px;height:110px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;background:#222; }
     .panes-wrapper { flex: 1; position: relative; overflow: hidden; }
     .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; background: #0c0c12; }
     .tab-pane.active { display: flex; }
@@ -67,17 +50,11 @@
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
     .input-wrapper input { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; }
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\"><path fill=\"white\" fill-opacity=\"0.025\" d=\"M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z\"/></svg>'); background-size:54px 54px; }
+    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; }
     .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.25); cursor:pointer; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
-    .deleted-message { opacity:.65; font-style:italic; }
-    #messageMenu { position:fixed; display:none; z-index:200; min-width:190px; background:#1c1c27; border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:6px; box-shadow:0 18px 50px rgba(0,0,0,.7); }
-    #messageMenu button { width:100%; padding:11px 12px; border:0; background:transparent; color:#fff; text-align:left; border-radius:9px; font-size:13px; }
-    #messageMenu button:hover { background:rgba(255,255,255,.08); }
-    #messageMenu .danger { color:#ff6b8b; }
-    #profileModal { position:fixed; inset:0; z-index:190; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.72); }
     .profile-card { width:100%; max-width:360px; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.8); }
     .profile-card img { width:110px; height:110px; border-radius:50%; object-fit:cover; border:3px solid #ff3b5c; }
   </style>
@@ -92,27 +69,17 @@
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
       <h3 style="color:#fff;" id="authTitle">Create Account</h3>
-      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register with Email OTP</p>
+      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register with Custom User ID</p>
 
-      <!-- Step 1: Input details & request Email OTP -->
-      <div id="viewRegStep1" style="display:flex; flex-direction:column; gap:12px;">
-        <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
-        <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
-        <input type="email" id="regEmailInput" class="input-box" placeholder="Email ID (for OTP) *">
-        <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
-        <button class="btn-gradient" type="button" onclick="requestEmailOtp()">Send OTP & Next ➔</button>
-      </div>
-
-      <!-- Step 2: Verify OTP & set DP -->
-      <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
+      <!-- Register View -->
+      <div id="viewRegister" style="display:flex; flex-direction:column; gap:12px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
-        <input type="text" id="regOtpInput" class="input-box" placeholder="Enter 6-digit Email OTP" maxlength="6">
-        <div style="font-size:11px;color:#8a8a9e;text-align:left;">User ID will be auto-generated from your email (first 6 letters + @)</div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn-gradient" type="button" style="flex:1; background:#333;" onclick="goRegStep1()">Back</button>
-          <button class="btn-gradient" type="button" style="flex:2;" onclick="verifyAndRegister()">Verify & Register</button>
-        </div>
+        <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
+        <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
+        <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID (e.g. @amit123)">
+        <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
+        <button class="btn-gradient" type="button" onclick="handleRegisterCustom()">Register Now ➔</button>
       </div>
 
       <!-- Login View -->
@@ -120,35 +87,9 @@
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
         <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
         <button class="btn-gradient" type="button" onclick="handleLogin()">Login</button>
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:4px;">
-          <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal('userid')">Forgot User ID?</span>
-          <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal('password')">Forgot Password?</span>
-        </div>
       </div>
 
       <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
-    </div>
-  </div>
-
-  <!-- FORGOT MODAL -->
-  <div id="forgotModal" class="modal" onclick="if(event.target===this)closeForgotModal()">
-    <div class="modal-card">
-      <h3 id="forgotModalTitle" style="margin-bottom:10px;">Recover</h3>
-      <div id="forgotStep1" style="display:flex; flex-direction:column; gap:12px;">
-        <input type="email" id="forgotEmailInput" class="input-box" placeholder="Enter Registered Email">
-        <button class="btn-gradient" onclick="requestForgotOtp()">Send OTP</button>
-      </div>
-      <div id="forgotStep2" style="display:none; flex-direction:column; gap:12px;">
-        <input type="text" id="forgotOtpInput" class="input-box" placeholder="Enter 6-digit OTP" maxlength="6">
-        <button class="btn-gradient" onclick="verifyForgotOtp()">Verify OTP</button>
-      </div>
-      <div id="forgotStep3" style="display:none; flex-direction:column; gap:12px;">
-        <div id="forgotResultDisplay" style="font-size:14px; color:#00ff88; font-weight:700;"></div>
-        <input type="password" id="newPassInput" class="input-box" placeholder="New 8-digit Password" maxlength="8" style="display:none;">
-        <input type="password" id="confirmPassInput" class="input-box" placeholder="Confirm 8-digit Password" maxlength="8" style="display:none;">
-        <button class="btn-gradient" id="resetPassBtn" onclick="submitNewPassword()" style="display:none;">Update Password</button>
-      </div>
-      <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">×</button>
     </div>
   </div>
 
@@ -170,7 +111,6 @@
     </div>
 
     <div class="panes-wrapper">
-      <!-- CHATS PANE -->
       <div class="tab-pane active" id="paneChats">
         <div style="padding:12px;display:flex;gap:8px;">
           <input type="text" id="directSearchInput" class="input-box" placeholder="Search/Open @userid or mobile">
@@ -179,7 +119,6 @@
         <div id="chatsList"></div>
       </div>
 
-      <!-- STATUS PANE -->
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
@@ -189,7 +128,6 @@
         </div>
       </div>
 
-      <!-- CALLS PANE -->
       <div class="tab-pane" id="paneCalls">
         <div id="callsList" style="padding:16px;">Loading call history...</div>
       </div>
@@ -200,70 +138,17 @@
   <div id="appMenu" class="menu-panel" onclick="event.stopPropagation()">
     <button onclick="openMyProfile()">👤 My Profile</button>
     <button onclick="openSettings()">⚙️ Settings</button>
-    <button onclick="openPrivacy()">🔒 Privacy</button>
-    <button onclick="openBlockedUsers()">🚫 Blocked Contacts</button>
-    <button onclick="showToast('About: Chat App','info'); closeAppMenu()">ℹ️ About</button>
     <button class="danger" onclick="logoutApp()">🚪 Logout</button>
   </div>
 
   <div id="myProfileModal" class="modal" onclick="if(event.target===this)closeMyProfile()">
     <div class="modal-card">
       <h3 style="text-align:center;margin-bottom:14px;">My Profile</h3>
-      <img id="myProfileAvatar" class="profile-edit-avatar" src="" onclick="document.getElementById('profileAvatarInput').click()">
-      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none" onchange="changeMyAvatar(this)">
+      <img id="myProfileAvatar" class="profile-edit-avatar" src="" style="width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;">
       <input id="myProfileName" class="input-box" placeholder="Full Name">
-      <input id="myProfileDob" class="input-box" type="date" style="margin-top:10px">
       <div id="myProfileId" style="font-size:12px;color:#888;margin:10px 0;text-align:center"></div>
       <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
       <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMyProfile()">×</button>
-    </div>
-  </div>
-
-  <div id="settingsModal" class="modal" onclick="if(event.target===this)closeSettings()">
-    <div class="modal-card">
-      <h3>Settings</h3>
-      <div style="padding:14px 0;border-bottom:1px solid #292932">🔔 Notifications <label style="float:right"><input id="notifyToggle" type="checkbox" checked></label></div>
-      <div style="padding:14px 0;border-bottom:1px solid #292932">✓ Read receipts <label style="float:right"><input id="readToggle" type="checkbox" checked></label></div>
-      <div style="padding:14px 0">🎨 Heart background <label style="float:right"><input id="heartToggle" type="checkbox" checked onchange="toggleHeartBackground(this)"></label></div>
-      <button class="btn-gradient" style="width:100%;margin-top:12px" onclick="closeSettings()">Done</button>
-    </div>
-  </div>
-
-  <div id="privacyModal" class="modal" onclick="if(event.target===this)closePrivacy()">
-    <div class="modal-card">
-      <h3>Privacy</h3>
-      <div style="padding:14px 0;border-bottom:1px solid #292932">Last seen & online <span style="float:right;color:#8f8f9e">Everyone</span></div>
-      <div style="padding:14px 0;border-bottom:1px solid #292932">Profile photo <span style="float:right;color:#8f8f9e">Everyone</span></div>
-      <div style="padding:14px 0">Status <span style="float:right;color:#8f8f9e">Contacts</span></div>
-      <button class="btn-gradient" style="width:100%;margin-top:12px" onclick="closePrivacy()">Done</button>
-    </div>
-  </div>
-
-  <div id="blockedModal" class="modal" onclick="if(event.target===this)closeBlockedUsers()">
-    <div class="modal-card"><h3>Blocked Contacts</h3><div id="blockedList" style="margin-top:10px">Loading...</div><button class="btn-gradient" style="width:100%;margin-top:14px" onclick="closeBlockedUsers()">Close</button></div>
-  </div>
-
-  <div id="statusViewerModal" class="modal" onclick="if(event.target===this)closeStatusViewer()">
-    <div class="status-viewer">
-      <button class="status-close" onclick="closeStatusViewer()">×</button>
-      <div class="status-top"><button id="statusDeleteBtn" onclick="deleteCurrentStatus()" style="display:none;position:absolute;top:54px;right:18px;background:rgba(255,59,92,.9);color:#fff;border:0;border-radius:12px;padding:7px 10px;font-size:12px;z-index:3;">Delete</button>
-      <div id="statusProgress" class="status-progress"></div><b id="statusViewerName">Status</b></div>
-      <div id="statusViewerMedia"></div>
-      <div class="status-nav"><button onclick="prevStatus()"></button><button onclick="nextStatus()"></button></div>
-    </div>
-  </div>
-
-  <!-- CALL OVERLAY -->
-  <div id="callOverlay" style="position:fixed;inset:0;background:rgba(5,5,10,.97);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px;">
-    <div style="width:100%;max-width:380px;text-align:center;">
-      <img id="callAvatar" src="" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:2px solid #ff3b5c;background:#222;">
-      <div id="callName" style="font-size:21px;font-weight:800;margin-top:16px;">User</div>
-      <div id="callState" style="font-size:13px;color:#aaa;margin-top:7px;">Calling…</div>
-      <audio id="remoteAudio" autoplay playsinline></audio>
-      <div style="display:flex;justify-content:center;gap:18px;margin-top:34px;">
-        <button id="acceptCallBtn" class="btn-circle" style="display:none;background:#00c853;" onclick="acceptIncomingCall()">✓</button>
-        <button class="btn-circle" style="background:#ff3b5c;" onclick="endActiveCall()">✕</button>
-      </div>
     </div>
   </div>
 
@@ -271,69 +156,27 @@
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;">←</button>
-      <img id="roomUserAvatar" src="" onclick="openCurrentProfile()" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;">
-      <div style="flex:1;cursor:pointer;" onclick="openCurrentProfile()">
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+      <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Offline</div>
       </div>
-      <button class="btn-circle" onclick="startAudioCall()">📞</button>
     </div>
     <div id="roomMessages" style="flex:1;overflow-y:auto;padding:14px;"></div>
     <div class="bottom-input-bar">
-      <button class="voice-btn" id="voiceRecordBtn" onclick="toggleVoiceRecording()" title="Voice message">🎤</button>
       <div class="input-wrapper">
         <input type="text" id="msgInputBox" placeholder="Type a message...">
-      </div>
-      <div class="audio-controls" title="Playback volume">
-        <span style="font-size:13px;">🔊</span><input id="volumeControl" class="volume-control" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
       </div>
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
     </div>
   </div>
 
-  <!-- Message actions -->
-  <div id="messageMenu">
-    <button type="button" onclick="deleteSelectedMessage('me')">Delete for me</button>
-    <button type="button" class="danger" onclick="deleteSelectedMessage('everyone')">Delete for everyone</button>
-  </div>
-
-  <!-- Profile popup -->
-  <div id="profileModal" onclick="if(event.target===this) closeProfileModal()">
-    <div class="profile-card">
-      <img id="profileModalAvatar" src="" alt="Profile">
-      <h3 id="profileModalName" style="margin-top:14px;">User</h3>
-      <div id="profileModalId" style="font-size:12px;color:#8a8a9e;margin-top:6px;"></div>
-      <button id="profileBlockBtn" class="btn-gradient" style="width:100%;margin-top:18px;background:#333" onclick="toggleBlockCurrentUser()">Block</button>
-      <button class="btn-gradient" style="width:100%;margin-top:10px;" onclick="closeProfileModal()">Close</button>
-    </div>
-  </div>
-
-  <!-- Secure Firebase Loader from Backend Config -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-    fetch('/api/config')
-      .then(res => res.json())
-      .then(firebaseConfig => {
-        const app = initializeApp(firebaseConfig);
-        window.fbAuth = getAuth(app);
-        window.fbCreateUser = createUserWithEmailAndPassword;
-        window.fbSignInUser = signInWithEmailAndPassword;
-      })
-      .catch(err => console.error("Firebase config load error:", err));
-  </script>
-
   <script>
     const socket = io();
-    let authMode = 'reg1';
-    let regTempData = { name: '', mobile: '', email: '', pass: '', dp: '' };
-    let forgotMode = 'userid';
-    let currentChatTarget = null;
+    let authMode = 'reg';
+    let regDpBase64 = '';
     let currentUserData = null;
-    let mediaRecorder = null, voiceChunks = [], recordingStartedAt = 0;
-    let statusGroups = [], activeStatusGroup = null, activeStatusIndex = 0;
-    let currentProfileBlocked = false;
+    let currentChatTarget = null;
 
     function showToast(msg, type='info') {
       const t = document.getElementById('toastBox');
@@ -343,209 +186,71 @@
 
     function toggleAuthMode() {
       const loginView = document.getElementById('viewLogin');
-      const reg1View = document.getElementById('viewRegStep1');
-      const reg2View = document.getElementById('viewRegStep2');
+      const regView = document.getElementById('viewRegister');
       const title = document.getElementById('authTitle');
       const sub = document.getElementById('authSub');
       const switchText = document.getElementById('authSwitchText');
 
       if (authMode === 'login') {
-        authMode = 'reg1';
+        authMode = 'reg';
         title.textContent = 'Create Account';
-        sub.textContent = 'Register with Email OTP';
-        loginView.style.display = 'none'; reg2View.style.display = 'none'; reg1View.style.display = 'flex';
+        sub.textContent = 'Register with Custom User ID';
+        loginView.style.display = 'none'; regView.style.display = 'flex';
         switchText.textContent = 'Already have an account? Login';
       } else {
         authMode = 'login';
         title.textContent = 'Welcome Back';
         sub.textContent = 'Existing user? Login here';
-        reg1View.style.display = 'none'; reg2View.style.display = 'none'; loginView.style.display = 'flex';
+        regView.style.display = 'none'; loginView.style.display = 'flex';
         switchText.textContent = 'New here? Register Account';
       }
-    }
-
-    // Universal HTTP Fetch API for Sending OTP (Works for any friend/user)
-    async function requestEmailOtp() {
-      const name = document.getElementById('regNameInput').value.trim();
-      const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
-      const email = document.getElementById('regEmailInput').value.trim().toLowerCase();
-      const pass = document.getElementById('regPassInput').value.trim();
-      
-      if (!name || mobile.length < 10) { showToast('Valid name & 10+ digit mobile required', 'error'); return; }
-      if (!email || !email.includes('@')) { showToast('Valid email required', 'error'); return; }
-      if (pass.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
-
-      regTempData = { name, mobile, email, pass, dp: regTempData.dp };
-      showToast('Sending OTP...', 'info');
-
-      try {
-        const response = await fetch('/api/send-email-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const res = await response.json();
-
-        if (res && res.success) {
-          showToast('OTP sent to your email!', 'success');
-          authMode = 'reg2';
-          document.getElementById('authTitle').textContent = 'Verify Email OTP';
-          document.getElementById('viewRegStep1').style.display = 'none';
-          document.getElementById('viewRegStep2').style.display = 'flex';
-        } else {
-          showToast(res?.error || 'Failed to send OTP', 'error');
-        }
-      } catch (err) {
-        showToast('Network error while sending OTP', 'error');
-      }
-    }
-
-    function goRegStep1() {
-      authMode = 'reg1';
-      document.getElementById('authTitle').textContent = 'Create Account';
-      document.getElementById('viewRegStep2').style.display = 'none';
-      document.getElementById('viewRegStep1').style.display = 'flex';
     }
 
     function previewDp(inp) {
       const file = inp.files && inp.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = e => { regTempData.dp = e.target.result; document.getElementById('dpViewer').src = regTempData.dp; };
+      reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; };
       reader.readAsDataURL(file);
     }
 
-    async function verifyAndRegister() {
-      const otp = document.getElementById('regOtpInput').value.trim();
-      if (otp.length !== 6) { showToast('Enter 6-digit OTP', 'error'); return; }
+    function handleRegisterCustom() {
+      const name = document.getElementById('regNameInput').value.trim();
+      const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
+      const userId = document.getElementById('regUserIdInput').value.trim().toLowerCase();
+      const pass = document.getElementById('regPassInput').value.trim();
+
+      if (!name || mobile.length < 10) { showToast('Valid name & 10+ digit mobile required', 'error'); return; }
+      if (!userId.startsWith('@') || userId.length < 5) { showToast('User ID must start with @ and have 4+ characters', 'error'); return; }
+      if (pass.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
+
       showToast('Creating account...', 'info');
-
-      try {
-        if (window.fbAuth && window.fbCreateUser) {
-          await window.fbCreateUser(window.fbAuth, regTempData.email, regTempData.pass);
-        }
-      } catch(err) {}
-
-      socket.emit('verify-otp-and-register', {
-        email: regTempData.email,
-        otp,
-        password: regTempData.pass,
-        fullName: regTempData.name,
-        mobile: regTempData.mobile,
-        avatar: regTempData.dp
+      socket.emit('register-custom', {
+        userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64
       }, res => {
         if (res && res.success) {
           currentUserData = res.user;
-          showToast('Registration successful! ID: ' + res.user.userCode, 'success');
+          showToast('Registration successful!', 'success');
           launchMainApp();
-        } else { showToast(res?.error || 'Registration failed', 'error'); }
+        } else {
+          showToast(res?.error || 'Registration failed', 'error');
+        }
       });
     }
 
-    async function handleLogin() {
+    function handleLogin() {
       const id = document.getElementById('loginIdInput').value.trim();
       const pass = document.getElementById('loginPassInput').value.trim();
       if(!id || !pass) { showToast('Enter ID/Mobile and Password', 'error'); return; }
       showToast('Logging in...', 'info');
 
-      socket.emit('auth-user', { userCode: id, password: pass, isRegister: false }, async res => {
+      socket.emit('auth-user', { userCode: id, password: pass }, res => {
         if (res && res.success) {
           currentUserData = res.user;
-          try {
-            if(res.user.email && window.fbAuth && window.fbSignInUser) {
-              await window.fbSignInUser(window.fbAuth, res.user.email, pass);
-            }
-          } catch(e) {}
           showToast('Welcome back!', 'success');
           launchMainApp();
-        } else { showToast(res?.error || 'Invalid credentials', 'error'); }
-      });
-    }
-
-    function openForgotModal(mode) {
-      forgotMode = mode;
-      document.getElementById('forgotModalTitle').textContent = mode === 'userid' ? 'Forgot User ID' : 'Forgot Password';
-      document.getElementById('forgotStep1').style.display = 'flex';
-      document.getElementById('forgotStep2').style.display = 'none';
-      document.getElementById('forgotStep3').style.display = 'none';
-      document.getElementById('forgotEmailInput').value = '';
-      document.getElementById('forgotOtpInput').value = '';
-      document.getElementById('newPassInput').value = '';
-      document.getElementById('confirmPassInput').value = '';
-      document.getElementById('newPassInput').style.display = 'none';
-      document.getElementById('confirmPassInput').style.display = 'none';
-      document.getElementById('resetPassBtn').style.display = 'none';
-      document.getElementById('forgotModal').style.display = 'flex';
-    }
-
-    function closeForgotModal() {
-      document.getElementById('forgotModal').style.display = 'none';
-    }
-
-    let forgotTempEmail = '';
-    async function requestForgotOtp() {
-      const email = document.getElementById('forgotEmailInput').value.trim().toLowerCase();
-      if(!email || !email.includes('@')) { showToast('Valid email required', 'error'); return; }
-      forgotTempEmail = email;
-      showToast('Sending OTP...', 'info');
-
-      try {
-        const response = await fetch('/api/send-email-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const res = await response.json();
-
-        if(res && res.success) {
-          showToast('OTP sent to email', 'success');
-          document.getElementById('forgotStep1').style.display = 'none';
-          document.getElementById('forgotStep2').style.display = 'flex';
         } else {
-          showToast(res?.error || 'Email not found', 'error');
-        }
-      } catch(e) {
-        showToast('Network error', 'error');
-      }
-    }
-
-    function verifyForgotOtp() {
-      const otp = document.getElementById('forgotOtpInput').value.trim();
-      if(otp.length !== 6) { showToast('Enter 6-digit OTP', 'error'); return; }
-      showToast('Verifying OTP...', 'info');
-
-      socket.emit('verify-forgot-otp', { email: forgotTempEmail, otp, mode: forgotMode }, res => {
-        if(res && res.success) {
-          document.getElementById('forgotStep2').style.display = 'none';
-          document.getElementById('forgotStep3').style.display = 'flex';
-          const resDisp = document.getElementById('forgotResultDisplay');
-          if(forgotMode === 'userid') {
-            resDisp.textContent = 'Your User ID is: ' + res.userCode;
-          } else {
-            resDisp.textContent = 'OTP verified! Enter new 8-digit password.';
-            document.getElementById('newPassInput').style.display = 'block';
-            document.getElementById('confirmPassInput').style.display = 'block';
-            document.getElementById('resetPassBtn').style.display = 'block';
-          }
-        } else {
-          showToast(res?.error || 'Invalid OTP', 'error');
-        }
-      });
-    }
-
-    function submitNewPassword() {
-      const p1 = document.getElementById('newPassInput').value.trim();
-      const p2 = document.getElementById('confirmPassInput').value.trim();
-      if(p1.length !== 8 || p2.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
-      if(p1 !== p2) { showToast('Passwords do not match', 'error'); return; }
-      showToast('Updating password...', 'info');
-
-      socket.emit('update-forgot-password', { email: forgotTempEmail, newPassword: p1 }, res => {
-        if(res && res.success) {
-          showToast('Password updated successfully! Please login.', 'success');
-          closeForgotModal();
-        } else {
-          showToast(res?.error || 'Update failed', 'error');
+          showToast(res?.error || 'Invalid credentials', 'error');
         }
       });
     }
@@ -591,9 +296,8 @@
       currentChatTarget = { userCode: uCode, name, avatar };
       document.getElementById('roomUserName').textContent = name || 'User';
       document.getElementById('roomUserAvatar').src = avatar || '';
-      document.getElementById('roomMessages').innerHTML = '<div style=\"text-align:center;color:#777;font-size:12px;padding:20px;\">Loading messages...</div>';
+      document.getElementById('roomMessages').innerHTML = '<div style="text-align:center;color:#777;font-size:12px;padding:20px;">Loading messages...</div>';
       document.getElementById('chatRoom').style.display = 'flex';
-      socket.emit('check-online', { targetCode: uCode });
       socket.emit('get-messages', { targetCode: uCode }, res => {
         if (!res?.success) { showToast(res?.error || 'Could not load messages', 'error'); return; }
         renderMessages(res.messages || []);
@@ -601,7 +305,6 @@
     }
 
     function closeChatRoom() {
-      closeMessageMenu();
       document.getElementById('chatRoom').style.display = 'none';
       currentChatTarget = null;
     }
@@ -610,37 +313,16 @@
       return String(value ?? '').replace(/[&<>\"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[ch]));
     }
 
-    function formatMessageTime(value) {
-      const d = new Date(value);
-      return isNaN(d) ? '' : d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-    }
-
     function renderMessages(messages) {
       const rm = document.getElementById('roomMessages');
       if (!messages.length) {
-        rm.innerHTML = '<div style=\"text-align:center;color:#777;font-size:12px;padding:30px;\">No messages yet. Say hello 👋</div>';
+        rm.innerHTML = '<div style="text-align:center;color:#777;font-size:12px;padding:30px;">No messages yet. Say hello 👋</div>';
         return;
       }
-      rm.innerHTML = messages.map(renderMessageHtml).join('');
-      rm.scrollTop = rm.scrollHeight;
-    }
-
-    function renderMessageHtml(m) {
-      const mine = currentUserData && m.senderCode === currentUserData.userCode;
-      const deleted = !!m.deletedForEveryone;
-      let body='';
-      if(deleted) body='<span>This message was deleted</span>';
-      else if(m.messageType==='audio' && m.media){ body=`<div class="voice-player">🎙️<audio controls preload="metadata" src="${escapeHtml(m.media)}"></audio></div>`; }
-      else body=escapeHtml(m.text);
-      return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'} ${deleted ? 'deleted-message' : ''}" data-message-id="${escapeHtml(m.messageId)}" onclick="openMessageMenu(event, '${escapeHtml(m.messageId)}', ${mine && !deleted})">${body}<span class="msg-time">${formatMessageTime(m.createdAt)}</span></div>`;
-    }
-
-    function appendMessage(m) {
-      const rm = document.getElementById('roomMessages');
-      const empty = rm.querySelector('div[style*=\"text-align:center\"]');
-      if (empty) rm.innerHTML = '';
-      if (rm.querySelector(`[data-message-id=\"${CSS.escape(m.messageId)}\"]`)) return;
-      rm.insertAdjacentHTML('beforeend', renderMessageHtml(m));
+      rm.innerHTML = messages.map(m => {
+        const mine = currentUserData && m.senderCode === currentUserData.userCode;
+        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${escapeHtml(m.text)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`;
+      }).join('');
       rm.scrollTop = rm.scrollHeight;
     }
 
@@ -648,279 +330,34 @@
       const box = document.getElementById('msgInputBox');
       const val = box.value.trim();
       if (!val || !currentChatTarget) return;
-      const clientMessageId = 'client_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
       box.value = '';
-      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, clientMessageId }, res => {
+      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val }, res => {
         if (!res?.success) { box.value = val; showToast(res?.error || 'Message failed', 'error'); }
       });
     }
 
     document.getElementById('msgInputBox').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+      if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
     });
-
-    let selectedMessageId = null;
-    function openMessageMenu(event, messageId, canDeleteEveryone) {
-      event.stopPropagation();
-      selectedMessageId = messageId;
-      const menu = document.getElementById('messageMenu');
-      const everyoneBtn = menu.querySelector('.danger');
-      everyoneBtn.style.display = canDeleteEveryone ? 'block' : 'none';
-      menu.style.display = 'block';
-      const x = Math.min(event.clientX, window.innerWidth - 205);
-      const y = Math.min(event.clientY, window.innerHeight - 105);
-      menu.style.left = Math.max(8, x) + 'px';
-      menu.style.top = Math.max(8, y) + 'px';
-    }
-
-    function closeMessageMenu() { document.getElementById('messageMenu').style.display = 'none'; selectedMessageId = null; }
-    document.addEventListener('click', closeMessageMenu);
-
-    function deleteSelectedMessage(mode) {
-      if (!selectedMessageId) return;
-      const id = selectedMessageId;
-      closeMessageMenu();
-      socket.emit('delete-message', { messageId: id, mode }, res => {
-        if (!res?.success) showToast(res?.error || 'Delete failed', 'error');
-      });
-    }
 
     socket.on('new-message', m => {
       if (!currentUserData) return;
       const related = (m.senderCode === currentUserData.userCode && currentChatTarget?.userCode === m.receiverCode) ||
                       (m.receiverCode === currentUserData.userCode && currentChatTarget?.userCode === m.senderCode);
-      if (related) appendMessage(m);
-    });
-
-    socket.on('message-deleted', ({ messageId, mode }) => {
-      const el = document.querySelector(`[data-message-id=\"${CSS.escape(messageId)}\"]`);
-      if (!el) return;
-      if (mode === 'everyone') {
-        el.classList.add('deleted-message');
-        el.innerHTML = 'This message was deleted<span class=\"msg-time\">' + (el.querySelector('.msg-time')?.textContent || '') + '</span>';
-      } else {
-        el.remove();
+      if (related) {
+        const rm = document.getElementById('roomMessages');
+        rm.insertAdjacentHTML('beforeend', `<div class="msg-bubble ${m.senderCode === currentUserData.userCode ? 'mine' : 'theirs'}">${escapeHtml(m.text)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`);
+        rm.scrollTop = rm.scrollHeight;
       }
-    });
-
-    function openCurrentProfile() {
-      if (!currentChatTarget) return;
-      document.getElementById('profileModalAvatar').src = currentChatTarget.avatar || '';
-      document.getElementById('profileModalName').textContent = currentChatTarget.name || 'User';
-      document.getElementById('profileModalId').textContent = currentChatTarget.userCode || '';
-      currentProfileBlocked = false;
-      document.getElementById('profileBlockBtn').textContent = 'Block';
-      socket.emit('check-blocked', { targetCode: currentChatTarget.userCode }, r=>{ if(r?.success){ currentProfileBlocked=!!r.blocked; document.getElementById('profileBlockBtn').textContent=currentProfileBlocked?'Unblock':'Block'; }});
-      document.getElementById('profileModal').style.display = 'flex';
-    }
-    function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }
-
-    socket.on('user-online-status', ({ targetCode, isOnline }) => {
-      if (currentChatTarget && currentChatTarget.userCode === targetCode) {
-        document.getElementById('roomUserStatus').textContent = isOnline ? 'Online' : 'Offline';
-        document.getElementById('roomUserStatus').style.color = isOnline ? '#00ff88' : '#7e7e92';
-      }
-    });
-
-    function loadStatuses() { socket.emit('get-statuses'); }
-    function statusAvatarHtml(avatar, name) {
-      const safe = escapeHtml(avatar || '');
-      return `<div class="status-avatar"><img class="status-avatar-inner" src="${safe || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="28" fill="%23252530"/></svg>'}" alt="${escapeHtml(name||'User')}"></div>`;
-    }
-    socket.on('status-data', data => {
-      statusGroups = [];
-      const mine = data.myStatus || { userCode: currentUserData?.userCode, name: currentUserData?.fullName || 'My Status', avatar: currentUserData?.avatar || '', items: [] };
-      if (mine.items?.length) statusGroups.push(mine);
-      document.getElementById('myStatusArea').innerHTML = `<div class="status-row" onclick="${mine.items?.length ? 'openStatusGroup(0)' : "document.getElementById('statusMediaInput').click()"}">${statusAvatarHtml(mine.avatar,mine.name)}<div style="flex:1"><b>My Status</b><div style="font-size:11px;color:#888">${mine.items?.length ? mine.items.length + ' status' + (mine.items.length>1?'es':'') : 'Tap to add status'}</div></div>${mine.items?.length ? '<button class="btn-gradient" style="padding:7px 10px;font-size:11px" onclick="event.stopPropagation();openStatusGroup(0)">Manage</button>' : ''}</div>`;
-      (data.contactStatuses || []).forEach(s => { if (s.items?.length) { statusGroups.push(s); } });
-      const contactStart = mine.items?.length ? 1 : 0;
-      document.getElementById('contactStatusesArea').innerHTML = (data.contactStatuses || []).filter(s => s.items?.length).map((s,i) => {
-        const groupIndex = contactStart + i;
-        return `<div class="status-row" onclick="openStatusGroup(${groupIndex})">${statusAvatarHtml(s.avatar,s.name)}<div><b>${escapeHtml(s.name || 'User')}</b><div style="font-size:11px;color:#888">${s.items.length} status${s.items.length>1?'es':''} · Tap to view</div></div><span class="status-count">${escapeHtml(s.userCode || '')}</span></div>`;
-      }).join('') || '<div style="padding:16px;color:#7e7e92;text-align:center">No contact stories.</div>';
-    });
-
-    function openStatusGroup(groupIndex) {
-      const group = statusGroups[groupIndex];
-      if (!group || !group.items?.length) return;
-      activeStatusGroup = group; activeStatusIndex = 0;
-      renderStatusViewer();
-      document.getElementById('statusViewerModal').style.display = 'flex';
-    }
-    function renderStatusViewer() {
-      if (!activeStatusGroup) return;
-      const item = activeStatusGroup.items[activeStatusIndex];
-      document.getElementById('statusViewerName').textContent = activeStatusGroup.name || activeStatusGroup.userCode || 'Status';
-      const del = document.getElementById('statusDeleteBtn');
-      if (del) del.style.display = (currentUserData && activeStatusGroup.userCode === currentUserData.userCode) ? 'block' : 'none';
-      document.getElementById('statusProgress').innerHTML = activeStatusGroup.items.map((_,i)=>`<i class="${i===activeStatusIndex?'active':''}"></i>`).join('');
-      const media = String(item.media || '');
-      const host = document.getElementById('statusViewerMedia');
-      host.style.width='100%'; host.style.height='100%';
-      host.innerHTML = item.type === 'video' ? `<video src="${escapeHtml(media)}" controls autoplay playsinline></video>` : `<img src="${escapeHtml(media)}" alt="Status">`;
-    }
-    function prevStatus(){ if(!activeStatusGroup)return; activeStatusIndex=(activeStatusIndex-1+activeStatusGroup.items.length)%activeStatusGroup.items.length; renderStatusViewer(); }
-    function nextStatus(){ if(!activeStatusGroup)return; activeStatusIndex=(activeStatusIndex+1)%activeStatusGroup.items.length; renderStatusViewer(); }
-    function closeStatusViewer(){ document.getElementById('statusViewerModal').style.display='none'; activeStatusGroup=null; }
-
-    function uploadStatusMedia(inp) {
-      const file = inp.files && inp.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      const type = file.type.startsWith('video/') ? 'video' : 'image';
-      reader.onload = e => {
-        socket.emit('post-status', { id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), media: e.target.result, type });
-        showToast('Status posted!', 'success');
-        inp.value='';
-        setTimeout(loadStatuses, 250);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function loadCalls() { socket.emit('get-call-history'); }
-    socket.on('call-history-data', calls => {
-      document.getElementById('callsList').innerHTML = calls.length ? calls.map(c => `
-        <div style="padding:10px;border-bottom:1px solid #222;">
-          <div>Call with <b>${c.otherName || c.otherUser}</b></div>
-          <div style="font-size:11px;color:#7e7e92;">Status: ${c.status}</div>
-        </div>
-      `).join('') : '<div style="color:#7e7e92;">No call history.</div>';
     });
 
     function toggleAppMenu(e){ if(e)e.stopPropagation(); const m=document.getElementById('appMenu'); m.style.display=m.style.display==='block'?'none':'block'; }
     function closeAppMenu(){ document.getElementById('appMenu').style.display='none'; }
     document.addEventListener('click', e=>{ if(!e.target.closest('#appMenu') && !e.target.closest('.icon-btn')) closeAppMenu(); });
-    function openMyProfile(){ closeAppMenu(); if(!currentUserData)return; document.getElementById('myProfileName').value=currentUserData.fullName||''; document.getElementById('myProfileDob').value=currentUserData.dateOfBirth||''; document.getElementById('myProfileId').textContent=currentUserData.userCode||''; document.getElementById('myProfileAvatar').src=currentUserData.avatar||''; document.getElementById('myProfileModal').style.display='flex'; }
+    function openMyProfile(){ closeAppMenu(); if(!currentUserData)return; document.getElementById('myProfileName').value=currentUserData.fullName||''; document.getElementById('myProfileId').textContent=currentUserData.userCode||''; document.getElementById('myProfileAvatar').src=currentUserData.avatar||''; document.getElementById('myProfileModal').style.display='flex'; }
     function closeMyProfile(){ document.getElementById('myProfileModal').style.display='none'; }
-    function changeMyAvatar(inp){ const f=inp.files?.[0]; if(!f)return; const r=new FileReader(); r.onload=e=>{ document.getElementById('myProfileAvatar').src=e.target.result; }; r.readAsDataURL(f); }
-    function saveMyProfile(){ const fullName=document.getElementById('myProfileName').value.trim(); const dateOfBirth=document.getElementById('myProfileDob').value; const avatar=document.getElementById('myProfileAvatar').src||''; socket.emit('update-profile',{fullName,avatar,dateOfBirth},res=>{ if(res?.success){currentUserData=res.user; closeMyProfile(); loadContacts(); showToast('Profile saved','success');} else showToast(res?.error||'Could not save profile','error'); }); }
-    function openSettings(){ closeAppMenu(); document.getElementById('settingsModal').style.display='flex'; }
-    function closeSettings(){ document.getElementById('settingsModal').style.display='none'; }
-    function openPrivacy(){ closeAppMenu(); document.getElementById('privacyModal').style.display='flex'; }
-    function closePrivacy(){ document.getElementById('privacyModal').style.display='none'; }
-    function toggleHeartBackground(inp){ document.querySelector('.bg-heart-pattern').style.opacity=inp.checked?'0.06':'0'; }
-    function openBlockedUsers(){ closeAppMenu(); document.getElementById('blockedModal').style.display='flex'; socket.emit('get-blocked-users'); }
-    function closeBlockedUsers(){ document.getElementById('blockedModal').style.display='none'; }
-    socket.on('blocked-users-data', users=>{ document.getElementById('blockedList').innerHTML=users.length?users.map(u=>`<div class="status-row"><img class="status-avatar-inner" style="width:46px;height:46px" src="${escapeHtml(u.avatar||'')}"/><div style="flex:1"><b>${escapeHtml(u.fullName||'User')}</b><div style="font-size:11px;color:#888">${escapeHtml(u.userCode)}</div></div><button class="btn-gradient" style="padding:8px 10px;font-size:11px" onclick="unblockUser('${escapeHtml(u.userCode)}')">Unblock</button></div>`).join(''):'<div style="padding:18px;color:#888;text-align:center">No blocked contacts.</div>'; });
-    function unblockUser(code){ socket.emit('unblock-user',{targetCode:code},res=>{ if(res?.success){showToast('Unblocked','success');socket.emit('get-blocked-users');}else showToast(res?.error||'Unblock failed','error'); }); }
-    function toggleBlockCurrentUser(){ if(!currentChatTarget)return; const eventName=currentProfileBlocked?'unblock-user':'block-user'; socket.emit(eventName,{targetCode:currentChatTarget.userCode},res=>{ if(res?.success){currentProfileBlocked=!currentProfileBlocked; document.getElementById('profileBlockBtn').textContent=currentProfileBlocked?'Unblock':'Block'; showToast(currentProfileBlocked?'User blocked':'User unblocked',currentProfileBlocked?'info':'success');}else showToast(res?.error||'Action failed','error'); }); }
+    function saveMyProfile(){ const fullName=document.getElementById('myProfileName').value.trim(); const avatar=document.getElementById('myProfileAvatar').src||''; socket.emit('update-profile',{fullName,avatar},res=>{ if(res?.success){currentUserData=res.user; closeMyProfile(); loadContacts(); showToast('Profile saved','success');} else showToast(res?.error||'Could not save profile','error'); }); }
     function logoutApp(){ closeAppMenu(); currentChatTarget=null; currentUserData=null; document.getElementById('mainApp').style.display='none'; document.getElementById('chatRoom').style.display='none'; document.getElementById('screenAuth').style.display='flex'; showToast('Logged out','success'); }
-
-    async function toggleVoiceRecording(){
-      if(!currentChatTarget) return;
-      if(mediaRecorder && mediaRecorder.state==='recording'){ mediaRecorder.stop(); return; }
-      if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){ showToast('Voice recording is not supported on this device/browser','error'); return; }
-      try{
-        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-        voiceChunks=[]; mediaRecorder=new MediaRecorder(stream); recordingStartedAt=Date.now();
-        document.getElementById('voiceRecordBtn').textContent='⏹️';
-        mediaRecorder.ondataavailable=e=>{if(e.data.size)voiceChunks.push(e.data)};
-        mediaRecorder.onstop=()=>{ stream.getTracks().forEach(t=>t.stop()); document.getElementById('voiceRecordBtn').textContent='🎤'; const blob=new Blob(voiceChunks,{type:mediaRecorder.mimeType||'audio/webm'}); const r=new FileReader(); r.onload=()=>{ const duration=Math.round((Date.now()-recordingStartedAt)/1000); socket.emit('send-message',{targetCode:currentChatTarget.userCode,text:'',media:r.result,messageType:'audio',duration,clientMessageId:'client_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)},res=>{if(!res?.success)showToast(res?.error||'Voice message failed','error');}); }; r.readAsDataURL(blob); };
-        mediaRecorder.start(); showToast('Recording voice… tap 🎤 to send','info');
-      }catch(e){ showToast('Microphone permission is required','error'); }
-    }
-    document.addEventListener('input',e=>{if(e.target.id==='volumeControl')document.querySelectorAll('#roomMessages audio').forEach(a=>a.volume=Number(e.target.value));});
-
-    function deleteCurrentStatus() {
-      if (!activeStatusGroup || !currentUserData || activeStatusGroup.userCode !== currentUserData.userCode) return;
-      const item = activeStatusGroup.items[activeStatusIndex];
-      if (!item?.id) return;
-      if (!confirm('Delete this status?')) return;
-      socket.emit('delete-status', { statusId: item.id }, res => {
-        if (res?.success) { closeStatusViewer(); showToast('Status deleted', 'success'); loadStatuses(); }
-        else showToast(res?.error || 'Could not delete status', 'error');
-      });
-    }
-
-    // WebRTC Audio Calls
-    let activeCall = { pc:null, stream:null, target:null, incoming:false, pendingOffer:null, candidateQueue:[] };
-    const rtcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'}] };
-
-    function showCallOverlay(name, avatar, state, incoming=false) {
-      document.getElementById('callOverlay').style.display='flex';
-      document.getElementById('callName').textContent=name || 'User';
-      document.getElementById('callAvatar').src=avatar || '';
-      document.getElementById('callState').textContent=state || 'Connecting…';
-      document.getElementById('acceptCallBtn').style.display=incoming?'flex':'none';
-    }
-
-    async function startAudioCall() {
-      if (!currentChatTarget || activeCall.pc) return;
-      try {
-        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-        activeCall={pc:null,stream,target:currentChatTarget.userCode,incoming:false,pendingOffer:null,candidateQueue:[]};
-        showCallOverlay(currentChatTarget.name,currentChatTarget.avatar,'Calling…',false);
-        const pc=createCallPeer(activeCall.target);
-        const offer=await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit('call-offer',{targetCode:activeCall.target,offer,caller:currentUserData});
-      } catch(e) {
-        showToast('Microphone permission is required for calling.','error');
-        endActiveCall(true);
-      }
-    }
-
-    function createCallPeer(target) {
-      const pc=new RTCPeerConnection(rtcConfig);
-      activeCall.pc=pc;
-      if(activeCall.stream) activeCall.stream.getTracks().forEach(t=>pc.addTrack(t,activeCall.stream));
-      pc.ontrack=e=>{ document.getElementById('remoteAudio').srcObject=e.streams[0]; };
-      pc.onicecandidate=e=>{ if(e.candidate) socket.emit('call-ice',{targetCode:target,candidate:e.candidate}); };
-      pc.onconnectionstatechange=()=>{
-        if(pc.connectionState==='connected') document.getElementById('callState').textContent='Connected';
-        if(['failed','disconnected'].includes(pc.connectionState)) endActiveCall();
-      };
-      return pc;
-    }
-
-    socket.on('call-offer', async ({fromCode,offer,caller})=>{
-      if(activeCall.pc){ socket.emit('call-busy',{targetCode:fromCode}); return; }
-      try{
-        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-        activeCall={pc:null,stream,target:fromCode,incoming:true,pendingOffer:offer,candidateQueue:[]};
-        activeCall.caller=caller||{};
-        showCallOverlay(caller?.fullName||fromCode,caller?.avatar||'','Incoming audio call…',true);
-      }catch(e){ socket.emit('call-reject',{targetCode:fromCode}); }
-    });
-
-    async function acceptIncomingCall(){
-      if(!activeCall.pendingOffer || !activeCall.target) return;
-      document.getElementById('acceptCallBtn').style.display='none';
-      document.getElementById('callState').textContent='Connecting…';
-      const pc=createCallPeer(activeCall.target);
-      await pc.setRemoteDescription(new RTCSessionDescription(activeCall.pendingOffer));
-      for(const c of activeCall.candidateQueue){try{await pc.addIceCandidate(c);}catch(e){}}
-      activeCall.candidateQueue=[];
-      const answer=await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('call-answer',{targetCode:activeCall.target,answer});
-    }
-
-    socket.on('call-answer',async ({answer})=>{
-      if(!activeCall.pc)return;
-      await activeCall.pc.setRemoteDescription(new RTCSessionDescription(answer));
-      for(const c of activeCall.candidateQueue){try{await activeCall.pc.addIceCandidate(c);}catch(e){}}
-      activeCall.candidateQueue=[];
-    });
-
-    socket.on('call-ice',async ({candidate})=>{
-      if(!candidate)return;
-      if(activeCall.pc && activeCall.pc.remoteDescription) { try{await activeCall.pc.addIceCandidate(new RTCIceCandidate(candidate));}catch(e){} }
-      else activeCall.candidateQueue.push(new RTCIceCandidate(candidate));
-    });
-    socket.on('call-rejected',()=>{showToast('Call declined.','info');endActiveCall();});
-    socket.on('call-busy',()=>{showToast('User is busy on another call.','info');endActiveCall();});
-    socket.on('call-ended',()=>endActiveCall(true));
-
-    function endActiveCall(silent=false){
-      const target=activeCall.target;
-      if(!silent && target) socket.emit('call-end',{targetCode:target});
-      if(activeCall.pc){try{activeCall.pc.close();}catch(e){}}
-      if(activeCall.stream) activeCall.stream.getTracks().forEach(t=>t.stop());
-      activeCall={pc:null,stream:null,target:null,incoming:false,pendingOffer:null,candidateQueue:[]};
-      const a=document.getElementById('remoteAudio'); if(a)a.srcObject=null;
-      document.getElementById('callOverlay').style.display='none';
-    }
   </script>
 </body>
 </html>
