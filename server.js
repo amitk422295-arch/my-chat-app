@@ -11,20 +11,19 @@ const multer = require('multer');
 const app = express();
 const server = http.createServer(app);
 
-// 200 MB Upload Limit for Socket.io
+// Large File Upload Limit for Socket.io (Up to 500MB)
 const io = new Server(server, { 
   cors: { origin: '*' },
-  maxHttpBufferSize: 2e8 
+  maxHttpBufferSize: 5e8 
 });
 
-// 200 MB Upload Limit for Express & Multer
-app.use(express.json({ limit: '200mb' }));
-app.use(express.urlencoded({ limit: '200mb', extended: true }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 }
+  limits: { fileSize: 500 * 1024 * 1024 }
 });
 
 const uploadTokens = new Map();
@@ -52,7 +51,7 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
   try {
     const userCode = String(req.headers['x-user-code'] || '').trim().toLowerCase();
     const token = String(req.headers['x-upload-token'] || '');
-    if (!userCode || !validateUploadToken(token, userCode)) return res.status(401).json({ success:false, error:'Upload session expired. Please reconnect.' });
+    if (!userCode || !validateUploadToken(token, userCode)) return res.status(401).json({ success:false, error:'Upload session expired.' });
     if (!req.file) return res.status(400).json({ success:false, error:'No media file received.' });
     const user = await User.findOne({ userCode }).lean();
     if (!user) return res.status(401).json({ success:false, error:'User not found.' });
@@ -69,18 +68,7 @@ cloudinary.config({
   api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
 });
 
-app.get('/health', (req, res) => res.status(200).json({ ok: true, service: 'chat-app', time: new Date().toISOString() }));
-
-app.get('/api/config', (req, res) => {
-  res.json({
-    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBR96s32sM1BvzNtJD4KtGk4B6Io9-_dWA",
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "mychat01-aa2e4.firebaseapp.com",
-    projectId: process.env.FIREBASE_PROJECT_ID || "mychat01-aa2e4",
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "mychat01-aa2e4.firebasestorage.app",
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "899727602335",
-    appId: process.env.FIREBASE_APP_ID || "1:899727602335:web:0ca859e6e818adac4ae8aa"
-  });
-});
+app.get('/health', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
 mongoose.connect(MONGO_URI, {
@@ -96,18 +84,18 @@ mongoose.connect(MONGO_URI, {
   } catch(e) {}
 }).catch(err => console.error('MongoDB connection error:', err.message));
 
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
+
 const userSchema = new mongoose.Schema({
   userCode: { type: String, unique: true, required: true, lowercase: true },
   password: { type: String, required: true },
   fullName: { type: String, default: 'User' },
   mobile: { type: String, required: true },
-  avatar: { type: String, default: '' },
+  avatar: { type: String, default: DEFAULT_AVATAR },
   secQ1: { type: String, default: '' },
   secQ2: { type: String, default: '' },
   secQ3: { type: String, default: '' },
-  blockedByMe: { type: Map, of: Boolean, default: {} },
-  contacts: { type: [String], default: [] },
-  dateOfBirth: { type: String, default: '' }
+  contacts: { type: [String], default: [] }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -122,14 +110,11 @@ const messageSchema = new mongoose.Schema({
   receiverCode: { type: String, required: true, index: true, lowercase: true },
   text: { type: String, default: '' },
   media: { type: String, default: '' },
-  messageType: { type: String, enum: ['text', 'image', 'video', 'audio', 'document'], default: 'text' },
+  messageType: { type: String, default: 'text' },
   fileName: { type: String, default: '' },
-  duration: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now, index: true },
-  deletedForEveryone: { type: Boolean, default: false },
   deletedFor: { type: [String], default: [] }
 });
-messageSchema.index({ senderCode: 1, receiverCode: 1, createdAt: 1 });
 const Message = mongoose.model('Message', messageSchema);
 
 io.on('connection', (socket) => {
@@ -144,40 +129,31 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar, q1, q2, q3 }, callback) => {
+  socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar, q1, q2 }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const passStr = String(password || '').trim();
     const cleanMobile = String(mobile || '').trim();
-
     try {
-      if (!rawId.startsWith('@') || rawId.length < 5) { return callback({ success: false, error: 'User ID must start with @ and have at least 4 characters after it.' }); }
-      if (!cleanMobile || cleanMobile.length < 10) { return callback({ success: false, error: 'Valid mobile number is compulsory.' }); }
-      if (passStr.length !== 8) { return callback({ success: false, error: 'Password must be strictly 8 digits.' }); }
-      const cleanQ1 = String(q1 || '').trim().toLowerCase();
-      const cleanQ2 = String(q2 || '').trim().toLowerCase();
-      const cleanQ3 = String(q3 || '').trim().toLowerCase();
-      if (!cleanQ1 && !cleanQ2 && !cleanQ3) { return callback({ success: false, error: 'Minimum one security question answer is required.' }); }
+      if (!rawId.startsWith('@') || rawId.length < 5) return callback({ success: false, error: 'User ID must start with @ and have 4+ characters.' });
+      if (!cleanMobile || cleanMobile.length < 10) return callback({ success: false, error: 'Valid mobile number required.' });
+      if (passStr.length !== 8) return callback({ success: false, error: 'Password must be strictly 8 digits.' });
 
-      let avatarUrl = avatar || '';
+      let avatarUrl = avatar || DEFAULT_AVATAR;
       if (avatar && avatar.startsWith('data:image')) {
         const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars' });
         avatarUrl = uploadRes.secure_url;
       }
 
       const existingUser = await User.findOne({ userCode: rawId });
-      if (existingUser) return callback({ success: false, error: 'This User ID is already taken.' });
-
-      const existingMobile = await User.findOne({ mobile: cleanMobile });
-      if (existingMobile) return callback({ success: false, error: 'Mobile number already registered.' });
+      if (existingUser) return callback({ success: false, error: 'User ID already taken.' });
 
       const newUser = await User.create({
-        userCode: rawId, password: passStr, fullName: fullName && fullName.trim() ? fullName.trim() : 'User',
-        mobile: cleanMobile, avatar: avatarUrl, secQ1: cleanQ1, secQ2: cleanQ2, secQ3: cleanQ3, blockedByMe: {}
+        userCode: rawId, password: passStr, fullName: fullName?.trim() || 'User',
+        mobile: cleanMobile, avatar: avatarUrl, secQ1: q1?.trim().toLowerCase() || '',
+        secQ2: q2?.trim().toLowerCase() || ''
       });
 
-      currentUserCode = rawId;
-      socket.join(rawId);
-      io.emit('user-online-status', { targetCode: rawId, isOnline: true });
+      currentUserCode = rawId; socket.join(rawId);
       callback({ success: true, user: newUser });
     } catch (e) { callback({ success: false, error: 'Registration error: ' + e.message }); }
   });
@@ -189,56 +165,41 @@ io.on('connection', (socket) => {
       const isMobileQuery = /^\d{10,13}$/.test(query);
       const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
       const userObj = await User.findOne({ $or: [ ...(normalizedId ? [{ userCode: normalizedId }] : []), ...(isMobileQuery ? [{ mobile: query }] : []) ] });
-      if (!userObj) return callback({ success: false, error: 'Account not found by ID or mobile.' });
-      if (userObj.password !== passStr) return callback({ success: false, error: 'Incorrect password.' });
+      if (!userObj || userObj.password !== passStr) return callback({ success: false, error: 'Invalid ID or password.' });
 
-      currentUserCode = userObj.userCode;
-      socket.join(currentUserCode);
-      io.emit('user-online-status', { targetCode: currentUserCode, isOnline: true });
+      currentUserCode = userObj.userCode; socket.join(currentUserCode);
       return callback({ success: true, user: userObj });
     } catch (err) { return callback({ success: false, error: 'Auth error: ' + err.message }); }
   });
 
-  socket.on('recover-account', async ({ mobile, q1, q2, q3, newPassword }, callback) => {
-    const cleanMobile = String(mobile || '').trim();
-    const ans1 = String(q1 || '').trim().toLowerCase();
-    const ans2 = String(q2 || '').trim().toLowerCase();
-    const ans3 = String(q3 || '').trim().toLowerCase();
-    const newPass = String(newPassword || '').trim();
-
+  socket.on('recover-account', async ({ mobile, q1, q2, newPassword }, callback) => {
     try {
-      const userObj = await User.findOne({ mobile: cleanMobile });
-      if (!userObj) return callback({ success: false, error: 'Mobile number not found in database.' });
+      const userObj = await User.findOne({ mobile: String(mobile || '').trim() });
+      if (!userObj) return callback({ success: false, error: 'Mobile not found.' });
+      let match = false;
+      if (q1 && userObj.secQ1 === q1.trim().toLowerCase()) match = true;
+      if (q2 && userObj.secQ2 === q2.trim().toLowerCase()) match = true;
+      if (!match) return callback({ success: false, error: 'Incorrect security answer.' });
 
-      let matchesCount = 0; let totalProvided = 0; let hasMismatch = false;
-      if (ans1) { totalProvided++; if (userObj.secQ1 && userObj.secQ1 === ans1) matchesCount++; else hasMismatch = true; }
-      if (ans2) { totalProvided++; if (userObj.secQ2 && userObj.secQ2 === ans2) matchesCount++; else hasMismatch = true; }
-      if (ans3) { totalProvided++; if (userObj.secQ3 && userObj.secQ3 === ans3) matchesCount++; else hasMismatch = true; }
-
-      if (totalProvided === 0 || hasMismatch || matchesCount === 0) return callback({ success: false, error: 'Authentication failed! Incorrect security answers.' });
-
-      if (newPass && newPass.length === 8) {
-        userObj.password = newPass; await userObj.save();
-        return callback({ success: true, userCode: userObj.userCode, message: 'Password updated & Account recovered successfully!' });
-      } else {
-        return callback({ success: true, userCode: userObj.userCode, message: 'Your User ID is: ' + userObj.userCode });
+      if (newPassword && newPassword.length === 8) {
+        userObj.password = newPassword; await userObj.save();
+        return callback({ success: true, userCode: userObj.userCode, message: 'Password updated successfully!' });
       }
-    } catch (e) { callback({ success: false, error: 'Recovery failed: ' + e.message }); }
+      callback({ success: true, userCode: userObj.userCode, message: 'Your User ID is: ' + userObj.userCode });
+    } catch (e) { callback({ success: false, error: 'Recovery failed.' }); }
   });
 
-  // 🌟 REELS (STATUS) NOW PUBLIC TO EVERYONE 🌟
   socket.on('get-statuses', async () => {
     if (!currentUserCode) return;
     try {
       const me = await User.findOne({ userCode: currentUserCode });
       let myStatusDoc = await Status.findOne({ userCode: currentUserCode });
-      const myStatus = myStatusDoc ? myStatusDoc.toObject() : { userCode: currentUserCode, name: me?.fullName, avatar: me?.avatar, items: [] };
+      const myStatus = myStatusDoc ? myStatusDoc.toObject() : { userCode: currentUserCode, name: me?.fullName, avatar: me?.avatar || DEFAULT_AVATAR, items: [] };
       const now = new Date();
       await Status.updateMany({}, { $pull: { items: { expiresAt: { $lte: now } } } });
       myStatusDoc = await Status.findOne({ userCode: currentUserCode });
       const refreshedMy = myStatusDoc ? myStatusDoc.toObject() : myStatus;
       
-      // Fetch all public reels except mine
       const allOtherStatuses = await Status.find({ userCode: { $ne: currentUserCode } });
       socket.emit('status-data', { myStatus: refreshedMy, contactStatuses: allOtherStatuses.map(s => s.toObject()) });
     } catch (e) {}
@@ -257,19 +218,12 @@ io.on('connection', (socket) => {
       const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), expiresAt, viewers: [] };
       await Status.findOneAndUpdate(
         { userCode: currentUserCode }, 
-        { $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $push: { items: newItem } }, 
+        { $set: { name: me?.fullName || 'User', avatar: me?.avatar || DEFAULT_AVATAR }, $push: { items: newItem } }, 
         { upsert: true, new: true }
       );
       callback && callback({ success: true, expiresAt });
-      // Notify everyone globally about new reel
       io.emit('status-updated');
     } catch (e) { callback && callback({ success: false, error: e.message }); }
-  });
-
-  socket.on('delete-status', async ({ statusId }, cb) => {
-    if (!currentUserCode) return cb && cb({ success: false });
-    try { await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: statusId } } }); cb && cb({ success: true }); }
-    catch (e) { cb && cb({ success: false }); }
   });
 
   socket.on('get-contacts', async () => {
@@ -278,7 +232,7 @@ io.on('connection', (socket) => {
       const me = await User.findOne({ userCode: currentUserCode }).lean();
       const ids = Array.isArray(me?.contacts) ? me.contacts : [];
       const allUsers = ids.length ? await User.find({ userCode: { $in: ids } }) : [];
-      socket.emit('contact-list-data', { contacts: allUsers.map(u => ({ userCode: u.userCode, name: u.fullName, avatar: u.avatar })) });
+      socket.emit('contact-list-data', { contacts: allUsers.map(u => ({ userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR })) });
     } catch (e) {}
   });
 
@@ -286,23 +240,20 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return cb({ success:false, error:'Not authenticated.' });
     try {
       const raw = String(query || targetCode || '').trim().toLowerCase();
-      if (!raw) return cb({ success:false, error:'Enter a User ID or mobile number.' });
-      
+      if (!raw) return cb({ success:false, error:'Enter User ID or mobile.' });
       const clean = raw.startsWith('@') ? raw : '@' + raw;
-      const targetUser = /^\d{10,13}$/.test(raw)
-        ? await User.findOne({ mobile: raw })
-        : await User.findOne({ userCode: clean });
+      const targetUser = /^\d{10,13}$/.test(raw) ? await User.findOne({ mobile: raw }) : await User.findOne({ userCode: clean });
 
       if (!targetUser) return cb({ success:false, error:'User not found.' });
-      if (targetUser.userCode === currentUserCode) return cb({ success:false, error:'You cannot add yourself.' });
+      if (targetUser.userCode === currentUserCode) return cb({ success:false, error:'Cannot add yourself.' });
 
       await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: targetUser.userCode } });
       await User.updateOne({ userCode: targetUser.userCode }, { $addToSet: { contacts: currentUserCode } });
-      cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar } });
+      cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar || DEFAULT_AVATAR } });
     } catch (e) { cb({ success: false, error: 'Error finding user.' }); }
   });
 
-  socket.on('update-profile', async ({ fullName, avatar, dateOfBirth }, callback) => {
+  socket.on('update-profile', async ({ fullName, avatar }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
       let avatarUrl = avatar;
@@ -311,45 +262,28 @@ io.on('connection', (socket) => {
         avatarUrl = uploadRes.secure_url;
       }
       const update = {};
-      if (typeof fullName === 'string') update.fullName = fullName.trim() ? fullName.trim().slice(0, 80) : 'User';
+      if (typeof fullName === 'string') update.fullName = fullName.trim() || 'User';
       if (typeof avatarUrl === 'string') update.avatar = avatarUrl;
-      if (typeof dateOfBirth === 'string') update.dateOfBirth = dateOfBirth.slice(0, 20);
       const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
-      if (!user) return callback && callback({ success: false, error: 'User not found.' });
       callback && callback({ success: true, user: user.toObject() });
-    } catch (e) { callback && callback({ success: false, error: 'Profile update failed.' }); }
+    } catch (e) { callback && callback({ success: false, error: 'Update failed.' }); }
   });
 
   socket.on('get-messages', async ({ targetCode, after }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
       const clean = String(targetCode || '').toLowerCase();
-      const base = {
-        $or: [
-          { senderCode: currentUserCode, receiverCode: clean },
-          { senderCode: clean, receiverCode: currentUserCode }
-        ],
-        deletedFor: { $ne: currentUserCode }
-      };
-      let query = base; let full = true;
-      if (after) {
-        const afterDate = new Date(after);
-        if (!Number.isNaN(afterDate.getTime())) { query = { $and: [base, { createdAt: { $gt: afterDate } }] }; full = false; }
-      }
-      const messages = await Message.find(query).sort({ createdAt: 1 }).limit(500).lean();
-      callback && callback({ success: true, messages, full });
+      const base = { $or: [{ senderCode: currentUserCode, receiverCode: clean }, { senderCode: clean, receiverCode: currentUserCode }], deletedFor: { $ne: currentUserCode } };
+      const messages = await Message.find(after ? { $and: [base, { createdAt: { $gt: new Date(after) } }] } : base).sort({ createdAt: 1 }).limit(500).lean();
+      callback && callback({ success: true, messages, full: !after });
     } catch (e) { callback && callback({ success: false, error: 'Could not load messages.' }); }
   });
 
-  socket.on('send-message', async ({ targetCode, text, media, messageType, fileName, duration, clientMessageId }, callback) => {
+  socket.on('send-message', async ({ targetCode, text, media, messageType, fileName, clientMessageId }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     const receiverCode = String(targetCode || '').trim().toLowerCase();
-    const messageText = String(text || '').trim();
     const type = ['image', 'video', 'audio', 'document'].includes(messageType) ? messageType : 'text';
-    
-    if (!receiverCode || (type === 'text' && !messageText) || (type !== 'text' && !media)) {
-      return callback && callback({ success: false, error: 'Empty message content.' });
-    }
+    if (!receiverCode || (type === 'text' && !text) || (type !== 'text' && !media)) return callback && callback({ success: false, error: 'Empty content.' });
 
     try {
       let mediaUrl = media;
@@ -357,18 +291,14 @@ io.on('connection', (socket) => {
         const uploadRes = await cloudinary.uploader.upload(mediaUrl, { resource_type: 'auto', folder: 'chat_app_media' });
         mediaUrl = uploadRes.secure_url;
       }
-
-      const other = await User.findOne({ userCode: receiverCode }).lean();
-      if (!other) return callback && callback({ success: false, error: 'User not found.' });
-      
       await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: receiverCode } });
       await User.updateOne({ userCode: receiverCode }, { $addToSet: { contacts: currentUserCode } });
 
       const uniqueMsgId = String(clientMessageId || ('msg_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex')));
       const msg = await Message.create({
         messageId: uniqueMsgId, senderCode: currentUserCode, receiverCode, 
-        text: messageText, media: type !== 'text' ? String(mediaUrl) : '', messageType: type, 
-        fileName: String(fileName || ''), duration: Number(duration || 0)
+        text: String(text || ''), media: type !== 'text' ? String(mediaUrl) : '', 
+        messageType: type, fileName: String(fileName || '')
       });
       io.to(currentUserCode).to(receiverCode).emit('new-message', msg.toObject());
       callback && callback({ success: true, message: msg.toObject() });
@@ -378,21 +308,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {});
 });
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, row] of uploadTokens) if (row.expiresAt < now) uploadTokens.delete(token);
-}, 10 * 60 * 1000);
-
-setInterval(async () => {
-  try { await Status.updateMany({}, { $pull: { items: { expiresAt: { $lte: new Date() } } } }); } catch (e) {}
-}, 60 * 60 * 1000);
-
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  setInterval(() => {
-    const targetUrl = process.env.RENDER_EXTERNAL_URL || `http://127.0.0.1:${PORT}/health`;
-    const client = targetUrl.startsWith('https') ? https : http;
-    client.get(targetUrl, (res) => {}).on('error', () => {});
-  }, 10 * 60 * 1000);
 });
