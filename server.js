@@ -10,7 +10,12 @@ const multer = require('multer');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+
+// 👇 यहाँ 50MB लिमिट ऐड की गई है
+const io = new Server(server, { 
+  cors: { origin: '*' },
+  maxHttpBufferSize: 5e7 
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
