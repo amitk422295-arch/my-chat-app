@@ -54,7 +54,7 @@
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
     #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; }
     
-    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; }
+    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; -webkit-touch-callout: none; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
@@ -186,7 +186,6 @@
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Online</div>
       </div>
-      <!-- 🌟 CHAT ROOM 3-DOT MENU BUTTON 🌟 -->
       <div style="position:relative;">
         <button class="icon-btn" onclick="toggleChatRoomMenu(event)" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
         <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0;">
@@ -385,17 +384,12 @@
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet. Search above to start.</div>';
 
-      // 🌟 LONG PRESS ON DASHBOARD CHAT (BLOCK & DELETE) 🌟
       document.querySelectorAll('.chat-row').forEach(row => {
         let pressTimer;
         const targetCode = row.getAttribute('data-usercode');
         const targetName = row.getAttribute('data-name');
 
-        const startPress = () => {
-          pressTimer = setTimeout(() => {
-            showChatLongPressModal(targetCode, targetName);
-          }, 700); // 700ms long press
-        };
+        const startPress = () => { pressTimer = setTimeout(() => { showChatLongPressModal(targetCode, targetName); }, 400); };
         const cancelPress = () => clearTimeout(pressTimer);
 
         row.addEventListener('mousedown', startPress);
@@ -407,7 +401,6 @@
       });
     }
 
-    // Modal for Chat Long Press (Block & Delete)
     function showChatLongPressModal(userCode, userName) {
       const existing = document.getElementById('chatLongPressModal');
       if (existing) existing.remove();
@@ -428,7 +421,6 @@
 
     function blockUserChat(userCode) {
       showToast(`User ${userCode} blocked`, 'success');
-      // Remove from local contact view
       globalContacts = globalContacts.filter(c => c.userCode !== userCode);
       renderContacts(globalContacts);
     }
@@ -535,18 +527,13 @@
       rm.scrollTop = rm.scrollHeight; 
       hydrateMediaCache(rm);
 
-      // 🌟 LONG PRESS ON MESSAGE (COPY & DELETE OPTIONS) 🌟
       document.querySelectorAll('.msg-bubble').forEach(bubble => {
         let timer;
         const msgId = bubble.getAttribute('data-msgid');
         const textVal = bubble.getAttribute('data-text');
         const isMine = bubble.getAttribute('data-mine') === 'true';
 
-        const startMsgPress = () => {
-          timer = setTimeout(() => {
-            showMsgLongPressModal(msgId, textVal, isMine);
-          }, 600);
-        };
+        const startMsgPress = () => { timer = setTimeout(() => { showMsgLongPressModal(msgId, textVal, isMine); }, 400); };
         const cancelMsgPress = () => clearTimeout(timer);
 
         bubble.addEventListener('mousedown', startMsgPress);
@@ -558,7 +545,6 @@
       });
     }
 
-    // Modal for Message Long Press (Copy Text, Delete for Me, Delete for Everyone)
     function showMsgLongPressModal(msgId, textVal, isMine) {
       const existing = document.getElementById('msgLongPressModal');
       if (existing) existing.remove();
@@ -742,6 +728,7 @@
       });
     }
 
+    // 🌟 REEL VIEWER WITH CLEAR SIDE ARROWS AND BOTTOM CLOSE/VIEW ARROWS (NO SCREEN FREEZING) 🌟
     function openReelViewerForUser(userCode, itemIndex = 0, isUploading = false) {
       getStatusesLocal().then(data => {
         let items = [];
@@ -757,7 +744,7 @@
         let currentIndex = Math.max(0, Math.min(itemIndex, items.length - 1));
 
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;transition: background 0.2s;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;';
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '✕';
@@ -778,9 +765,52 @@
         };
         overlay.appendChild(deleteBtn);
 
+        const leftArrow = document.createElement('button');
+        leftArrow.innerHTML = '❮';
+        leftArrow.style.cssText = 'position:absolute;left:15px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;width:45px;height:45px;border-radius:50%;cursor:pointer;z-index:1250;display:flex;align-items:center;justify-content:center;';
+        leftArrow.onclick = (e) => {
+          e.stopPropagation();
+          if (currentIndex > 0) {
+            currentIndex--;
+            updateMedia();
+          }
+        };
+        overlay.appendChild(leftArrow);
+
+        const rightArrow = document.createElement('button');
+        rightArrow.innerHTML = '❯';
+        rightArrow.style.cssText = 'position:absolute;right:15px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;width:45px;height:45px;border-radius:50%;cursor:pointer;z-index:1250;display:flex;align-items:center;justify-content:center;';
+        rightArrow.onclick = (e) => {
+          e.stopPropagation();
+          if (currentIndex < items.length - 1) {
+            currentIndex++;
+            updateMedia();
+          } else {
+            overlay.remove();
+          }
+        };
+        overlay.appendChild(rightArrow);
+
+        const bottomCloseBtn = document.createElement('button');
+        bottomCloseBtn.innerHTML = '▼ Close';
+        bottomCloseBtn.style.cssText = 'position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;';
+        bottomCloseBtn.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+        overlay.appendChild(bottomCloseBtn);
+
         const viewsFooter = document.createElement('div');
         viewsFooter.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;display:flex;align-items:center;gap:6px;';
-        viewsFooter.innerHTML = `👁️ <span id="viewCountText">Views</span> (Swipe up) <span style="font-size:10px;">▲</span>`;
+        viewsFooter.innerHTML = `👁️ <span id="viewCountText">Views</span> (Tap to view) <span style="font-size:10px;">▲</span>`;
+        viewsFooter.onclick = (e) => {
+          e.stopPropagation();
+          const currentItem = items[currentIndex];
+          const viewers = currentItem.viewers || [];
+          let viewersHtml = viewers.length ? viewers.map(v => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><img src="${escapeAttr(v.avatar||DEFAULT_AVATAR)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"><div style="font-weight:600;color:#fff;">${escapeHtml(v.name||v.userCode)}</div></div>`).join('') : '<div style="color:#888;text-align:center;padding:20px;">No views yet</div>';
+          
+          const vModal = document.createElement('div');
+          vModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1300;display:flex;align-items:flex-end;justify-content:center;';
+          vModal.innerHTML = `<div style="width:100%;max-width:420px;max-height:60vh;background:#171720;border-top-left-radius:24px;border-top-right-radius:24px;padding:20px;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="color:#fff;font-size:16px;">Reel Viewers</h3><button onclick="this.closest('div').parentElement.remove()" style="background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;">✕</button></div>${viewersHtml}</div>`;
+          document.body.appendChild(vModal);
+        };
         if (isMyReel) overlay.appendChild(viewsFooter);
 
         if (isUploading) {
@@ -791,7 +821,7 @@
         }
 
         const container = document.createElement('div');
-        container.style.cssText = 'position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;transition: transform 0.2s ease;';
+        container.style.cssText = 'position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
         
         const mediaElem = document.createElement(items[currentIndex].type === 'video' ? 'video' : 'img');
         mediaElem.controls = true; mediaElem.autoplay = true;
@@ -804,67 +834,14 @@
           const localUrl = await cacheMediaUrl(currentItem.media);
           mediaElem.tagName === 'VIDEO' ? (mediaElem.src = localUrl || currentItem.media) : (mediaElem.src = localUrl || currentItem.media);
           const viewers = currentItem.viewers || [];
-          if (isMyReel) viewsFooter.innerHTML = `👁️ ${viewers.length} views (Swipe up) <span style="font-size:10px;">▲</span>`;
+          if (isMyReel) viewsFooter.innerHTML = `👁️ ${viewers.length} views (Tap to view) <span style="font-size:10px;">▲</span>`;
         }
         updateMedia();
-
-        let startY = 0, currentY = 0, isDragging = false;
-        container.addEventListener('touchstart', e => { 
-          startY = e.touches[0].clientY; 
-          isDragging = true; 
-        });
-        container.addEventListener('touchmove', e => {
-          if (!isDragging) return;
-          currentY = e.touches[0].clientY;
-          const diffY = currentY - startY;
-          if (Math.abs(diffY) > 20) {
-            container.style.transform = `translateY(${diffY}px)`;
-          }
-        });
-        container.addEventListener('touchend', e => {
-          if (!isDragging) return;
-          isDragging = false;
-          const diffY = currentY - startY;
-          if (diffY > 100) {
-            overlay.remove();
-          } else if (diffY < -100 && isMyReel) {
-            const currentItem = items[currentIndex];
-            const viewers = currentItem.viewers || [];
-            let viewersHtml = viewers.length ? viewers.map(v => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><img src="${escapeAttr(v.avatar||DEFAULT_AVATAR)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"><div style="font-weight:600;color:#fff;">${escapeHtml(v.name||v.userCode)}</div></div>`).join('') : '<div style="color:#888;text-align:center;padding:20px;">No views yet</div>';
-            
-            const vModal = document.createElement('div');
-            vModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1300;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s;';
-            vModal.innerHTML = `<div style="width:100%;max-width:420px;max-height:60vh;background:#171720;border-top-left-radius:24px;border-top-right-radius:24px;padding:20px;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="color:#fff;font-size:16px;">Reel Viewers</h3><button onclick="this.closest('div').parentElement.remove()" style="background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;">✕</button></div>${viewersHtml}</div>`;
-            document.body.appendChild(vModal);
-            container.style.transform = 'translateY(0px)';
-          } else {
-            container.style.transform = 'translateY(0px)';
-          }
-        });
-
-        overlay.onclick = (e) => {
-          const screenWidth = window.innerWidth;
-          const clickX = e.clientX;
-          if (clickX < screenWidth / 2) {
-            if (currentIndex > 0) {
-              currentIndex--;
-              updateMedia();
-            }
-          } else {
-            if (currentIndex < items.length - 1) {
-              currentIndex++;
-              updateMedia();
-            } else {
-              overlay.remove();
-            }
-          }
-        };
 
         document.body.appendChild(overlay);
       });
     }
 
-    // 🌟 CHAT ROOM 3-DOT MENU & CLEAR CHAT 🌟
     function toggleChatRoomMenu(e) {
       e.stopPropagation();
       const m = document.getElementById('chatRoomMenu');
@@ -880,7 +857,7 @@
       document.getElementById('chatRoomMenu').style.display = 'none';
     }
 
-    function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+    function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' 'none' : 'block'; }
     
     document.addEventListener('click', (e) => {
       document.getElementById('appMenu').style.display = 'none';
