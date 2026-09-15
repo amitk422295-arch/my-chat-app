@@ -11,19 +11,20 @@ const multer = require('multer');
 const app = express();
 const server = http.createServer(app);
 
-// 👇 यहाँ 50MB लिमिट ऐड की गई है
+// 200 MB Upload Limit for Socket.io
 const io = new Server(server, { 
   cors: { origin: '*' },
-  maxHttpBufferSize: 5e7 
+  maxHttpBufferSize: 2e8 
 });
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// 200 MB Upload Limit for Express & Multer
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ limit: '200mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }
+  limits: { fileSize: 200 * 1024 * 1024 }
 });
 
 const uploadTokens = new Map();
@@ -275,6 +276,7 @@ io.on('connection', (socket) => {
     } catch (e) {}
   });
 
+  // Fixed the path conflict error here
   socket.on('post-status', async (statusItem, callback) => {
     if (!currentUserCode) return;
     try {
@@ -286,7 +288,14 @@ io.on('connection', (socket) => {
       const me = await User.findOne({ userCode: currentUserCode });
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), expiresAt, viewers: [] };
-      await Status.findOneAndUpdate({ userCode: currentUserCode }, { $setOnInsert: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $push: { items: newItem } }, { upsert: true, new: true });
+      await Status.findOneAndUpdate(
+        { userCode: currentUserCode }, 
+        { 
+          $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, 
+          $push: { items: newItem } 
+        }, 
+        { upsert: true, new: true }
+      );
       callback && callback({ success: true, expiresAt });
       for (const c of (me?.contacts || [])) io.to(c).emit('status-updated', { userCode: currentUserCode });
     } catch (e) { callback && callback({ success: false, error: e.message }); }
