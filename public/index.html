@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>My Chat App</title>
   <meta name="theme-color" content="#08080c">
   <script src="/socket.io/socket.io.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
-    html, body { height: 100%; height: 100dvh; background: #08080c; color: #f0f2f5; overflow: hidden; }
+    html, body { width: 100%; height: 100%; height: 100dvh; background: #08080c; color: #f0f2f5; overflow: hidden; position: fixed; inset: 0; }
     .bg-heart-pattern { position: fixed; inset: 0; pointer-events: none; opacity: 0.06; z-index: 0; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'); background-size: 54px 54px; }
     #toastBox { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1e1e2c; border: 1px solid rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; display: none; align-items: center; gap: 8px; z-index: 999; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
     #toastBox.error { border-color: #ff3b5c; color: #ff6b8b; }
@@ -23,8 +23,8 @@
     .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255,59,92,0.4); }
     .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; }
     
-    #mainApp { display: none; flex-direction: column; height: 100%; height: 100dvh; position: relative; z-index: 1; }
-    .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; }
+    #mainApp { display: none; flex-direction: column; width: 100%; height: 100%; height: 100dvh; position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+    .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; flex: none; }
     .nav-tabs { display: flex; }
     .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; }
     .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
@@ -46,13 +46,14 @@
     .chat-row:hover { background: rgba(255,255,255,0.02); }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
     
-    #chatRoom { position: fixed; inset: 0; background: #09090e; z-index: 60; display: none; flex-direction: column; }
-    .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+    /* 🌟 STABLE CHAT ROOM CONTAINER 🌟 */
+    #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; }
+    .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex: none; }
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
     .input-wrapper [contenteditable]:empty::before { content: attr(placeholder); color: #888; pointer-events: none; }
     
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
-    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; }
+    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; flex: 1; overflow-y: auto; }
     
     .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
@@ -574,7 +575,6 @@
       showToast(type === 'everyone' ? 'Deleted for everyone' : 'Deleted for me', 'success');
     }
 
-    // 🌟 FULLY RESTORED & OPTIMIZED SOCKET MESSAGE SENDING 🌟
     function sendChatMessage() {
       const box = document.getElementById('msgInputBox'); 
       const val = box.innerText.trim();
@@ -615,7 +615,6 @@
       });
     }
 
-    // 🌟 FULLY RESTORED MEDIA/VIDEO SENDING 🌟
     async function sendMediaFile(inp) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
       try {
