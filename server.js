@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,6 +15,47 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }
+});
+
+const uploadTokens = new Map();
+function makeUploadToken(userCode) {
+  const token = crypto.randomBytes(32).toString('hex');
+  uploadTokens.set(token, { userCode: String(userCode).toLowerCase(), expiresAt: Date.now() + 30 * 60 * 1000 });
+  return token;
+}
+function validateUploadToken(token, userCode) {
+  const row = uploadTokens.get(String(token || ''));
+  if (!row || row.expiresAt < Date.now() || row.userCode !== String(userCode || '').toLowerCase()) return false;
+  return true;
+}
+function uploadBufferToCloudinary(buffer, folder) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream({ resource_type: 'auto', folder }, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+    stream.end(buffer);
+  });
+}
+
+app.post('/api/upload-media', upload.single('media'), async (req, res) => {
+  try {
+    const userCode = String(req.headers['x-user-code'] || '').trim().toLowerCase();
+    const token = String(req.headers['x-upload-token'] || '');
+    if (!userCode || !validateUploadToken(token, userCode)) return res.status(401).json({ success:false, error:'Upload session expired. Please reconnect.' });
+    if (!req.file) return res.status(400).json({ success:false, error:'No media file received.' });
+    const user = await User.findOne({ userCode }).lean();
+    if (!user) return res.status(401).json({ success:false, error:'User not found.' });
+    const result = await uploadBufferToCloudinary(req.file.buffer, 'chat_app_media');
+    return res.json({ success:true, url:result.secure_url, resourceType:result.resource_type, bytes:req.file.size });
+  } catch (e) {
+    return res.status(500).json({ success:false, error:'Media upload failed: ' + e.message });
+  }
+});
 
 cloudinary.config({
   cloud_name: 'gr8tp1tg',
@@ -56,12 +98,13 @@ const userSchema = new mongoose.Schema({
   secQ2: { type: String, default: '' },
   secQ3: { type: String, default: '' },
   blockedByMe: { type: Map, of: Boolean, default: {} },
-  contacts: { type: [String], default: [] }
+  contacts: { type: [String], default: [] },
+  dateOfBirth: { type: String, default: '' }
 });
 const User = mongoose.model('User', userSchema);
 
 const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
-const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: String, time: String, viewers: [viewerSchema] }, { _id: false });
+const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: String, time: String, expiresAt: Date, viewers: [viewerSchema] }, { _id: false });
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
@@ -84,10 +127,12 @@ const Message = mongoose.model('Message', messageSchema);
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  socket.on('set-socket-user', ({ userCode }) => {
+  socket.on('set-socket-user', ({ userCode }, callback) => {
     if (userCode) {
       currentUserCode = String(userCode).trim().toLowerCase();
       socket.join(currentUserCode);
+      const token = makeUploadToken(currentUserCode);
+      if (typeof callback === 'function') callback({ success: true, token });
     }
   });
 
@@ -215,9 +260,13 @@ io.on('connection', (socket) => {
       const me = await User.findOne({ userCode: currentUserCode });
       let myStatusDoc = await Status.findOne({ userCode: currentUserCode });
       const myStatus = myStatusDoc ? myStatusDoc.toObject() : { userCode: currentUserCode, name: me?.fullName, avatar: me?.avatar, items: [] };
+      const now = new Date();
+      await Status.updateMany({}, { $pull: { items: { expiresAt: { $lte: now } } } });
+      myStatusDoc = await Status.findOne({ userCode: currentUserCode });
+      const refreshedMy = myStatusDoc ? myStatusDoc.toObject() : myStatus;
       const allowedContacts = Array.isArray(me?.contacts) ? me.contacts : [];
       const contactsListDocs = allowedContacts.length ? await Status.find({ userCode: { $in: allowedContacts } }) : [];
-      socket.emit('status-data', { myStatus, contactStatuses: contactsListDocs.map(s => s.toObject()) });
+      socket.emit('status-data', { myStatus: refreshedMy, contactStatuses: contactsListDocs.map(s => s.toObject()) });
     } catch (e) {}
   });
 
@@ -230,9 +279,11 @@ io.on('connection', (socket) => {
         mediaUrl = uploadRes.secure_url;
       }
       const me = await User.findOne({ userCode: currentUserCode });
-      const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), viewers: [] };
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), expiresAt, viewers: [] };
       await Status.findOneAndUpdate({ userCode: currentUserCode }, { $setOnInsert: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $push: { items: newItem } }, { upsert: true, new: true });
-      callback && callback({ success: true });
+      callback && callback({ success: true, expiresAt });
+      for (const c of (me?.contacts || [])) io.to(c).emit('status-updated', { userCode: currentUserCode });
     } catch (e) { callback && callback({ success: false, error: e.message }); }
   });
 
@@ -290,18 +341,28 @@ io.on('connection', (socket) => {
     } catch (e) { callback && callback({ success: false, error: 'Profile update failed.' }); }
   });
 
-  socket.on('get-messages', async ({ targetCode }, callback) => {
+  socket.on('get-messages', async ({ targetCode, after }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
       const clean = String(targetCode || '').toLowerCase();
-      const messages = await Message.find({
+      const base = {
         $or: [
           { senderCode: currentUserCode, receiverCode: clean },
           { senderCode: clean, receiverCode: currentUserCode }
         ],
         deletedFor: { $ne: currentUserCode }
-      }).sort({ createdAt: 1 }).limit(500).lean();
-      callback && callback({ success: true, messages });
+      };
+      let query = base;
+      let full = true;
+      if (after) {
+        const afterDate = new Date(after);
+        if (!Number.isNaN(afterDate.getTime())) {
+          query = { $and: [base, { createdAt: { $gt: afterDate } }] };
+          full = false;
+        }
+      }
+      const messages = await Message.find(query).sort({ createdAt: 1 }).limit(500).lean();
+      callback && callback({ success: true, messages, full });
     } catch (e) { callback && callback({ success: false, error: 'Could not load messages.' }); }
   });
 
@@ -346,6 +407,15 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {});
 });
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, row] of uploadTokens) if (row.expiresAt < now) uploadTokens.delete(token);
+}, 10 * 60 * 1000);
+
+setInterval(async () => {
+  try { await Status.updateMany({}, { $pull: { items: { expiresAt: { $lte: new Date() } } } }); } catch (e) {}
+}, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
