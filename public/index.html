@@ -6,10 +6,10 @@
   <title>Your Chat App</title>
   <meta name="theme-color" content="#08080c">
 
-  <!-- Socket.io for Auth/Calls/Contacts -->
+  <!-- Socket.io for Auth, Calls, Status, Signaling -->
   <script src="/socket.io/socket.io.js"></script>
 
-  <!-- Firebase SDKs for Realtime Chat Offload -->
+  <!-- Firebase SDKs for Chat Message Realtime Offload -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
@@ -26,19 +26,16 @@
     #toastBox.error { border-color: #ff3b5c; color: #ff6b8b; }
     #toastBox.success { border-color: #00c853; color: #00ff88; }
     #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
-    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
     .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); position: relative; z-index: 1; }
     .input-box { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; }
     .input-box:focus { border-color: #ff3b5c; }
-    .input-box:disabled { color: #8a8a9e; cursor: not-allowed; }
-    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; opacity: 0.4; pointer-events: none; transition: all 0.3s ease; }
-    .btn-gradient.active-glow { opacity: 1; pointer-events: auto; box-shadow: 0 0 20px rgba(255,59,92,0.6); }
+    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; }
     .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; }
     .dp-circle.has-image { border-style: solid; }
     #mainApp { display: none; flex-direction: column; height: 100%; height: 100dvh; position: relative; z-index: 1; }
     .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; }
     .user-profile-badge { display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(255,59,92,0.1); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(255,59,92,0.25); }
-    .user-profile-badge:active { transform: scale(0.96); }
     .nav-tabs { display: flex; }
     .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; }
     .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
@@ -50,30 +47,26 @@
     .search-bar-wrap button { background: #ff3b5c; border: none; border-radius: 12px; padding: 0 16px; color: #fff; font-weight: 600; cursor: pointer; }
     .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-    #userIdDropdownModal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 170; display: none; align-items: center; justify-content: center; padding: 20px; }
-    .id-popup-card { background: #181824; border: 1px solid #2d2d3c; border-radius: 20px; padding: 20px; width: 100%; max-width: 300px; text-align: center; display: flex; flex-direction: column; gap: 12px; }
-    .status-section-title { font-size: 12px; font-weight: 700; color: #7e7e92; padding: 14px 18px 6px; text-transform: uppercase; }
     .my-status-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; }
     .my-status-avatar-wrap { position: relative; width: 52px; height: 52px; }
     .my-status-avatar-wrap img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .add-status-badge { position: absolute; bottom: 0; right: 0; width: 20px; height: 20px; background: #ff3b5c; border: 2px solid #08080c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; font-weight: bold; }
     .status-ring { border: 2.5px solid #ff3b5c; padding: 2px; border-radius: 50%; }
+    .status-section-title { font-size: 12px; font-weight: 700; color: #7e7e92; padding: 14px 18px 6px; text-transform: uppercase; }
     .room-header { height: 62px; min-height: 62px; background: rgba(18,18,26,0.96); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
     .room-header-profile { display: flex; align-items: center; gap: 12px; }
     .room-header-profile img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
     .room-header-name { font-size: 16px; font-weight: 700; color: #fff; }
-    .room-header-actions button { background: none; border: none; font-size: 21px; color: #ff3b5c; cursor: pointer; }
+    .room-header-actions { display: flex; gap: 12px; align-items: center; }
+    .room-header-actions button { background: none; border: none; font-size: 21px; cursor: pointer; }
     #roomMessages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: transparent; position: relative; z-index: 1; }
-    .msg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; user-select: text; transition: transform 0.1s; position: relative; }
+    .msg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; user-select: text; position: relative; }
     .msg-bubble:active { transform: scale(0.98); }
     .msg-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #ff3b5c 0%, #e02447 100%); color: #fff; border-bottom-right-radius: 4px; }
     .msg-bubble.other { align-self: flex-start; background: #1c1c28; color: #f0f2f5; border-bottom-left-radius: 4px; }
     .message-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 4px; min-height: 13px; }
     .message-time { font-size: 10px; opacity: 0.6; }
-    .message-ticks { font-size: 13px; line-height: 1; letter-spacing: -4px; padding-right: 3px; font-weight: 700; }
-    .message-ticks.sent { color: rgba(255,255,255,0.65); }
-    .message-ticks.delivered { color: rgba(255,255,255,0.75); }
-    .message-ticks.read { color: #5ac8fa; }
+    .message-ticks { font-size: 13px; line-height: 1; letter-spacing: -4px; padding-right: 3px; font-weight: 700; color: rgba(255,255,255,0.75); }
     #deleteSheetModal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 180; display: none; align-items: flex-end; justify-content: center; }
     .delete-sheet-card { width: 100%; max-width: 500px; background: #181824; border-radius: 20px 20px 0 0; padding: 20px 16px 30px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #2d2d3c; }
     .sheet-btn { width: 100%; padding: 14px; background: #222230; border: none; border-radius: 12px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
@@ -93,6 +86,35 @@
     #lockedRecordingBar { position: absolute; inset: 0; background: #161622; display: none; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 10; }
     #mediaMenu { position: absolute; bottom: 70px; left: 16px; background: #1c1c26; border: 1px solid #2d2d3c; border-radius: 16px; padding: 10px; display: none; flex-direction: column; gap: 10px; z-index: 70; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
     .menu-item { display: flex; align-items: center; gap: 10px; background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 6px 12px; }
+
+    /* Top menu & modals */
+    .top-three-dot-btn { background:none; border:0; color:#fff; font-size:28px; line-height:1; cursor:pointer; padding:4px 8px; }
+    .top-menu-panel { position:fixed; top:58px; right:12px; z-index:5000; display:none; flex-direction:column; min-width:180px; background:#171722; border:1px solid #353546; border-radius:14px; box-shadow:0 12px 30px rgba(0,0,0,.45); overflow:hidden; }
+    .top-menu-panel button { background:none; border:0; color:#fff; text-align:left; padding:14px 16px; font-size:14px; cursor:pointer; }
+    .top-menu-panel button:hover { background:#252535; }
+    .full-dp-modal, .edit-profile-modal, .block-sheet-modal { position:fixed; inset:0; z-index:6000; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; padding:20px; }
+    .edit-profile-card, .block-sheet-card { width:min(92vw,420px); background:#171722; border:1px solid #353546; border-radius:18px; padding:20px; box-shadow:0 15px 50px rgba(0,0,0,.55); }
+    .edit-dp-wrap { width:96px; height:96px; margin:0 auto 14px; position:relative; cursor:pointer; }
+    .edit-dp-wrap img { width:96px; height:96px; border-radius:50%; object-fit:cover; background:#222; border:2px solid #ff6b8b; }
+    .edit-dp-wrap span { position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); font-size:10px; background:#ff6b8b; color:#fff; padding:4px 7px; border-radius:10px; white-space:nowrap; }
+
+    /* Instagram-like Video/Audio Call UI */
+    #phoneCallModal { position: fixed; inset: 0; background: #000; z-index: 250; display: none; flex-direction: column; justify-content: space-between; overflow: hidden; }
+    .call-video-container { position: absolute; inset: 0; width: 100%; height: 100%; background: #111; z-index: 1; }
+    #remoteVideoEl { width: 100%; height: 100%; object-fit: cover; }
+    #localVideoPiP { position: absolute; top: 20px; right: 20px; width: 105px; height: 155px; border-radius: 14px; overflow: hidden; background: #222; border: 1.5px solid rgba(255,255,255,0.2); z-index: 5; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+    .call-top-overlay { position: relative; z-index: 10; padding: 45px 20px 20px; display: flex; flex-direction: column; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%); }
+    .caller-dp-pulse { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2.5px solid #ff3b5c; margin-bottom: 12px; }
+    .call-bottom-overlay { position: relative; z-index: 10; padding: 25px 24px 45px; display: flex; flex-direction: column; gap: 24px; align-items: center; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%); }
+    .call-actions-box { display: flex; gap: 28px; align-items: center; }
+    .btn-call-circle { width: 58px; height: 58px; border-radius: 50%; border: none; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: transform 0.1s; }
+    .btn-call-circle:active { transform: scale(0.94); }
+    .btn-call-neutral { background: rgba(255,255,255,0.2); }
+    .btn-call-neutral.muted { background: #ff3b5c; }
+    .btn-call-green { background: #00c853; } 
+    .btn-call-red { background: #ff3b5c; width: 66px; height: 66px; font-size: 26px; }
+
+    /* Story & Delete UI */
     #storyViewerModal { position: fixed; inset: 0; background: #000; z-index: 200; display: none; flex-direction: column; }
     .story-progress-bar { position: absolute; top: 10px; left: 10px; right: 10px; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; z-index: 10; }
     .story-progress-fill { height: 100%; width: 0%; background: #ff3b5c; transition: width 0.1s linear; }
@@ -100,36 +122,16 @@
     .story-top-info img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; }
     .story-media-box { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
     .story-media-box img, .story-media-box video { width: 100%; height: 100%; object-fit: contain; }
+    .story-actions-bar { position: absolute; top: 22px; right: 60px; display: flex; gap: 10px; z-index: 25; }
+    .story-del-btn { background: rgba(255,59,92,0.8); border: none; color: #fff; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
     .story-viewers-bar { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; z-index: 15; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
     #statusViewersSheet { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 205; display: none; align-items: flex-end; }
     .viewers-card { width: 100%; max-height: 60vh; background: #161622; border-radius: 20px 20px 0 0; padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
     .viewer-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .viewer-row img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-    #phoneCallModal { position: fixed; inset: 0; background: radial-gradient(circle at center, #1b1e2c 0%, #08080c 100%); z-index: 250; display: none; flex-direction: column; justify-content: space-between; padding: 60px 24px 50px; align-items: center; }
-    .caller-details-box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-    .caller-dp-pulse { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00c853; animation: callPulse 1.8s infinite; }
-    @keyframes callPulse { 0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 70% { box-shadow: 0 0 0 28px rgba(0,200,83,0); } 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } }
-    .call-actions-box { display: flex; gap: 24px; align-items: center; }
-    .btn-call-circle { width: 64px; height: 64px; border-radius: 50%; border: none; color: #fff; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .btn-call-green { background: #00c853; } .btn-call-red { background: #ff3b5c; }
-    @media (max-width: 480px) { .msg-bubble { max-width: 84%; } .search-bar-wrap input { min-width: 0; } }
-    .top-three-dot-btn { background:none; border:0; color:#fff; font-size:28px; line-height:1; cursor:pointer; padding:4px 8px; }
-    .top-menu-panel { position:fixed; top:58px; right:12px; z-index:5000; display:none; flex-direction:column; min-width:180px; background:#171722; border:1px solid #353546; border-radius:14px; box-shadow:0 12px 30px rgba(0,0,0,.45); overflow:hidden; }
-    .top-menu-panel button { background:none; border:0; color:#fff; text-align:left; padding:14px 16px; font-size:14px; cursor:pointer; }
-    .top-menu-panel button:hover { background:#252535; }
-    .full-dp-modal, .edit-profile-modal, .block-sheet-modal { position:fixed; inset:0; z-index:6000; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; padding:20px; }
-    .full-dp-modal { flex-direction:column; }
-    .full-dp-modal img { max-width:min(92vw,520px); max-height:78vh; width:auto; height:auto; object-fit:contain; border-radius:16px; box-shadow:0 15px 50px rgba(0,0,0,.6); background:#222; }
-    .full-dp-close { position:absolute; top:18px; right:18px; background:rgba(255,255,255,.12); border:0; color:#fff; border-radius:50%; width:42px; height:42px; font-size:20px; cursor:pointer; }
-    .full-dp-name { color:#fff; font-size:17px; font-weight:700; margin-top:12px; }
-    .edit-profile-card, .block-sheet-card { width:min(92vw,420px); background:#171722; border:1px solid #353546; border-radius:18px; padding:20px; box-shadow:0 15px 50px rgba(0,0,0,.55); }
-    .edit-profile-card h3 { margin:0 0 16px; color:#fff; }
-    .edit-profile-card .input-box { width:100%; box-sizing:border-box; margin:7px 0; }
-    .edit-dp-wrap { width:96px; height:96px; margin:0 auto 14px; position:relative; cursor:pointer; }
-    .edit-dp-wrap img { width:96px; height:96px; border-radius:50%; object-fit:cover; background:#222; border:2px solid #ff6b8b; }
-    .edit-dp-wrap span { position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); font-size:10px; background:#ff6b8b; color:#fff; padding:4px 7px; border-radius:10px; white-space:nowrap; }
-    .block-sheet-card { display:flex; flex-direction:column; gap:10px; }
-    .chat-row img, .room-header-profile img, #myStatusAvatarImg { cursor:pointer; }
+    .status-list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02); }
+    #userIdDropdownModal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 170; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .id-popup-card { background: #181824; border: 1px solid #2d2d3c; border-radius: 20px; padding: 20px; width: 100%; max-width: 300px; text-align: center; display: flex; flex-direction: column; gap: 12px; }
   </style>
 </head>
 <body>
@@ -137,25 +139,60 @@
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
-  <!-- AUTH GATE -->
+  <!-- AUTH FLOW SCREEN -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
-      <h3 style="color:#fff;" id="authTitle">Create Account</h3>
-      <p style="font-size:12px;color:#8a8a9e;" id="authDesc">Session remains saved even after refresh</p>
-      
-      <div id="registerFields">
-        <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
-        <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Upload DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
-        <p style="font-size:11px;color:#ff6b8b;margin-top:4px;" onclick="document.getElementById('dpFileInput').click()">Tap to Set Profile DP (Optional)</p>
-        <input type="text" id="fullNameInp" class="input-box" placeholder="Your Full Name *" style="margin-top:10px;" oninput="validateAuthInputs()" autocomplete="name">
-        <input type="tel" id="mobileInp" class="input-box" placeholder="Indian Mobile Number *" maxlength="13" inputmode="tel" oninput="sanitizeMobile(this); validateAuthInputs()" autocomplete="tel">
+      <h3 style="color:#fff;" id="authTitle">Welcome Back</h3>
+      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Already registered? Enter here</p>
+
+      <!-- VIEW: LOGIN -->
+      <div id="viewLogin" style="display:flex; flex-direction:column; gap:12px;">
+        <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
+        <input type="password" id="loginPassInput" class="input-box" placeholder="8-digit Password" maxlength="8">
+        <button class="btn-gradient" onclick="handleLogin()">Login</button>
       </div>
 
-      <input type="text" id="userCodeInp" class="input-box" placeholder="User ID (@myname) *" autocomplete="off" oninput="formatUserCode(this); validateAuthInputs()">
-      <input type="password" id="passwordInp" class="input-box" placeholder="Password *" autocomplete="new-password" oninput="validateAuthInputs()">
-      <button class="btn-gradient" id="authActionBtn" onclick="handleAuthSubmit()">Register & Start</button>
-      <p style="font-size:12px;color:#7e7e92;cursor:pointer;" onclick="toggleAuthMode()" id="authSwitchText">Already have an ID? Login here</p>
+      <!-- VIEW: REGISTER STEP 1 (Name + Mobile) -->
+      <div id="viewRegStep1" style="display:none; flex-direction:column; gap:12px;">
+        <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
+        <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
+        <button class="btn-gradient" onclick="goRegStep2()">Next ➔</button>
+      </div>
+
+      <!-- VIEW: REGISTER STEP 2 (DP + Unique ID >=6 small letters + 8-Digit Password) -->
+      <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
+        <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
+        <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
+        <p style="font-size:11px;color:#ff6b8b;">Optional: Tap to add DP</p>
+        <input type="text" id="regUserIdInput" class="input-box" placeholder="Unique User ID (@name, min 6 lowercase alpha)">
+        <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
+        <div style="display:flex; gap:8px;">
+          <button class="btn-gradient" style="flex:1; background:#333;" onclick="goRegStep1()">Back</button>
+          <button class="btn-gradient" style="flex:2;" onclick="finalRegister()">Final Submit</button>
+        </div>
+      </div>
+
+      <!-- SWITCH MODE -->
+      <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">New here? Register</p>
+      <p style="font-size:11px;color:#5ac8fa;cursor:pointer;" onclick="openForgotModal()">Forgot User ID / Password?</p>
+    </div>
+  </div>
+
+  <!-- FORGOT ID/PASS RECOVERY MODAL -->
+  <div id="recoveryModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;">
+    <div class="glass-card" style="max-width:320px;">
+      <h3 style="color:#fff;font-size:16px;">Account Recovery</h3>
+      <input type="tel" id="recMobileInp" class="input-box" placeholder="Enter Registered Mobile" maxlength="13">
+      <button class="btn-gradient" onclick="recoverAccountFind()">Find User ID</button>
+      <div id="recResult" style="font-size:12px;color:#00ff88;margin-top:8px;"></div>
+      
+      <div id="resetPassSection" style="display:none; flex-direction:column; gap:10px; margin-top:10px;">
+        <input type="password" id="recNewPassInp" class="input-box" placeholder="New 8-digit Password" maxlength="8">
+        <button class="btn-gradient" onclick="recoverAccountResetPass()">Update Password</button>
+      </div>
+
+      <button class="btn-gradient" style="background:#333;margin-top:10px;" onclick="closeForgotModal()">Close</button>
     </div>
   </div>
 
@@ -163,7 +200,7 @@
   <div id="mainApp">
     <div class="top-navbar">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px;">💖 Your Chat App</div>
+        <div style="font-size:20px;font-weight:800;">💖 Chat App</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button id="topThreeDotBtn" class="top-three-dot-btn" type="button" aria-label="Menu" onclick="toggleTopMenu(event)">⋮</button>
           <div class="user-profile-badge" onclick="openUserIdPopup()">
@@ -178,37 +215,33 @@
         <div class="nav-tab" onclick="switchNav(2)">CALLS</div>
       </div>
     </div>
-
     <div class="panes-wrapper">
-      <!-- CHATS -->
       <div class="tab-pane active" id="paneChats">
         <div class="search-bar-wrap">
-          <input type="text" id="searchTargetId" placeholder="Search User ID or mobile number" autocomplete="off" onkeydown="if(event.key==='Enter') sendDirectChat()">
-          <button onclick="sendDirectChat()">Chat</button>
+          <input type="text" id="searchTargetId" placeholder="Search User ID or mobile">
+          <button onclick="sendDirectChat()">Add</button>
         </div>
         <div id="chatsList"></div>
       </div>
-
-      <!-- STATUS -->
       <div class="tab-pane" id="paneStatus">
-        <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="handleStatusPicked(this)">
+        <input type="file" id="statusMediaInput" accept="image/*,video/*" multiple style="display:none;" onchange="handleMultipleStatusPicked(this)">
         <div class="my-status-row" onclick="handleMyStatusClick()">
           <div class="my-status-avatar-wrap">
-            <img id="myStatusAvatarImg" data-dp-view="1" src="">
+            <img id="myStatusAvatarImg" src="">
             <div class="add-status-badge">+</div>
           </div>
           <div style="flex:1;">
             <div style="font-size:15px;font-weight:700;">My Status</div>
-            <div style="font-size:13px;color:#8a8a9e;" id="myStatusSubtitle">Tap to add status update</div>
+            <div style="font-size:13px;color:#8a8a9e;" id="myStatusSubtitle">Tap to add status updates (Multi allowed)</div>
           </div>
         </div>
+        <div class="status-section-title">My Uploaded Statuses (Manage / Delete)</div>
+        <div id="myStatusesManagerList"></div>
         <div class="status-section-title">Recent Updates</div>
         <div id="contactsStatusList"></div>
       </div>
-
-      <!-- CALLS -->
       <div class="tab-pane" id="paneCalls">
-        <div style="padding:24px;text-align:center;color:#8a8a9e;">No recent calls</div>
+        <div id="callHistoryList" style="padding:10px 0;"></div>
       </div>
     </div>
   </div>
@@ -221,12 +254,12 @@
 
   <!-- FULL DP VIEWER -->
   <div id="fullDpModal" class="full-dp-modal" onclick="closeFullDp(event)">
-    <button class="full-dp-close" onclick="closeFullDp()">✕</button>
-    <img id="fullDpImage" src="" alt="Profile picture">
-    <div id="fullDpName" class="full-dp-name"></div>
+    <button class="full-dp-close" onclick="closeFullDp()" style="position:absolute; top:18px; right:18px; background:rgba(255,255,255,.12); border:0; color:#fff; border-radius:50%; width:42px; height:42px;">✕</button>
+    <img id="fullDpImage" src="" alt="Profile picture" style="max-width:min(92vw,520px); max-height:78vh; object-fit:contain; border-radius:16px;">
+    <div id="fullDpName" class="full-dp-name" style="color:#fff; font-size:17px; font-weight:700; margin-top:12px;"></div>
   </div>
 
-  <!-- EDIT PROFILE -->
+  <!-- EDIT PROFILE MODAL -->
   <div id="editProfileModal" class="edit-profile-modal" onclick="closeEditProfile(event)">
     <div class="edit-profile-card" onclick="event.stopPropagation()">
       <h3>Edit Profile</h3>
@@ -238,25 +271,23 @@
       <input id="editNameInput" class="input-box" type="text" placeholder="Name">
       <input id="editMobileInput" class="input-box" type="tel" disabled placeholder="Mobile Number (Locked)">
       <input id="editUserIdInput" class="input-box" type="text" disabled placeholder="User ID (Locked)">
-      
       <div style="position: relative; margin: 7px 0;">
         <input id="editPasswordInput" class="input-box" type="password" placeholder="New Password (optional)" style="margin:0; width:100%;">
         <button type="button" onclick="toggleEditPassword()" style="position:absolute; right:12px; top:12px; background:none; border:none; font-size:16px; cursor:pointer;">👁️</button>
       </div>
-
       <div style="display:flex;gap:10px;margin-top:10px;">
         <button class="btn-gradient" onclick="saveEditProfile()">Save</button>
-        <button class="btn-gradient" onclick="closeEditProfile()">Cancel</button>
+        <button class="btn-gradient" style="background:#333;" onclick="closeEditProfile()">Cancel</button>
       </div>
     </div>
   </div>
 
-  <!-- BLOCK / UNBLOCK SHEET -->
+  <!-- BLOCK SHEET MODAL -->
   <div id="blockSheetModal" class="block-sheet-modal" onclick="closeBlockSheet(event)">
     <div class="block-sheet-card" onclick="event.stopPropagation()">
       <div id="blockSheetName" style="font-size:18px;font-weight:800;color:#fff;margin-bottom:14px;"></div>
       <button id="blockSheetAction" class="btn-gradient" onclick="toggleSelectedBlock()">Block User</button>
-      <button class="btn-gradient" onclick="closeBlockSheet()">Cancel</button>
+      <button class="btn-gradient" style="background:#333;" onclick="closeBlockSheet()">Cancel</button>
     </div>
   </div>
 
@@ -269,19 +300,76 @@
     </div>
   </div>
 
+  <!-- STORY VIEWER -->
+  <div id="storyViewerModal">
+    <div class="story-progress-bar"><div id="storyProgressFill" class="story-progress-fill"></div></div>
+    <div class="story-top-info">
+      <img id="storyUserAvatar" src="">
+      <div style="flex:1;"><div id="storyUserName" style="font-size:14px;font-weight:700;"></div><div id="storyTime" style="font-size:11px;color:#bbb;"></div></div>
+      <div class="story-actions-bar" id="storyActionsBar" style="display:none;">
+        <button class="story-del-btn" onclick="deleteCurrentViewingStatus()">🗑️ Delete</button>
+      </div>
+      <button style="background:none;border:none;color:#fff;font-size:20px;" onclick="closeStoryViewer()">✕</button>
+    </div>
+    <div class="story-media-box" id="storyMediaBox"></div>
+    <div id="storyViewersCountBar" class="story-viewers-bar" onclick="openViewersSheet()">
+      <div>👁️ <span id="storyViewersNum">0</span></div>
+      <div style="font-size:11px;opacity:0.8;">Tap to see who viewed</div>
+    </div>
+  </div>
+
+  <div id="statusViewersSheet" onclick="closeViewersSheet(event)">
+    <div class="viewers-card" onclick="event.stopPropagation()">
+      <div style="font-size:15px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:8px;">Viewed by</div>
+      <div id="viewersListContainer"></div>
+    </div>
+  </div>
+
+  <!-- INSTAGRAM-LIKE VIDEO/AUDIO CALL MODAL -->
+  <div id="phoneCallModal">
+    <div class="call-video-container">
+      <video id="remoteVideoEl" autoplay playsinline></video>
+      <video id="localVideoPiP" autoplay playsinline muted></video>
+    </div>
+    <div class="call-top-overlay">
+      <img id="phoneCallerAvatar" class="caller-dp-pulse" src="">
+      <div id="phoneCallerName" style="font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);">Caller</div>
+      <div id="phoneCallState" style="font-size:13px;color:#bbb;text-shadow:0 1px 4px rgba(0,0,0,0.8);margin-top:4px;">Calling...</div>
+    </div>
+    <div class="call-bottom-overlay">
+      <div class="call-actions-box">
+        <button class="btn-call-circle btn-call-neutral" id="btnToggleMic" onclick="toggleCallAudio()">🎤</button>
+        <button class="btn-call-circle btn-call-neutral" id="btnToggleCam" onclick="toggleCallVideo()">📹</button>
+        <button class="btn-call-circle btn-call-green" id="btnAcceptCall" onclick="acceptIncomingCall()" style="display:none;">📞</button>
+        <button class="btn-call-circle btn-call-red" onclick="endPhoneCall(true)">✕</button>
+      </div>
+    </div>
+    <audio id="remoteAudioPlayer" autoplay playsinline></audio>
+  </div>
+
+  <!-- DELETE & INFO MODALS -->
+  <div id="deleteSheetModal" onclick="closeDeleteSheet(event)">
+    <div class="delete-sheet-card">
+      <button class="sheet-btn" onclick="executeDeleteForMe()">Delete For Me</button>
+      <button class="sheet-btn danger" id="btnDeleteEveryone" onclick="executeDeleteForEveryone()">Delete For Everyone</button>
+      <button class="sheet-btn cancel" onclick="closeDeleteSheet()">Cancel</button>
+    </div>
+  </div>
+
   <!-- CHAT ROOM -->
   <div id="chatRoom">
     <div class="room-header">
       <div class="room-header-profile">
-        <button style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;" onclick="closeRoom()">‹</button>
+        <button style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;" onclick="closeRoom()">✕</button>
         <img id="roomPartnerAvatar" data-dp-view="1" src="">
         <div>
           <div id="roomPartnerName" class="room-header-name">Partner</div>
-          <div style="font-size:11px;color:#8a8a9e; transition: color 0.3s;" id="roomPartnerStatus">Loading...</div>
+          <div style="font-size:11px;color:#8a8a9e;" id="roomPartnerStatus">Offline</div>
         </div>
       </div>
       <div class="room-header-actions">
-        <button onclick="startAudioCall()">📞</button>
+        <button onclick="startAudioOrVideoCall(false)" title="Audio Call">📞</button>
+        <button onclick="startAudioOrVideoCall(true)" title="Video Call">📹</button>
       </div>
     </div>
 
@@ -291,7 +379,6 @@
       <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handleFileSelected(this,'image')">
       <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="handleFileSelected(this,'video')">
       <input type="file" id="docInput" accept=".pdf,.doc,.docx,.xls,.txt" style="display:none;" onchange="handleFileSelected(this,'document')">
-
       <button class="menu-item" onclick="document.getElementById('photoInput').click()">📷 Photos</button>
       <button class="menu-item" onclick="document.getElementById('videoInput').click()">🎥 Videos</button>
       <button class="menu-item" onclick="document.getElementById('docInput').click()">📄 Documents (HD/PDF)</button>
@@ -321,378 +408,545 @@
     </div>
   </div>
 
-  <!-- DELETE & INFO MODALS -->
-  <div id="deleteSheetModal" onclick="closeDeleteSheet(event)">
-    <div class="delete-sheet-card">
-      <button class="sheet-btn" onclick="executeDeleteForMe()">Delete For Me</button>
-      <button class="sheet-btn danger" id="btnDeleteEveryone" onclick="executeDeleteForEveryone()">Delete For Everyone</button>
-      <button class="sheet-btn" onclick="showMessageInfo(selectedMsgId); closeDeleteSheet();">Message Info</button>
-      <button class="sheet-btn cancel" onclick="closeDeleteSheet()">Cancel</button>
-    </div>
-  </div>
-
-  <div id="messageInfoModal" onclick="closeMessageInfo(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:190;display:none;align-items:flex-end;justify-content:center;">
-    <div style="width:100%;max-width:500px;background:#181824;border-radius:20px 20px 0 0;padding:20px 18px 28px;border-top:1px solid #2d2d3c;" onclick="event.stopPropagation()">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><div style="font-size:17px;font-weight:800;color:#fff;">Message Info</div><button class="sheet-btn" style="width:auto;padding:7px 12px;" onclick="closeMessageInfo()">✕</button></div>
-      <div id="messageInfoBody" style="font-size:13px;color:#d8d8e0;line-height:1.7;"></div>
-    </div>
-  </div>
-
-  <!-- STORY VIEWER -->
-  <div id="storyViewerModal">
-    <div class="story-progress-bar"><div id="storyProgressFill" class="story-progress-fill"></div></div>
-    <div class="story-top-info">
-      <img id="storyUserAvatar" src="">
-      <div style="flex:1;"><div id="storyUserName" style="font-size:14px;font-weight:700;"></div><div id="storyTime" style="font-size:11px;color:#bbb;"></div></div>
-      <button style="background:none;border:none;color:#fff;font-size:20px;" onclick="closeStoryViewer()">✕</button>
-    </div>
-    <div class="story-media-box" id="storyMediaBox"></div>
-    <div id="storyViewersCountBar" class="story-viewers-bar" onclick="openViewersSheet()">
-      <div>👁️ <span id="storyViewersNum">0</span></div>
-      <div style="font-size:11px;opacity:0.8;">Tap to see who viewed</div>
-    </div>
-  </div>
-
-  <div id="statusViewersSheet" onclick="closeViewersSheet(event)">
-    <div class="viewers-card" onclick="event.stopPropagation()">
-      <div style="font-size:15px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:8px;">Viewed by</div>
-      <div id="viewersListContainer"></div>
-    </div>
-  </div>
-
-  <!-- CALL MODAL -->
-  <div id="phoneCallModal">
-    <div class="caller-details-box">
-      <img id="phoneCallerAvatar" class="caller-dp-pulse" src="">
-      <div id="phoneCallerName" style="font-size:22px;font-weight:800;">Caller</div>
-      <div id="phoneCallState" style="font-size:13px;color:#bbb;">Calling...</div>
-    </div>
-    <div class="call-actions-box">
-      <button class="btn-call-circle btn-call-green" id="btnAcceptCall" onclick="acceptIncomingCall()" style="display:none;">📞</button>
-      <button class="btn-call-circle btn-call-red" onclick="endPhoneCall(true)">✕</button>
-    </div>
-    <audio id="remoteAudioPlayer" autoplay playsinline></audio>
-  </div>
-
-  <!-- JAVASCRIPT WITH FIREBASE DB OFFLOAD -->
   <script>
-    // -------------------------------------------------------------------
-    // ⚠️ अपना Firebase Realtime DB Config यहाँ डालो (Firebase Console से)
-    // -------------------------------------------------------------------
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "mychat01-aa2e4.firebaseapp.com",
-      databaseURL: "https://mychat01-aa2e4-default-rtdb.firebaseio.com",
-      projectId: "mychat01-aa2e4",
-      storageBucket: "mychat01-aa2e4.firebasestorage.app",
-      messagingSenderId: "899727602335",
-      appId: "1:899727602335:web:abcd"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const fdb = firebase.database();
-    let currentFirebaseChatRef = null;
-    let currentFirebaseChildAdded = null;
-    let currentFirebaseChildRemoved = null;
+    const firebaseConfig = { apiKey: "YOUR_KEY", databaseURL: "YOUR_DB_URL", projectId: "YOUR_ID" };
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const fdb = typeof firebase !== 'undefined' && firebase.database ? firebase.database() : null;
+    let socket = io({ transports: ['websocket'] });
+    let authMode = 'login';
+    let regTempData = { name: '', mobile: '', dp: '' };
+    let myUserCode = '', myFullName = '', myAvatar = '', myMobileNumber = '', currentPartner = '', currentRoomId = '';
+    let currentMyStatusObj = null; let activeStoryItem = null; let storyTimer = null;
+    let recoveredFoundUserId = null;
+    let currentFirebaseChatRef = null; let currentFirebaseChildAdded = null;
+    let longPressTimer = null; let selectedMsgId = null; let selectedMsgIsMine = false;
+    let editDpFile = null; let selectedBlockUser = ''; let typingTimer = null;
 
-    let myUserCode = ''; let myFullName = ''; let myAvatar = ''; let myPassword = ''; let myMobileNumber = ''; let dpFileForUpload = null; const messageStore = new Map(); let activeCallId = null; let currentPartner = ''; let currentRoomId = ''; let socket = null; let isRegisterMode = true; let currentPendingInviter = ''; let engineInitialized = false; let currentMyStatusObj = null; let activeStoryItem = null; let selectedMsgId = null; let selectedMsgIsMine = false; let longPressTimer = null; let storyTimer = null; let typingTimer = null;
-
-    function showToast(msg, type = 'info') {
+    function showToast(msg, type='info') {
       const t = document.getElementById('toastBox');
       t.className = type; t.textContent = msg; t.style.display = 'flex';
-      setTimeout(() => { t.style.display = 'none'; }, 3500);
-    }
-
-    function formatUserCode(input) {
-      let val = String(input.value || '').trim().toLowerCase().replace(/@/g, '').replace(/[^a-z0-9]/g, '');
-      input.value = '@' + val;
-    }
-    function sanitizeMobile(input) { input.value = String(input.value || '').replace(/[^0-9+]/g, '').slice(0, 13); }
-
-    async function uploadToCloudinary(file, folder = 'your-chat-app/media') {
-      const r = await fetch('/api/cloudinary-signature', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({folder}) });
-      const sig = await r.json();
-      if (!r.ok || !sig.success) throw new Error(sig.error || 'Cloudinary signature failed');
-      const fd = new FormData(); fd.append('file', file); fd.append('api_key', sig.apiKey); fd.append('timestamp', sig.timestamp); fd.append('folder', sig.folder); fd.append('signature', sig.signature);
-      const up = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(sig.cloudName)}/auto/upload`, {method:'POST',body:fd});
-      const data = await up.json(); 
-      if (!up.ok || !data.secure_url) throw new Error(data.error?.message || 'Cloudinary API settings might be wrong.'); 
-      return data.secure_url;
-    }
-
-    function validateAuthInputs() {
-      const uCode = document.getElementById('userCodeInp').value.trim();
-      const pass = document.getElementById('passwordInp').value.trim();
-      const fName = isRegisterMode ? document.getElementById('fullNameInp').value.trim() : 'Valid';
-      const btn = document.getElementById('authActionBtn');
-      let isValid = true;
-      if (!/^@[a-z0-9]+$/.test(uCode)) isValid = false;
-      if (!pass) isValid = false;
-      if (isRegisterMode) {
-        if (!fName || !/[\p{L}]/u.test(fName)) isValid = false;
-        const mobile = document.getElementById('mobileInp')?.value.trim() || '';
-        if (!/^((\+91|91|0)?[6-9]\d{9})$/.test(mobile.replace(/[\s-]/g, ''))) isValid = false;
-      }
-      if (isValid) btn.classList.add('active-glow'); else btn.classList.remove('active-glow');
-    }
-
-    function createSocketConnection() {
-      if (socket && socket.connected) return;
-      socket = io({
-        reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 500,
-        transports: ['websocket']
-      });
-      socket.on('connect', () => console.log('Socket connected:', socket.id));
-      socket.on('disconnect', () => console.log('Socket disconnected'));
-    }
-
-    window.addEventListener('load', () => {
-      const savedUserCode = localStorage.getItem('wa_userCode');
-      const savedPassword = localStorage.getItem('wa_password');
-      if (savedUserCode && savedPassword) {
-        createSocketConnection();
-        socket.emit('restore-session', { userCode: savedUserCode, password: savedPassword }, (res) => {
-            if (res && res.success) { myUserCode = res.user.userCode; myFullName = res.user.fullName; myAvatar = res.user.avatar; myPassword = savedPassword; myMobileNumber = res.user.mobileNumber || ""; launchAppUI(); }
-            else { localStorage.removeItem('wa_userCode'); localStorage.removeItem('wa_password'); }
-        });
-      }
-    });
-
-    function previewDp(inp) {
-      const file = inp.files && inp.files[0]; if (!file) return;
-      if (!file.type.startsWith('image/')) return showToast('Please select an image for profile DP.', 'error');
-      const reader = new FileReader();
-      reader.onload = (e) => { myAvatar = e.target.result; const img = document.getElementById('dpViewer'); img.src = myAvatar; img.classList.add('has-image'); validateAuthInputs(); };
-      reader.readAsDataURL(file);
+      setTimeout(()=> { if(t) t.style.display='none'; }, 3500);
     }
 
     function toggleAuthMode() {
-      isRegisterMode = !isRegisterMode;
-      document.getElementById('authTitle').textContent = isRegisterMode ? 'Create Account' : 'Welcome Back';
-      document.getElementById('authDesc').textContent = isRegisterMode ? 'Session remains saved even after refresh' : 'Enter your ID and 6-digit PIN to login';
-      document.getElementById('registerFields').style.display = isRegisterMode ? 'block' : 'none';
-      document.getElementById('authActionBtn').textContent = isRegisterMode ? 'Register & Start' : 'Login';
-      document.getElementById('authSwitchText').textContent = isRegisterMode ? 'Already have an ID? Login here' : "Don't have an ID? Register here";
-      validateAuthInputs();
+      if (authMode === 'login') {
+        authMode = 'reg1';
+        document.getElementById('authTitle').textContent = 'Register (Step 1)';
+        document.getElementById('authSub').textContent = 'Enter Name & Mobile';
+        document.getElementById('viewLogin').style.display = 'none';
+        document.getElementById('viewRegStep1').style.display = 'flex';
+        document.getElementById('viewRegStep2').style.display = 'none';
+        document.getElementById('authSwitchText').textContent = 'Already registered? Login here';
+      } else {
+        authMode = 'login';
+        document.getElementById('authTitle').textContent = 'Welcome Back';
+        document.getElementById('authSub').textContent = 'Already registered? Enter here';
+        document.getElementById('viewLogin').style.display = 'flex';
+        document.getElementById('viewRegStep1').style.display = 'none';
+        document.getElementById('viewRegStep2').style.display = 'none';
+        document.getElementById('authSwitchText').textContent = 'New here? Register';
+      }
     }
 
-    async function handleAuthSubmit() {
-      const uCode=document.getElementById('userCodeInp').value.trim(); const pass=document.getElementById('passwordInp').value.trim(); const fName=document.getElementById('fullNameInp')?.value.trim()||''; const mobile=document.getElementById('mobileInp')?.value.trim()||'';
-      if(!/^@[a-z0-9]+$/.test(uCode)) return showToast('❌ User ID must be @ followed by letters/numbers.','error');
-      if(!pass) return showToast('❌ Password is required.','error');
-      if(isRegisterMode){
-        if(!fName || !/[\p{L}]/u.test(fName)) return showToast('❌ Name must contain at least one letter.','error');
-        if(!/^((\+91|91|0)?[6-9]\d{9})$/.test(mobile.replace(/[\s-]/g,''))) return showToast('❌ Enter a valid Indian mobile number.','error');
-      }
-      createSocketConnection(); let avatarUrl=myAvatar||'';
-      try{ if(isRegisterMode && dpFileForUpload){ showToast('Profile photo uploading...','info'); avatarUrl=await uploadToCloudinary(dpFileForUpload,'your-chat-app/profile'); } }
-      catch(e){ console.error(e); return showToast(e.message || 'Profile photo upload failed. Try again.','error'); }
-      socket.emit('auth-user',{userCode:uCode,password:pass,fullName:fName,avatar:avatarUrl,mobileNumber:mobile,isRegister:isRegisterMode},res=>{
-        if(res&&res.success){ myUserCode=res.user.userCode; myFullName=res.user.fullName; myAvatar=res.user.avatar||''; myMobileNumber=res.user.mobileNumber||mobile; myPassword=pass; localStorage.setItem('wa_userCode',myUserCode); localStorage.setItem('wa_password',myPassword); launchAppUI(); }
-        else showToast(res?(res.error||res.msg||'Authentication failed'):'Connection failed','error');
+    function goRegStep2() {
+      const name = document.getElementById('regNameInput').value.trim();
+      const mobile = document.getElementById('regMobileInput').value.trim();
+      if (!name) return showToast('Error in name: Name is required.', 'error');
+      if (!mobile || !/^\d{10,13}$/.test(mobile.replace(/[\s-+]/g, ''))) return showToast('Error in mobile number: Please provide a valid mobile number.', 'error');
+      regTempData.name = name; regTempData.mobile = mobile;
+      authMode = 'reg2';
+      document.getElementById('authTitle').textContent = 'Register (Step 2)';
+      document.getElementById('authSub').textContent = 'Unique ID & 8-digit Password';
+      document.getElementById('viewRegStep1').style.display = 'none';
+      document.getElementById('viewRegStep2').style.display = 'flex';
+    }
+
+    function goRegStep1() {
+      authMode = 'reg1';
+      document.getElementById('viewRegStep2').style.display = 'none';
+      document.getElementById('viewRegStep1').style.display = 'flex';
+    }
+
+    function previewDp(inp) {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        regTempData.dp = e.target.result;
+        const img = document.getElementById('dpViewer');
+        img.src = regTempData.dp; img.classList.add('has-image');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function finalRegister() {
+      const uCodeRaw = document.getElementById('regUserIdInput').value.trim().toLowerCase();
+      const uCode = uCodeRaw.startsWith('@') ? uCodeRaw : '@' + uCodeRaw;
+      const pass = document.getElementById('regPassInput').value.trim();
+      if (!/^@[a-z]{6,}$/.test(uCode)) return showToast('Error in user ID: Must start with @ and have at least 6 lowercase alphabetic letters.', 'error');
+      if (pass.length !== 8) return showToast('Error in password: Password must be strictly 8 characters.', 'error');
+      socket.emit('auth-user', { userCode: uCode, password: pass, fullName: regTempData.name, mobile: regTempData.mobile, avatar: regTempData.dp, isRegister: true }, res => {
+        if (res && res.success) launchApp(res.user);
+        else showToast(res?.error || 'Registration failed', 'error');
       });
     }
 
-    function launchAppUI() {
-      document.getElementById('screenAuth').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; document.getElementById('myNameTopBadge').textContent = myFullName; document.getElementById('dropdownUserCode').textContent = myUserCode; document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName);
-      initAppEngine();
+    function handleLogin() {
+      const id = document.getElementById('loginIdInput').value.trim();
+      const pass = document.getElementById('loginPassInput').value.trim();
+      if (!id) return showToast('Error: Please enter your User ID or Mobile number.', 'error');
+      if (pass.length !== 8) return showToast('Error in password: Password must be 8 characters long.', 'error');
+      socket.emit('auth-user', { userCode: id, password: pass, isRegister: false }, res => {
+        if (res && res.success) launchApp(res.user);
+        else showToast(res?.error || 'Login failed', 'error');
+      });
     }
 
-    function openUserIdPopup() { document.getElementById('userIdDropdownModal').style.display = 'flex'; }
-    function closeUserIdPopup(e) { if (!e || e.target.id === 'userIdDropdownModal') document.getElementById('userIdDropdownModal').style.display = 'none'; }
-    async function copyMyUserId() { try { await navigator.clipboard.writeText(myUserCode); showToast('User ID copied to clipboard!', 'success'); } catch (err) { showToast('Unable to copy automatically.', 'error'); } closeUserIdPopup(); }
+    function launchApp(user) {
+      myUserCode = user.userCode; myFullName = user.fullName; myAvatar = user.avatar || ''; myMobileNumber = user.mobileNumber || regTempData.mobile || '';
+      document.getElementById('screenAuth').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'flex';
+      document.getElementById('myNameTopBadge').textContent = myFullName;
+      document.getElementById('dropdownUserCode').textContent = myUserCode;
+      document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName);
+      socket.emit('get-statuses');
+      socket.emit('get-contacts');
+      socket.emit('get-call-history');
+    }
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && socket && socket.connected) {
-        socket.emit('get-contacts'); socket.emit('get-statuses'); socket.emit('get-call-history');
-        if (currentRoomId && currentPartner) { socket.emit('check-online', { targetCode: currentPartner }); }
-      }
-    });
+    function openForgotModal() { document.getElementById('recoveryModal').style.display = 'flex'; }
+    function closeForgotModal() {
+      document.getElementById('recoveryModal').style.display = 'none';
+      document.getElementById('resetPassSection').style.display = 'none';
+      document.getElementById('recResult').textContent = '';
+      document.getElementById('recMobileInp').value = '';
+      document.getElementById('recNewPassInp').value = '';
+      recoveredFoundUserId = null;
+    }
 
-    function initAppEngine() {
-      if (!socket) createSocketConnection();
-      if (engineInitialized) { socket.emit('get-contacts'); socket.emit('get-statuses'); socket.emit('get-call-history'); return; }
-      engineInitialized = true;
-      socket.emit('get-contacts'); socket.emit('get-statuses'); socket.emit('get-call-history');
-
-      socket.on('update-contact-lastmsg', () => socket.emit('get-contacts'));
-      socket.on('notify-incoming-msg', () => { socket.emit('get-contacts'); socket.emit('get-statuses'); });
-      socket.on('refresh-contacts', () => socket.emit('get-contacts'));
-      socket.on('refresh-statuses', () => socket.emit('get-statuses'));
-
-      setInterval(() => {
-        if (socket && socket.connected && currentRoomId && currentPartner) {
-          socket.emit('check-online', { targetCode: currentPartner });
+    function recoverAccountFind() {
+      const mob = document.getElementById('recMobileInp').value.trim();
+      if (!mob) return showToast('Error in mobile number: Please enter your mobile number.', 'error');
+      socket.emit('recover-id', { mobile: mob }, res => {
+        if (res && res.userCode) {
+          recoveredFoundUserId = res.userCode;
+          document.getElementById('recResult').innerHTML = `Found ID: <b>${res.userCode}</b><br>Now enter new 8-digit password below.`;
+          document.getElementById('resetPassSection').style.display = 'flex';
+        } else {
+          document.getElementById('recResult').textContent = 'No account found for this mobile number.';
+          document.getElementById('resetPassSection').style.display = 'none';
+          recoveredFoundUserId = null;
         }
-      }, 5000);
-
-      socket.on('contact-list-data', ({ contacts = [], pending = [] }) => { renderChats(contacts); });
-      socket.on('error-msg', (msg) => showToast(msg, 'error'));
-      socket.on('status-data', renderStatusSections);
-      socket.on('call-record-created', ({callId}) => activeCallId = callId);
-      socket.on('call-history-data', renderCallHistory);
-
-      socket.on('user-online-status', ({ targetCode, isOnline }) => {
-          if(currentPartner === targetCode) {
-              const el = document.getElementById('roomPartnerStatus');
-              if(isOnline) { el.textContent = 'Online'; el.style.color = '#00ff88'; } else { el.textContent = 'Offline'; el.style.color = '#8a8a9e'; }
-          }
       });
-      socket.on('user-typing', ({ targetCode, roomId }) => {
-          if(currentPartner === targetCode && currentRoomId === roomId) {
-              const el = document.getElementById('roomPartnerStatus');
-              el.textContent = 'Typing...'; el.style.color = '#5ac8fa';
-          }
-      });
-      setupAudioWebRTC();
     }
 
-    function emitTyping() {
-        if(!currentPartner || !socket) return;
-        socket.emit('typing', { targetCode: currentPartner, roomId: currentRoomId });
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => { socket.emit('check-online', { targetCode: currentPartner }); }, 1500);
+    function recoverAccountResetPass() {
+      const newPass = document.getElementById('recNewPassInp').value.trim();
+      if (!recoveredFoundUserId) return showToast('Error: Please find User ID first.', 'error');
+      if (newPass.length !== 8) return showToast('Error in password: New password must be strictly 8 characters.', 'error');
+      socket.emit('reset-password', { userCode: recoveredFoundUserId, newPassword: newPass }, res => {
+        if (res && res.success) {
+          showToast('Password updated successfully! Please login.', 'success');
+          closeForgotModal();
+        } else {
+          showToast(res?.error || 'Password update failed.', 'error');
+        }
+      });
+    }
+
+    function switchNav(idx) {
+      document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+      document.querySelectorAll('.tab-pane').forEach((p, i) => p.classList.toggle('active', i === idx));
+      if (idx === 1) socket.emit('get-statuses');
+      if (idx === 0) socket.emit('get-contacts');
+      if (idx === 2) socket.emit('get-call-history');
     }
 
     function sendDirectChat() {
-      const raw=document.getElementById('searchTargetId').value.trim();
-      if(!raw) return showToast('Enter User ID or mobile number.','error');
-      if(raw.startsWith('@') || /^[a-zA-Z0-9]+$/.test(raw)) socket.emit('open-direct-chat',{targetCode:'@'+raw.replace(/@/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase(),query:raw},openDirectChatResult);
-      else socket.emit('open-direct-chat',{mobileNumber:raw.replace(/[^0-9+]/g,''),query:raw},openDirectChatResult);
+      const raw = document.getElementById('searchTargetId').value.trim();
+      if (!raw) return showToast('Enter User ID or mobile number.', 'error');
+      socket.emit('open-direct-chat', { targetCode: raw.startsWith('@') ? raw : '@'+raw.replace(/@/g,'').toLowerCase(), query: raw }, res => {
+        if (res?.success && res.user) { openRoom(res.user.userCode, res.user.fullName, res.user.avatar||''); document.getElementById('searchTargetId').value=''; }
+        else showToast(res?.error || 'User not found.', 'error');
+      });
     }
-    function openDirectChatResult(res){ if(res?.success&&res.user){openRoom(res.user.userCode,res.user.fullName,res.user.avatar||'');document.getElementById('searchTargetId').value='';}else showToast(res?.error||'User not found.','error'); }
+
+    socket.on('contact-list-data', ({ contacts = [] }) => {
+      renderChats(contacts);
+    });
 
     function renderChats(contacts = []) {
       const box = document.getElementById('chatsList');
-      if (!contacts.length) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#7e7e92;">No chats yet. Enter a User ID above!</div>'; return; }
+      if (!contacts.length) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#7e7e92;">No chats yet. Search User ID/mobile above!</div>'; return; }
       box.innerHTML = '';
       contacts.forEach(c => {
         const row = document.createElement('div'); row.className = 'chat-row';
-        row.onclick = () => { if (row.dataset.longPressed === '1') { row.dataset.longPressed = ''; return; } openRoom(c.userCode, c.name || c.fullName || 'User', c.avatar); };
+        row.onclick = () => openRoom(c.userCode, c.name || c.fullName || 'User', c.avatar);
         addPersonLongPress(row, c.userCode, c.name || c.fullName || 'User');
-        row.innerHTML = `<img data-dp-view="1" data-dp-name="${escapeHtml(c.name || c.fullName || 'User')}" src="${safeMediaUrl(c.avatar) || defaultAvatar(c.name || c.fullName || 'User')}"><div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(c.name || c.fullName || 'User')}</div><div style="font-size:13px;color:#8a8a9e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.lastMessage || '')}</div></div>`;
+        row.innerHTML = `<img data-dp-view="1" data-dp-name="${escapeHtml(c.name||c.fullName||'User')}" src="${c.avatar || defaultAvatar(c.name||'User')}"><div style="flex:1;"><div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(c.name||c.fullName||'User')}</div><div style="font-size:13px;color:#8a8a9e;margin-top:2px;">${escapeHtml(c.lastMessage||'')}</div></div>`;
         box.appendChild(row);
       });
     }
 
     function detachFirebaseChatListener() {
-      if (currentFirebaseChatRef) {
-        if (currentFirebaseChildAdded) currentFirebaseChatRef.off('child_added', currentFirebaseChildAdded);
-        if (currentFirebaseChildRemoved) currentFirebaseChatRef.off('child_removed', currentFirebaseChildRemoved);
-        currentFirebaseChatRef = null; currentFirebaseChildAdded = null; currentFirebaseChildRemoved = null;
-      }
+      if (currentFirebaseChatRef && currentFirebaseChildAdded) currentFirebaseChatRef.off('child_added', currentFirebaseChildAdded);
+      currentFirebaseChatRef = null; currentFirebaseChildAdded = null;
     }
 
     function openRoom(code, name, avatar) {
       if (!code) return; currentPartner = code; currentRoomId = [myUserCode, code].sort().join('_');
       document.getElementById('roomPartnerName').textContent = name || code;
-      const partnerImg = document.getElementById('roomPartnerAvatar'); partnerImg.src = avatar || defaultAvatar(name || code); partnerImg.dataset.dpView = '1'; partnerImg.dataset.dpName = name || code;
-      document.getElementById('roomPartnerStatus').textContent = 'Loading...'; document.getElementById('roomPartnerStatus').style.color = '#8a8a9e';
+      const partnerImg = document.getElementById('roomPartnerAvatar');
+      partnerImg.src = avatar || defaultAvatar(name || code);
+      partnerImg.dataset.dpView = '1'; partnerImg.dataset.dpName = name || code;
+      document.getElementById('roomPartnerStatus').textContent = 'Online';
       document.getElementById('chatRoom').style.display = 'flex';
-      socket.emit('open-room', { targetCode: code }); socket.emit('chat-room-opened', { roomId: currentRoomId, targetCode: currentPartner });
-      socket.emit('check-online', { targetCode: currentPartner });
-
+      socket.emit('open-room', { targetCode: code });
       detachFirebaseChatListener();
       document.getElementById('roomMessages').innerHTML = '';
-      currentFirebaseChatRef = fdb.ref('rooms/' + currentRoomId + '/messages');
-      currentFirebaseChildAdded = currentFirebaseChatRef.limitToLast(50).on('child_added', snapshot => {
-        const data = snapshot.val();
-        if (data && !document.getElementById(`msg-${data.id}`)) { renderBubble(data); }
-      });
-      currentFirebaseChildRemoved = currentFirebaseChatRef.on('child_removed', snapshot => {
-        const el = document.getElementById(`msg-${snapshot.key}`);
-        if (el) el.remove();
-      });
+      if (fdb) {
+        currentFirebaseChatRef = fdb.ref('rooms/' + currentRoomId + '/messages');
+        currentFirebaseChildAdded = currentFirebaseChatRef.limitToLast(50).on('child_added', snapshot => {
+          const data = snapshot.val();
+          if (data && !document.getElementById(`msg-${data.id}`)) { renderBubble(data); }
+        });
+      }
     }
 
     function closeRoom() {
       detachFirebaseChatListener();
-      socket.emit('chat-room-closed', { roomId: currentRoomId, targetCode: currentPartner }); document.getElementById('chatRoom').style.display = 'none';
-      currentPartner = ''; currentRoomId = ''; document.getElementById('roomMessages').innerHTML = ''; document.getElementById('chatMsgInp').value = ''; handleInputState(''); socket.emit('get-contacts');
+      document.getElementById('chatRoom').style.display = 'none';
+      currentPartner = ''; currentRoomId = ''; document.getElementById('roomMessages').innerHTML = '';
     }
 
-    function triggerLongPressSheet(id, isMine) { selectedMsgId = id; selectedMsgIsMine = isMine; document.getElementById('btnDeleteEveryone').style.display = isMine ? 'block' : 'none'; document.getElementById('deleteSheetModal').style.display = 'flex'; }
-    function closeDeleteSheet(e) { if (!e || e.target.id === 'deleteSheetModal') { document.getElementById('deleteSheetModal').style.display = 'none'; selectedMsgId = null; } }
-    function executeDeleteForMe() { if (selectedMsgId) { const el = document.getElementById(`msg-${selectedMsgId}`); if (el) el.remove(); closeDeleteSheet(); } }
-    function executeDeleteForEveryone() { 
-      if (selectedMsgId && selectedMsgIsMine && currentRoomId) { 
-        fdb.ref('rooms/' + currentRoomId + '/messages/' + selectedMsgId).remove();
-        executeDeleteForMe(); 
-      } 
-    }
-
-    function formatInfoDate(v){return v?new Date(v).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'Not yet';}
-    function formatBytes(b){if(!b)return '0 B';const u=['B','KB','MB','GB'];const i=Math.min(Math.floor(Math.log(b)/Math.log(1024)),3);return `${(b/Math.pow(1024,i)).toFixed(i?1:0)} ${u[i]}`;}
-    function showMessageInfo(id){if(!id)return;document.getElementById('messageInfoModal').style.display='flex';document.getElementById('messageInfoBody').innerHTML='Loading...';setTimeout(()=>{document.getElementById('messageInfoBody').innerHTML=`<div style="font-weight:800;color:#fff;">Firebase Offloaded Chat</div><div style="margin-top:10px;font-size:11px;color:#8a8a9e;word-break:break-all;">Message ID: ${escapeHtml(id)}</div>`;},100);}
-    function closeMessageInfo(e){if(!e||e.target.id==='messageInfoModal')document.getElementById('messageInfoModal').style.display='none';}
-
-    function getTicksHtml(status, isMine) {
-      if (!isMine) return '';
-      return `<span class="message-ticks read" aria-label="Delivered">✓✓</span>`;
-    }
-    function updateMessageTicks(id, status) {
-      const el = document.querySelector(`#msg-${CSS.escape(String(id))} .message-ticks`);
-      if (!el) return;
-      el.textContent = '✓✓'; el.className = 'message-ticks read';
-    }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, e => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[e])); }
+    function defaultAvatar(name='User'){const letter=(String(name).trim().charAt(0)||'U').toUpperCase();return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#222230"/><text x="60" y="72" text-anchor="middle" font-size="52" fill="#ff6b8b" font-family="Arial">${letter}</text></svg>`);}
 
     function renderBubble(data) {
-      if (!data || !data.id) return; if (document.getElementById(`msg-${data.id}`)) return;
-      messageStore.set(String(data.id), data);
+      if (!data || !data.id || document.getElementById(`msg-${data.id}`)) return;
       const isMine = data.senderCode === myUserCode; const b = document.createElement('div');
       b.id = `msg-${data.id}`; b.className = `msg-bubble ${isMine ? 'mine' : 'other'}`;
-      b.addEventListener('dblclick', () => showMessageInfo(data.id));
       b.addEventListener('pointerdown', () => { clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { triggerLongPressSheet(data.id, isMine); }, 500); });
       b.addEventListener('pointerup', () => clearTimeout(longPressTimer)); b.addEventListener('pointerleave', () => clearTimeout(longPressTimer)); b.addEventListener('pointercancel', () => clearTimeout(longPressTimer));
 
       let mediaHtml = '';
       if (data.media) {
-        const safeMedia = safeMediaUrl(data.media);
-        if (data.mediaType === 'image') mediaHtml = `<img src="${safeMedia}" style="max-width:100%;border-radius:10px;margin-top:4px;" loading="lazy">`;
-        else if (data.mediaType === 'video') mediaHtml = `<video src="${safeMedia}" controls playsinline style="max-width:100%;border-radius:10px;margin-top:4px;"></video>`;
-        else if (data.mediaType === 'audio') mediaHtml = `<audio src="${safeMedia}" controls style="max-width:230px;margin-top:4px;"></audio>`;
-        else if (data.mediaType === 'document' || data.mediaType === 'pdf') mediaHtml = `<div style="margin-top:4px; padding:12px; background:rgba(255,255,255,0.08); border-radius:10px; display:flex; align-items:center; gap:8px;">📄 <a href="${safeMedia}" target="_blank" style="color:#5ac8fa; text-decoration:none; font-weight:600; word-break:break-all; font-size:13px;">${escapeHtml(data.fileName || 'Document File')}</a></div>`;
+        if (data.mediaType === 'image') mediaHtml = `<img src="${data.media}" style="max-width:100%;border-radius:10px;margin-top:4px;" loading="lazy">`;
+        else if (data.mediaType === 'video') mediaHtml = `<video src="${data.media}" controls playsinline style="max-width:100%;border-radius:10px;margin-top:4px;"></video>`;
+        else if (data.mediaType === 'audio') mediaHtml = `<audio src="${data.media}" controls style="max-width:230px;margin-top:4px;"></audio>`;
+        else mediaHtml = `<div style="margin-top:4px; padding:12px; background:rgba(255,255,255,0.08); border-radius:10px;">📄 <a href="${data.media}" target="_blank" style="color:#5ac8fa;text-decoration:none;">${escapeHtml(data.fileName||'Document')}</a></div>`;
       }
-      b.innerHTML = `
-        ${data.text ? `<div>${escapeHtml(data.text)}</div>` : ''}
-        ${mediaHtml}
-        <div class="message-meta">
-          <span class="message-time">${escapeHtml(data.time || '')}</span>
-          ${getTicksHtml('read', isMine)}
-          <button onclick="event.stopPropagation();showMessageInfo('${data.id}')" style="background:none;border:0;color:rgba(255,255,255,.6);font-size:10px;padding:0 0 0 3px;cursor:pointer;">ⓘ</button>
-        </div>
-      `;
+      b.innerHTML = `${data.text ? `<div>${escapeHtml(data.text)}</div>` : ''}${mediaHtml}<div class="message-meta"><span class="message-time">${escapeHtml(data.time||'')}</span><span class="message-ticks">✓✓</span></div>`;
       const box = document.getElementById('roomMessages'); box.appendChild(b); box.scrollTop = box.scrollHeight;
     }
 
+    function triggerLongPressSheet(id, isMine) { selectedMsgId = id; selectedMsgIsMine = isMine; document.getElementById('btnDeleteEveryone').style.display = isMine ? 'block' : 'none'; document.getElementById('deleteSheetModal').style.display = 'flex'; }
+    function closeDeleteSheet(e) { if (!e || e.target.id === 'deleteSheetModal') { document.getElementById('deleteSheetModal').style.display = 'none'; selectedMsgId = null; } }
+    function executeDeleteForMe() { if (selectedMsgId) { const el = document.getElementById(`msg-${selectedMsgId}`); if (el) el.remove(); closeDeleteSheet(); } }
+    function executeDeleteForEveryone() { if (selectedMsgId && selectedMsgIsMine && currentRoomId && fdb) { fdb.ref('rooms/' + currentRoomId + '/messages/' + selectedMsgId).remove(); executeDeleteForMe(); } }
+
     function sendMessage() {
       const inp = document.getElementById('chatMsgInp'); const text = inp.value.trim();
-      if (!text) return; if (!currentPartner) return showToast('Open a chat first.', 'error');
+      if (!text || !currentPartner || !currentRoomId || !fdb) return;
       const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      fdb.ref('rooms/' + currentRoomId + '/messages/' + clientMessageId).set({
-        id: clientMessageId,
-        roomId: currentRoomId,
-        senderCode: myUserCode,
-        text: text,
-        time: timeStr,
-        timestamp: Date.now(),
-        status: 'sent'
-      });
+      fdb.ref('rooms/' + currentRoomId + '/messages/' + clientMessageId).set({ id: clientMessageId, roomId: currentRoomId, senderCode: myUserCode, text, time: timeStr, timestamp: Date.now() });
       inp.value = ''; handleInputState('');
     }
+    function handleInputState(val) { const mic = document.getElementById('micIcon'); const send = document.getElementById('sendIcon'); if (String(val||'').trim().length > 0) { mic.style.display = 'none'; send.style.display = 'block'; } else { mic.style.display = 'block'; send.style.display = 'none'; } }
+    function emitTyping() {
+      if(!currentPartner || !socket) return;
+      socket.emit('typing', { targetCode: currentPartner, roomId: currentRoomId });
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => { socket.emit('check-online', { targetCode: currentPartner }); }, 1500);
+    }
 
-    function handleInputState(val) { const mic = document.getElementById('micIcon'); const send = document.getElementById('sendIcon'); if (String(val || '').trim().length > 0) { mic.style.display = 'none'; send.style.display = 'block'; } else { mic.style.display = 'block'; send.style.display = 'none'; } }
+    socket.on('user-online-status', ({ targetCode, isOnline }) => {
+      if(currentPartner === targetCode) {
+        const el = document.getElementById('roomPartnerStatus');
+        if(isOnline) { el.textContent = 'Online'; el.style.color = '#00ff88'; } else { el.textContent = 'Offline'; el.style.color = '#8a8a9e'; }
+      }
+    });
+    socket.on('user-typing', ({ targetCode, roomId }) => {
+      if(currentPartner === targetCode && currentRoomId === roomId) {
+        const el = document.getElementById('roomPartnerStatus');
+        el.textContent = 'Typing...'; el.style.color = '#5ac8fa';
+      }
+    });
 
+    /* TOP MENU / EDIT PROFILE / BLOCK */
+    function toggleTopMenu(event) { if (event) event.stopPropagation(); const panel = document.getElementById('topMenuPanel'); panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex'; }
+    document.addEventListener('click', (event) => {
+      const dpImg = event.target.closest && event.target.closest('img[data-dp-view="1"]');
+      if (dpImg) { event.preventDefault(); event.stopPropagation(); openFullDp(dpImg.src, dpImg.dataset.dpName || ''); return; }
+      const panel = document.getElementById('topMenuPanel'); const btn = document.getElementById('topThreeDotBtn');
+      if (panel && panel.style.display === 'flex' && !panel.contains(event.target) && event.target !== btn) panel.style.display = 'none';
+    });
+    function openFullDp(src, name='') { const modal = document.getElementById('fullDpModal'); document.getElementById('fullDpImage').src = src || defaultAvatar(name); document.getElementById('fullDpName').textContent = name || ''; modal.style.display = 'flex'; }
+    function closeFullDp(event) { if (event && event.target && event.target.id !== 'fullDpModal') return; document.getElementById('fullDpModal').style.display = 'none'; }
+    function openUserIdPopup() { document.getElementById('userIdDropdownModal').style.display = 'flex'; }
+    function closeUserIdPopup(e) { if (!e || e.target.id === 'userIdDropdownModal') document.getElementById('userIdDropdownModal').style.display = 'none'; }
+    async function copyMyUserId() { try { await navigator.clipboard.writeText(myUserCode); showToast('User ID copied!', 'success'); } catch(e){} closeUserIdPopup(); }
+
+    function toggleEditPassword() { const inp = document.getElementById('editPasswordInput'); inp.type = inp.type === 'password' ? 'text' : 'password'; }
+    function openEditProfile() {
+      document.getElementById('topMenuPanel').style.display = 'none';
+      document.getElementById('editNameInput').value = myFullName || '';
+      document.getElementById('editMobileInput').value = myMobileNumber || '';
+      document.getElementById('editUserIdInput').value = myUserCode || '';
+      document.getElementById('editPasswordInput').value = '';
+      document.getElementById('editDpPreview').src = myAvatar || defaultAvatar(myFullName);
+      editDpFile = null; document.getElementById('editDpInput').value = '';
+      document.getElementById('editProfileModal').style.display = 'flex';
+    }
+    function closeEditProfile(event) { if (event && event.target && event.target.id !== 'editProfileModal') return; document.getElementById('editProfileModal').style.display = 'none'; }
+    function previewEditDp(input) { const file = input.files && input.files[0]; if (!file) return; editDpFile = file; const reader = new FileReader(); reader.onload = e => document.getElementById('editDpPreview').src = e.target.result; reader.readAsDataURL(file); }
+    async function saveEditProfile() {
+      const name = document.getElementById('editNameInput').value.trim();
+      const newPassword = document.getElementById('editPasswordInput').value.trim();
+      if (!name) return showToast('Name required', 'error');
+      if (newPassword && newPassword.length !== 8) return showToast('Password must be 8 digits', 'error');
+      let avatar = myAvatar || '';
+      try {
+        if (editDpFile) avatar = await uploadToCloudinary(editDpFile, 'your-chat-app/profile');
+        socket.emit('update-profile', { fullName: name, avatar, newPassword }, res => {
+          if (!res?.success) return showToast(res?.error || 'Update failed', 'error');
+          myFullName = res.user.fullName; myAvatar = res.user.avatar || '';
+          document.getElementById('myNameTopBadge').textContent = myFullName;
+          document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName);
+          closeEditProfile(); showToast('Profile updated', 'success');
+        });
+      } catch(e) { showToast('Upload failed', 'error'); }
+    }
+
+    function addPersonLongPress(row, code, name) {
+      let timer = null;
+      const start = (e) => { if (e.target.closest && e.target.closest('button,input')) return; clearTimeout(timer); timer = setTimeout(() => { selectedBlockUser = code; openBlockSheet(code, name); }, 600); };
+      const cancel = () => clearTimeout(timer);
+      row.addEventListener('pointerdown', start); row.addEventListener('pointerup', cancel); row.addEventListener('pointerleave', cancel); row.addEventListener('pointercancel', cancel);
+      row.addEventListener('contextmenu', e => { e.preventDefault(); selectedBlockUser = code; openBlockSheet(code, name); });
+    }
+    function openBlockSheet(code, name) {
+      selectedBlockUser = code; document.getElementById('blockSheetName').textContent = name || code;
+      socket.emit('get-block-status', { targetCode: code }, res => {
+        document.getElementById('blockSheetAction').textContent = res?.blockedByMe ? 'Unblock User' : 'Block User';
+        document.getElementById('blockSheetModal').style.display = 'flex';
+      });
+    }
+    function closeBlockSheet(event) { if (event && event.target && event.target.id !== 'blockSheetModal') return; document.getElementById('blockSheetModal').style.display = 'none'; }
+    function toggleSelectedBlock() {
+      if (!selectedBlockUser) return;
+      socket.emit('toggle-block', { targetCode: selectedBlockUser }, res => {
+        if (!res?.success) return showToast(res?.error || 'Action failed', 'error');
+        document.getElementById('blockSheetAction').textContent = res.blockedByMe ? 'Unblock User' : 'Block User';
+        showToast(res.blockedByMe ? 'Blocked' : 'Unblocked', 'success');
+      });
+    }
+    function logoutUser() { document.getElementById('topMenuPanel').style.display = 'none'; localStorage.clear(); if(socket) socket.disconnect(); location.reload(); }
+
+    /* INSTAGRAM-LIKE WEBRTC AUDIO/VIDEO CALL SYSTEM */
+    let peerConn = null; let localStream = null; const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let incomingCallerCode = null; let incomingSignal = null; let activeCallPartner = null; let isVideoCallActive = false;
+
+    async function startAudioOrVideoCall(isVideo = false) {
+      if (!currentPartner) return showToast('Open chat first', 'error');
+      isVideoCallActive = isVideo; activeCallPartner = currentPartner;
+      document.getElementById('phoneCallModal').style.display = 'flex';
+      document.getElementById('phoneCallerAvatar').src = document.getElementById('roomPartnerAvatar').src;
+      document.getElementById('phoneCallerName').textContent = document.getElementById('roomPartnerName').textContent;
+      document.getElementById('phoneCallState').textContent = isVideo ? 'Video Calling...' : 'Audio Calling...';
+      document.getElementById('btnAcceptCall').style.display = 'none';
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
+        if (isVideo) document.getElementById('localVideoPiP').srcObject = localStream;
+        peerConn = new RTCPeerConnection(rtcConfig);
+        localStream.getTracks().forEach(track => peerConn.addTrack(track, localStream));
+        peerConn.onicecandidate = e => { if (e.candidate) socket.emit('ice-candidate', { targetCode: activeCallPartner, candidate: e.candidate }); };
+        peerConn.ontrack = e => {
+          if (isVideo) document.getElementById('remoteVideoEl').srcObject = e.streams[0];
+          else document.getElementById('remoteAudioPlayer').srcObject = e.streams[0];
+        };
+        const offer = await peerConn.createOffer(); await peerConn.setLocalDescription(offer);
+        socket.emit('call-user', { targetCode: activeCallPartner, signal: offer, callerData: { name: myFullName, avatar: myAvatar }, isVideo });
+      } catch (err) { showToast('Camera/Mic permission needed', 'error'); endPhoneCall(false); }
+    }
+
+    socket.on('incoming-call', async ({ from, signal, callerData, isVideo }) => {
+      incomingCallerCode = from; incomingSignal = signal; activeCallPartner = from; isVideoCallActive = isVideo;
+      document.getElementById('phoneCallModal').style.display = 'flex';
+      document.getElementById('phoneCallerAvatar').src = callerData?.avatar || defaultAvatar(callerData?.name);
+      document.getElementById('phoneCallerName').textContent = callerData?.name || 'Caller';
+      document.getElementById('phoneCallState').textContent = isVideo ? 'Incoming Video Call...' : 'Incoming Audio Call...';
+      document.getElementById('btnAcceptCall').style.display = 'flex';
+    });
+
+    async function acceptIncomingCall() {
+      document.getElementById('btnAcceptCall').style.display = 'none';
+      document.getElementById('phoneCallState').textContent = 'Connected (Live)';
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideoCallActive });
+        if (isVideoCallActive) document.getElementById('localVideoPiP').srcObject = localStream;
+        peerConn = new RTCPeerConnection(rtcConfig);
+        localStream.getTracks().forEach(track => peerConn.addTrack(track, localStream));
+        peerConn.onicecandidate = e => { if (e.candidate) socket.emit('ice-candidate', { targetCode: incomingCallerCode, candidate: e.candidate }); };
+        peerConn.ontrack = e => {
+          if (isVideoCallActive) document.getElementById('remoteVideoEl').srcObject = e.streams[0];
+          else document.getElementById('remoteAudioPlayer').srcObject = e.streams[0];
+        };
+        await peerConn.setRemoteDescription(new RTCSessionDescription(incomingSignal));
+        const answer = await peerConn.createAnswer(); await peerConn.setLocalDescription(answer);
+        socket.emit('answer-call', { targetCode: incomingCallerCode, signal: answer });
+      } catch (err) { showToast('Media error', 'error'); endPhoneCall(false); }
+    }
+
+    socket.on('call-accepted', async ({ signal }) => {
+      document.getElementById('phoneCallState').textContent = 'Connected (Live)';
+      if (peerConn && signal) await peerConn.setRemoteDescription(new RTCSessionDescription(signal));
+    });
+    socket.on('ice-candidate', async ({ candidate }) => { if (peerConn && candidate) try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e){} });
+    socket.on('call-ended', () => endPhoneCall(false));
+
+    function endPhoneCall(notify = true) {
+      if (notify && activeCallPartner) socket.emit('end-call', { targetCode: activeCallPartner });
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      if (peerConn) { peerConn.close(); peerConn = null; }
+      document.getElementById('phoneCallModal').style.display = 'none';
+      document.getElementById('remoteVideoEl').srcObject = null;
+      document.getElementById('localVideoPiP').srcObject = null;
+      document.getElementById('remoteAudioPlayer').srcObject = null;
+      incomingCallerCode = null; incomingSignal = null; activeCallPartner = null;
+    }
+
+    function toggleCallAudio() {
+      if (!localStream) return;
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) { audioTrack.enabled = !audioTrack.enabled; document.getElementById('btnToggleMic').classList.toggle('muted', !audioTrack.enabled); }
+    }
+    function toggleCallVideo() {
+      if (!localStream || !isVideoCallActive) return;
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) { videoTrack.enabled = !videoTrack.enabled; document.getElementById('btnToggleCam').classList.toggle('muted', !videoTrack.enabled); }
+    }
+
+    socket.on('call-history-data', (calls = []) => {
+      const box = document.getElementById('callHistoryList');
+      if(!box) return;
+      if(!calls.length) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#8a8a9e;">No recent calls</div>'; return; }
+      box.innerHTML = '';
+      calls.forEach(c => {
+        const row = document.createElement('div'); row.className = 'chat-row';
+        row.onclick = () => openRoom(c.otherUser, c.otherName||c.otherUser, c.otherAvatar||'');
+        row.innerHTML = `<img src="${c.otherAvatar||defaultAvatar(c.otherName)}"><div style="flex:1"><div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(c.otherName||c.otherUser)}</div><div style="font-size:12px;color:#8a8a9e;">${c.callerCode===myUserCode?'Outgoing':'Incoming'} • ${escapeHtml(c.status||'Completed')}</div></div><div style="font-size:18px;">📞</div>`;
+        box.appendChild(row);
+      });
+    });
+
+    /* MULTI-STATUS, AUTO-TRIM VIDEO, DELETE */
+    async function processVideoAutoTrim(file) {
+      return new Promise(resolve => {
+        const video = document.createElement('video'); video.src = URL.createObjectURL(file); video.muted = true;
+        video.onloadedmetadata = () => { URL.revokeObjectURL(video.src); resolve(file); };
+        video.onerror = () => resolve(file);
+      });
+    }
+
+    async function uploadToCloudinary(file, folder = 'your-chat-app/status') {
+      const r = await fetch('/api/cloudinary-signature', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({folder}) });
+      const sig = await r.json();
+      const fd = new FormData(); fd.append('file', file); fd.append('api_key', sig.apiKey); fd.append('timestamp', sig.timestamp); fd.append('folder', sig.folder); fd.append('signature', sig.signature);
+      const up = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(sig.cloudName)}/auto/upload`, {method:'POST',body:fd});
+      const data = await up.json(); return data.secure_url;
+    }
+
+    function handleMyStatusClick() { document.getElementById('statusMediaInput').click(); }
+
+    async function handleMultipleStatusPicked(inp) {
+      const files = Array.from(inp.files || []); if (!files.length) return;
+      showToast(`${files.length} status processing...`, 'info');
+      for (let file of files) {
+        let finalFile = file.type.startsWith('video/') ? await processVideoAutoTrim(file) : file;
+        const type = finalFile.type.startsWith('video/') ? 'video' : 'image';
+        try {
+          const url = await uploadToCloudinary(finalFile, 'your-chat-app/status');
+          socket.emit('post-status', { id: 'st_' + Date.now() + '_' + Math.random().toString(36).substring(2,6), media: url, type });
+        } catch(e) { console.error(e); }
+      }
+      showToast('All status uploaded!', 'success'); setTimeout(() => socket.emit('get-statuses'), 1000); inp.value = '';
+    }
+
+    socket.on('status-data', ({ myStatus, contactStatuses = [] }) => {
+      currentMyStatusObj = myStatus;
+      const mySub = document.getElementById('myStatusSubtitle'); const managerList = document.getElementById('myStatusesManagerList'); managerList.innerHTML = '';
+      if (myStatus && myStatus.items && myStatus.items.length > 0) {
+        mySub.textContent = `${myStatus.items.length} updates • Tap ` + '`+`' + ` for more`;
+        document.getElementById('myStatusAvatarImg').classList.add('status-ring');
+        document.getElementById('myStatusAvatarImg').src = myStatus.avatar || '';
+        myStatus.items.forEach((item, idx) => {
+          const row = document.createElement('div'); row.className = 'status-list-item';
+          row.innerHTML = `<span style="font-size:13px;color:#fff;">Status #${idx+1} (${item.type})</span>
+            <div style="display:flex;gap:8px;">
+              <button class="sheet-btn" style="padding:6px 10px;font-size:12px;" onclick="viewSpecificMyStatus('${item.id}')">View</button>
+              <button class="sheet-btn danger" style="padding:6px 10px;font-size:12px;background:#ff3b5c22;color:#ff3b5c;" onclick="deleteMyStatus('${item.id}')">Delete</button>
+            </div>`;
+          managerList.appendChild(row);
+        });
+      } else {
+        mySub.textContent = 'Tap to add status updates (Multi allowed)';
+        document.getElementById('myStatusAvatarImg').classList.remove('status-ring');
+        managerList.innerHTML = '<div style="padding:10px 18px;color:#7e7e92;font-size:12px;">No active statuses.</div>';
+      }
+      const listContainer = document.getElementById('contactsStatusList'); listContainer.innerHTML = contactStatuses.length ? '' : '<div style="padding:16px 18px;color:#7e7e92;font-size:13px;">No recent status updates</div>';
+      contactStatuses.forEach(userStatus => {
+        if (!userStatus.items || !userStatus.items.length) return;
+        const row = document.createElement('div'); row.className = 'chat-row'; row.onclick = () => viewStatusStory(userStatus, false);
+        row.innerHTML = `<img class="status-ring" src="${userStatus.avatar || ''}"><div style="flex:1;"><div style="font-weight:700;font-size:15px;color:#fff;">${userStatus.name || 'User'}</div><div style="font-size:12px;color:#8a8a9e;">${userStatus.items.length} update(s)</div></div>`;
+        listContainer.appendChild(row);
+      });
+    });
+
+    function viewSpecificMyStatus(statusId) {
+      if (!currentMyStatusObj?.items) return;
+      const found = currentMyStatusObj.items.find(i => i.id === statusId);
+      if (found) viewStatusStory({ ...currentMyStatusObj, items: [found] }, true);
+    }
+
+    function viewStatusStory(userStatus, isMine) {
+      if (!userStatus.items?.length) return;
+      activeStoryItem = userStatus.items[0];
+      const modal = document.getElementById('storyViewerModal'); const mediaBox = document.getElementById('storyMediaBox'); const progressFill = document.getElementById('storyProgressFill');
+      document.getElementById('storyUserAvatar').src = userStatus.avatar || ''; document.getElementById('storyUserName').textContent = userStatus.name || 'User'; document.getElementById('storyTime').textContent = activeStoryItem.time || '';
+      mediaBox.innerHTML = activeStoryItem.type === 'video' ? `<video src="${activeStoryItem.media}" autoplay playsinline controls></video>` : `<img src="${activeStoryItem.media}">`;
+      document.getElementById('storyActionsBar').style.display = isMine ? 'flex' : 'none';
+      const viewersBar = document.getElementById('storyViewersCountBar');
+      if (isMine) { viewersBar.style.display = 'flex'; document.getElementById('storyViewersNum').textContent = (activeStoryItem.viewers || []).length; } else { viewersBar.style.display = 'none'; socket.emit('mark-status-viewed', { authorCode: userStatus.userCode, statusId: activeStoryItem.id }); }
+      modal.style.display = 'flex'; progressFill.style.width = '0%';
+      let progress = 0; clearInterval(storyTimer); storyTimer = setInterval(() => { progress += 1; progressFill.style.width = progress + '%'; if (progress >= 100) closeStoryViewer(); }, 150);
+    }
+    function closeStoryViewer() { clearInterval(storyTimer); document.getElementById('storyViewerModal').style.display = 'none'; document.getElementById('storyMediaBox').innerHTML = ''; closeViewersSheet(); }
+    function deleteCurrentViewingStatus() { if (activeStoryItem?.id) { deleteMyStatus(activeStoryItem.id); closeStoryViewer(); } }
+    function deleteMyStatus(statusId) { socket.emit('delete-status', { statusId }, res => { showToast('Status deleted.', 'info'); socket.emit('get-statuses'); }); }
+    function openViewersSheet() {
+      clearInterval(storyTimer); const sheet = document.getElementById('statusViewersSheet'); const container = document.getElementById('viewersListContainer'); container.innerHTML = '';
+      const viewers = activeStoryItem?.viewers || [];
+      if (!viewers.length) container.innerHTML = '<div style="color:#8a8a9e;font-size:13px;padding:10px 0;">No views yet</div>';
+      else viewers.forEach(v => { const row = document.createElement('div'); row.className = 'viewer-row'; row.innerHTML = `<img src="${v.avatar||''}"><div style="flex:1;"><div style="font-weight:700;font-size:14px;color:#fff;">${v.name||'User'}</div></div>`; container.appendChild(row); });
+      sheet.style.display = 'flex';
+    }
+    function closeViewersSheet() { document.getElementById('statusViewersSheet').style.display = 'none'; }
+    function toggleMediaMenu() { const menu = document.getElementById('mediaMenu'); menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex'; }
+    async function handleFileSelected(inp,type){
+      toggleMediaMenu();const file=inp.files&&inp.files[0];if(!file)return;
+      try{const url=await uploadToCloudinary(file,`your-chat-app/${type}`);const id='msg_'+Date.now()+'_'+Math.random().toString(36).substring(2,8);fdb.ref('rooms/'+currentRoomId+'/messages/'+id).set({id,roomId:currentRoomId,senderCode:myUserCode,text:'',media:url,mediaType:type,fileName:file.name,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()});}catch(e){showToast('Upload failed','error');}inp.value='';
+    }
     let mediaRecorder = null; let audioChunks = []; let isHoldingMic = false; let isLocked = false; let startY = 0; let startX = 0; let recordSeconds = 0; let timerInterval = null; let isCancelled = false;
     async function handleMicDown(e) {
-      const textInput = document.getElementById('chatMsgInp'); if (textInput.value.trim().length > 0) { sendMessage(); return; }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return showToast('Microphone is not supported in this browser.', 'error');
+      if (document.getElementById('chatMsgInp').value.trim().length > 0) { sendMessage(); return; }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); let mimeType = '';
-        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm'; else if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
-        mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream); audioChunks = [];
-        mediaRecorder.ondataavailable = (ev) => { if (ev.data && ev.data.size > 0) audioChunks.push(ev.data); };
-        mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); if (audioChunks.length > 0 && !isCancelled) { const type = mimeType || 'audio/webm'; const blob = new Blob(audioChunks, { type }); uploadToCloudinary(blob,'your-chat-app/audio').then(url=>{ const id='msg_'+Date.now()+'_'+Math.random().toString(36).substring(2,8); fdb.ref('rooms/'+currentRoomId+'/messages/'+id).set({id,roomId:currentRoomId,senderCode:myUserCode,text:'',media:url,mediaType:'audio',fileSize:blob.size,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()}); }).catch(err=>{console.error(err);showToast(err.message || 'Voice upload failed.','error');}); } mediaRecorder = null; audioChunks = []; };
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+        mediaRecorder.ondataavailable = ev => { if (ev.data.size > 0) audioChunks.push(ev.data); };
+        mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); if (audioChunks.length > 0 && !isCancelled) { const blob = new Blob(audioChunks, { type: 'audio/webm' }); uploadToCloudinary(blob,'your-chat-app/audio').then(url=>{ const id='msg_'+Date.now()+'_'+Math.random().toString(36).substring(2,8); fdb.ref('rooms/'+currentRoomId+'/messages/'+id).set({id,roomId:currentRoomId,senderCode:myUserCode,text:'',media:url,mediaType:'audio',time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()}); }); } mediaRecorder = null; audioChunks = []; };
         isCancelled = false; mediaRecorder.start(); isHoldingMic = true; isLocked = false; startY = e.clientY; startX = e.clientX;
         document.getElementById('actionBtn').classList.add('recording-active'); document.getElementById('swipeLockBox').style.display = 'flex'; document.getElementById('slideCancelText').style.display = 'flex';
         recordSeconds = 0; document.getElementById('lockedTimer').textContent = '0:00'; clearInterval(timerInterval);
@@ -700,145 +954,10 @@
       } catch (err) { showToast('Microphone permission required!', 'error'); }
     }
     function handleMicMove(e) { if (!isHoldingMic || isLocked) return; if (startY - e.clientY > 60) { isLocked = true; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; document.getElementById('lockedRecordingBar').style.display = 'flex'; } if (startX - e.clientX > 80) cancelHoldRecording(); }
-    function handleMicUp() { if (!isHoldingMic || isLocked) return; isHoldingMic = false; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; clearInterval(timerInterval); if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }
-    function cancelHoldRecording() { isCancelled = true; isHoldingMic = false; isLocked = false; clearInterval(timerInterval); document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }
-    function cancelLockedRecording() { isCancelled = true; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }
-    function stopAndSendRecording() { isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }
-
-    function toggleMediaMenu() { const menu = document.getElementById('mediaMenu'); menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex'; }
-
-    async function handleFileSelected(inp,type){
-      toggleMediaMenu();const file=inp.files&&inp.files[0];if(!file)return;if(file.size>100*1024*1024){showToast('File is too large. Maximum 100 MB.','error');inp.value='';return;}
-      try{showToast('Media uploading...','info');const url=await uploadToCloudinary(file,`your-chat-app/${type}`);const id='msg_'+Date.now()+'_'+Math.random().toString(36).substring(2,8);fdb.ref('rooms/'+currentRoomId+'/messages/'+id).set({id,roomId:currentRoomId,senderCode:myUserCode,text:'',media:url,mediaType:type,fileName:file.name,fileSize:file.size,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()});}catch(e){console.error(e);showToast(e.message || 'Media upload failed.','error');}inp.value='';
-    }
-
-    function handleMyStatusClick() { if (currentMyStatusObj && currentMyStatusObj.items && currentMyStatusObj.items.length > 0) { viewStatusStory(currentMyStatusObj, true); } else { document.getElementById('statusMediaInput').click(); } }
-
-    function handleStatusPicked(inp) {
-      const file = inp.files && inp.files[0]; if (!file) return;
-      const isVideo = file.type.startsWith('video/');
-      if (isVideo) {
-        showToast('वीडियो प्रोसेस हो रहा है...', 'info');
-        const video = document.createElement('video'); video.src = URL.createObjectURL(file);
-        video.onloadedmetadata = () => {
-          if (video.duration > 31) { showToast('वीडियो 30 सेकंड से छोटा होना चाहिए।', 'error'); URL.revokeObjectURL(video.src); return; }
-          postStatusFile(file, 'video'); URL.revokeObjectURL(video.src);
-        };
-      } else { postStatusFile(file, 'image'); }
-      inp.value = '';
-    }
-
-    async function postStatusFile(fileOrBlob,type){showToast('स्टेटस अपलोड हो रहा है...','info');try{const url=await uploadToCloudinary(fileOrBlob,'your-chat-app/status');socket.emit('post-status',{id:'st_'+Date.now(),media:url,type},res=>{if(res?.success===false)return showToast(res.error||'Status upload failed','error');showToast('स्टेटस सफलतापूर्वक अपलोड हुआ!','success');socket.emit('get-statuses');});}catch(e){console.error(e);showToast(e.message || 'Status upload failed.','error');}}
-
-    function renderStatusSections({ myStatus, contactStatuses = [] }) {
-      currentMyStatusObj = myStatus; const mySub = document.getElementById('myStatusSubtitle');
-      if (myStatus && myStatus.items && myStatus.items.length > 0) { mySub.textContent = `${myStatus.items.length} update • ${myStatus.items[0].time}`; document.getElementById('myStatusAvatarImg').classList.add('status-ring'); } else { mySub.textContent = 'Tap to add status update'; document.getElementById('myStatusAvatarImg').classList.remove('status-ring'); }
-      const listContainer = document.getElementById('contactsStatusList'); listContainer.innerHTML = contactStatuses.length ? '' : '<div style="padding:16px 18px;color:#7e7e92;font-size:13px;">No recent status updates from friends</div>';
-      contactStatuses.forEach(userStatus => {
-          if (!userStatus.items || !userStatus.items.length) return;
-          const row = document.createElement('div'); row.className = 'chat-row'; row.onclick = () => viewStatusStory(userStatus, false);
-          row.innerHTML = `<div style="position:relative;width:50px;height:50px;"><img data-dp-view="1" data-dp-name="${escapeHtml(userStatus.name || userStatus.fullName || 'User')}" class="status-ring" src="${safeMediaUrl(userStatus.avatar) || defaultAvatar(userStatus.name || userStatus.fullName || 'User')}"></div><div style="flex:1;"><div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(userStatus.name || userStatus.fullName || 'User')}</div><div style="font-size:12px;color:#8a8a9e;margin-top:2px;">${escapeHtml(userStatus.items[0].time || '')} • ${userStatus.items.length} update(s)</div></div>`;
-          listContainer.appendChild(row);
-      });
-    }
-
-    function viewStatusStory(userStatus, isMine) {
-      if (!userStatus.items || userStatus.items.length === 0) return; activeStoryItem = userStatus.items[0];
-      const modal = document.getElementById('storyViewerModal'); const mediaBox = document.getElementById('storyMediaBox'); const progressFill = document.getElementById('storyProgressFill');
-      document.getElementById('storyUserAvatar').src = safeMediaUrl(userStatus.avatar); document.getElementById('storyUserName').textContent = userStatus.name || userStatus.fullName || 'User'; document.getElementById('storyTime').textContent = activeStoryItem.time || '';
-      if (activeStoryItem.type === 'video') { mediaBox.innerHTML = `<video src="${safeMediaUrl(activeStoryItem.media)}" autoplay playsinline controls></video>`; } else { mediaBox.innerHTML = `<img src="${safeMediaUrl(activeStoryItem.media)}">`; }
-      const viewersBar = document.getElementById('storyViewersCountBar');
-      if (isMine) { viewersBar.style.display = 'flex'; document.getElementById('storyViewersNum').textContent = (activeStoryItem.viewers || []).length; } else { viewersBar.style.display = 'none'; socket.emit('mark-status-viewed', { authorCode: userStatus.userCode, statusId: activeStoryItem.id }); }
-      modal.style.display = 'flex'; progressFill.style.width = '0%';
-      let progress = 0; clearInterval(storyTimer); storyTimer = setInterval(() => { progress += 1; progressFill.style.width = progress + '%'; if (progress >= 100) closeStoryViewer(); }, 150);
-    }
-    function closeStoryViewer() { clearInterval(storyTimer); document.getElementById('storyViewerModal').style.display = 'none'; document.getElementById('storyMediaBox').innerHTML = ''; closeViewersSheet(); }
-    function openViewersSheet() {
-      clearInterval(storyTimer); const sheet = document.getElementById('statusViewersSheet'); const container = document.getElementById('viewersListContainer'); container.innerHTML = ''; const viewers = (activeStoryItem && activeStoryItem.viewers) ? activeStoryItem.viewers : [];
-      if (!viewers.length) { container.innerHTML = '<div style="color:#8a8a9e;font-size:13px;padding:10px 0;">No views yet</div>'; } else { viewers.forEach(v => { const row = document.createElement('div'); row.className = 'viewer-row'; row.innerHTML = `<img src="${safeMediaUrl(v.avatar)}"><div style="flex:1;"><div style="font-weight:700;font-size:14px;color:#fff;">${escapeHtml(v.name || v.fullName || 'User')}</div><div style="font-size:11px;color:#bbb;">${escapeHtml(v.time || '')}</div></div>`; container.appendChild(row); }); } sheet.style.display = 'flex';
-    }
-    function closeViewersSheet() { document.getElementById('statusViewersSheet').style.display = 'none'; }
-
-    /* CALL SYSTEM */
-    let peerConn = null; let localAudioStream = null; const rtcConfig = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }; let incomingCallerCode = null; let incomingSignal = null; let activeCallPartner = null;
-    async function startAudioCall() {
-      if (!currentPartner) return showToast('Open a chat before calling.', 'error');
-      activeCallPartner = currentPartner; document.getElementById('phoneCallModal').style.display = 'flex'; document.getElementById('phoneCallerAvatar').src = document.getElementById('roomPartnerAvatar').src; document.getElementById('phoneCallerName').textContent = document.getElementById('roomPartnerName').textContent; document.getElementById('phoneCallState').textContent = 'Calling...'; document.getElementById('btnAcceptCall').style.display = 'none';
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Microphone API unavailable');
-        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); peerConn = new RTCPeerConnection(rtcConfig);
-        localAudioStream.getTracks().forEach(track => { peerConn.addTrack(track, localAudioStream); });
-        peerConn.onicecandidate = (e) => { if (e.candidate) { socket.emit('ice-candidate', { targetCode: activeCallPartner, candidate: e.candidate }); } };
-        peerConn.ontrack = (e) => { const audio = document.getElementById('remoteAudioPlayer'); audio.srcObject = e.streams[0]; audio.play().catch(() => {}); };
-        peerConn.onconnectionstatechange = () => { if (!peerConn) return; const state = peerConn.connectionState; if (state === 'connected') { document.getElementById('phoneCallState').textContent = 'Connected (Live)'; } else if (state === 'failed') { showToast('Call connection failed.', 'error'); endPhoneCall(true); } };
-        const offer = await peerConn.createOffer(); await peerConn.setLocalDescription(offer);
-        socket.emit('call-user', { targetCode: activeCallPartner, signal: offer, callerData: { name: myFullName, avatar: myAvatar } });
-      } catch (err) { showToast('Mic permission required for call', 'error'); endPhoneCall(false); }
-    }
-    function setupAudioWebRTC() {
-      socket.on('incoming-call', async ({ from, signal, callerData, callId }) => { incomingCallerCode = from; activeCallId = callId || null; incomingSignal = signal; activeCallPartner = from; document.getElementById('phoneCallModal').style.display = 'flex'; document.getElementById('phoneCallerAvatar').src = safeMediaUrl(callerData && callerData.avatar); document.getElementById('phoneCallerName').textContent = callerData && callerData.name ? callerData.name : 'Caller'; document.getElementById('phoneCallState').textContent = 'Incoming Call...'; document.getElementById('btnAcceptCall').style.display = 'flex'; });
-      socket.on('call-accepted', async ({ signal }) => { document.getElementById('phoneCallState').textContent = 'Connected (Live)'; if (peerConn && signal) { await peerConn.setRemoteDescription(new RTCSessionDescription(signal)); } });
-      socket.on('ice-candidate', async ({ candidate }) => { if (peerConn && candidate) { try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {} } });
-      socket.on('call-ended', () => { endPhoneCall(false); });
-    }
-    async function acceptIncomingCall() {
-      document.getElementById('btnAcceptCall').style.display = 'none'; document.getElementById('phoneCallState').textContent = 'Connecting...';
-      try {
-        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); peerConn = new RTCPeerConnection(rtcConfig);
-        localAudioStream.getTracks().forEach(track => { peerConn.addTrack(track, localAudioStream); });
-        peerConn.onicecandidate = (e) => { if (e.candidate) { socket.emit('ice-candidate', { targetCode: incomingCallerCode, candidate: e.candidate }); } };
-        peerConn.ontrack = (e) => { const audio = document.getElementById('remoteAudioPlayer'); audio.srcObject = e.streams[0]; audio.play().catch(() => {}); };
-        await peerConn.setRemoteDescription(new RTCSessionDescription(incomingSignal));
-        const answer = await peerConn.createAnswer(); await peerConn.setLocalDescription(answer);
-        socket.emit('answer-call', { targetCode: incomingCallerCode, signal: answer, callId: activeCallId });
-        document.getElementById('phoneCallState').textContent = 'Connected (Live)';
-      } catch (err) { showToast('Mic permission required', 'error'); endPhoneCall(false); }
-    }
-    function endPhoneCall(notify = true) {
-      if (notify && activeCallPartner) { socket.emit('end-call', { targetCode: activeCallPartner, callId: activeCallId }); }
-      if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); localAudioStream = null; }
-      if (peerConn) { peerConn.close(); peerConn = null; }
-      document.getElementById('phoneCallModal').style.display = 'none'; document.getElementById('remoteAudioPlayer').srcObject = null; incomingCallerCode = null; incomingSignal = null; activeCallPartner = null;
-    }
-    function renderCallHistory(calls=[]){const box=document.getElementById('paneCalls');if(!calls.length){box.innerHTML='<div style="padding:24px;text-align:center;color:#8a8a9e;">No recent calls</div>';return;}box.innerHTML='';calls.forEach(c=>{const row=document.createElement('div');row.className='chat-row';row.onclick=()=>openRoom(c.otherUser,c.otherName||c.otherUser,c.otherAvatar||'');const d=c.duration?`${Math.floor(c.duration/60)}:${String(c.duration%60).padStart(2,'0')}`:(c.status==='missed'?'Missed':'No answer');row.innerHTML=`<img src="${safeMediaUrl(c.otherAvatar||defaultAvatar(c.otherName))}"><div style="flex:1"><div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(c.otherName||c.otherUser)}</div><div style="font-size:12px;color:#8a8a9e;">${c.callerCode===myUserCode?'Outgoing':'Incoming'} • ${escapeHtml(c.status)} • ${escapeHtml(d)} • ${escapeHtml(c.time||'')}</div></div><div style="font-size:18px;">📞</div>`;box.appendChild(row);});}
-
-    function switchNav(idx) { document.querySelectorAll('.nav-tab').forEach((t, i) => { t.classList.toggle('active', i === idx); }); document.querySelectorAll('.tab-pane').forEach((p, i) => { p.classList.toggle('active', i === idx); }); if (idx === 1 && socket) { socket.emit('get-statuses'); } if (idx === 0 && socket) { socket.emit('get-contacts'); } }
-    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, e => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[e])); }
-    function defaultAvatar(name='User'){const letter=(String(name).trim().charAt(0)||'U').toUpperCase();return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#222230"/><text x="60" y="72" text-anchor="middle" font-size="52" fill="#ff6b8b" font-family="Arial">${letter}</text></svg>`);}
-    function safeMediaUrl(url) { if (!url) return ''; const value = String(url); if (value.startsWith('data:image/') || value.startsWith('data:video/') || value.startsWith('data:audio/') || value.startsWith('blob:')) { return value; } if (value.startsWith('https://')) { return value; } return ''; }
-
-    let editDpFile = null; let selectedBlockUser = '';
-    function toggleTopMenu(event) { if (event) event.stopPropagation(); const panel = document.getElementById('topMenuPanel'); panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex'; }
-    document.addEventListener('click', (event) => { const dpImg = event.target.closest && event.target.closest('img[data-dp-view="1"]'); if (dpImg) { event.preventDefault(); event.stopPropagation(); openFullDp(dpImg.src, dpImg.dataset.dpName || ''); return; } const panel = document.getElementById('topMenuPanel'); const btn = document.getElementById('topThreeDotBtn'); if (panel && panel.style.display === 'flex' && !panel.contains(event.target) && event.target !== btn) panel.style.display = 'none'; });
-    function openFullDp(src, name='') { const modal = document.getElementById('fullDpModal'); const img = document.getElementById('fullDpImage'); img.src = src || defaultAvatar(name); document.getElementById('fullDpName').textContent = name || ''; modal.style.display = 'flex'; }
-    function closeFullDp(event) { if (event && event.target && event.target.id !== 'fullDpModal') return; document.getElementById('fullDpModal').style.display = 'none'; }
-    function toggleEditPassword() { const inp = document.getElementById('editPasswordInput'); if (inp.type === 'password') { inp.type = 'text'; } else { inp.type = 'password'; } }
-    function openEditProfile() { document.getElementById('topMenuPanel').style.display = 'none'; document.getElementById('editNameInput').value = myFullName || ''; document.getElementById('editMobileInput').value = myMobileNumber || ''; document.getElementById('editUserIdInput').value = myUserCode || ''; document.getElementById('editPasswordInput').value = ''; document.getElementById('editDpPreview').src = myAvatar || defaultAvatar(myFullName); editDpFile = null; document.getElementById('editDpInput').value = ''; document.getElementById('editProfileModal').style.display = 'flex'; }
-    function closeEditProfile(event) { if (event && event.target && event.target.id !== 'editProfileModal') return; document.getElementById('editProfileModal').style.display = 'none'; }
-    function previewEditDp(input) { const file = input.files && input.files[0]; if (!file) return; if (!file.type.startsWith('image/')) return showToast('Please select an image.', 'error'); editDpFile = file; const reader = new FileReader(); reader.onload = e => document.getElementById('editDpPreview').src = e.target.result; reader.readAsDataURL(file); }
-    async function saveEditProfile() { 
-        const name = document.getElementById('editNameInput').value.trim(); 
-        const newPassword = document.getElementById('editPasswordInput').value.trim(); 
-        if (!name || !/[\p{L}]/u.test(name)) return showToast('❌ Name must contain at least one letter.', 'error'); 
-        if (newPassword && newPassword.length < 4) return showToast('❌ Password must be at least 4 characters.', 'error'); 
-        let avatar = myAvatar || ''; 
-        try { 
-            if (editDpFile) { showToast('Profile photo syncing...', 'info'); avatar = await uploadToCloudinary(editDpFile, 'your-chat-app/profile'); } 
-            socket.emit('update-profile', { fullName:name, avatar, newPassword }, res => { 
-                if (!res?.success) return showToast(res?.error || 'Profile update failed.', 'error'); 
-                myFullName = res.user.fullName; myAvatar = res.user.avatar || ''; 
-                if(newPassword) { myPassword = newPassword; localStorage.setItem('wa_password', newPassword); } 
-                document.getElementById('myNameTopBadge').textContent = myFullName; document.getElementById('myStatusAvatarImg').src = myAvatar || defaultAvatar(myFullName); document.getElementById('roomPartnerAvatar').dataset.dpView = '1'; document.getElementById('editProfileModal').style.display = 'none'; showToast('Profile updated and synced.', 'success'); socket.emit('get-contacts'); socket.emit('get-statuses'); 
-            }); 
-        } catch (e) { console.error(e); showToast(e.message || 'Profile photo upload failed.', 'error'); } 
-    }
-    function addPersonLongPress(row, code, name) { let timer = null; const start = (e) => { if (e.target.closest && e.target.closest('button,input')) return; clearTimeout(timer); timer = setTimeout(() => { row.dataset.longPressed = '1'; selectedBlockUser = code; openBlockSheet(code, name); }, 600); }; const cancel = () => clearTimeout(timer); row.addEventListener('pointerdown', start); row.addEventListener('pointerup', cancel); row.addEventListener('pointerleave', cancel); row.addEventListener('pointercancel', cancel); row.addEventListener('contextmenu', e => { e.preventDefault(); selectedBlockUser = code; openBlockSheet(code, name); }); }
-    function openBlockSheet(code, name) { selectedBlockUser = code; document.getElementById('blockSheetName').textContent = name || code; socket.emit('get-block-status', { targetCode: code }, res => { const btn = document.getElementById('blockSheetAction'); btn.textContent = res?.blockedByMe ? 'Unblock User' : 'Block User'; document.getElementById('blockSheetModal').style.display = 'flex'; }); }
-    function closeBlockSheet(event) { if (event && event.target && event.target.id !== 'blockSheetModal') return; document.getElementById('blockSheetModal').style.display = 'none'; }
-    function toggleSelectedBlock() { if (!selectedBlockUser) return; socket.emit('toggle-block', { targetCode: selectedBlockUser }, res => { if (!res?.success) return showToast(res?.error || 'Could not change block status.', 'error'); document.getElementById('blockSheetAction').textContent = res.blockedByMe ? 'Unblock User' : 'Block User'; showToast(res.blockedByMe ? 'User blocked.' : 'User unblocked.', 'success'); }); }
-    function logoutUser() { document.getElementById('topMenuPanel').style.display = 'none'; localStorage.removeItem('wa_userCode'); localStorage.removeItem('wa_password'); if (socket) socket.disconnect(); location.reload(); }
-
-    window.addEventListener('beforeunload', () => { detachFirebaseChatListener(); clearInterval(timerInterval); clearInterval(storyTimer); if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); } });
+    function handleMicUp() { if (!isHoldingMic || isLocked) return; isHoldingMic = false; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; clearInterval(timerInterval); if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
+    function cancelHoldRecording() { isCancelled = true; isHoldingMic = false; isLocked = false; clearInterval(timerInterval); document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
+    function cancelLockedRecording() { isCancelled = true; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
+    function stopAndSendRecording() { isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
   </script>
 </body>
 </html>
