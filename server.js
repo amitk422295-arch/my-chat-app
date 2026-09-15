@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
@@ -312,5 +313,13 @@ io.on('connection', (socket) => {
   });
 });
 
+// Self-ping to prevent Render from going to sleep
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  setInterval(() => {
+    const targetUrl = process.env.RENDER_EXTERNAL_URL || `http://127.0.0.1:${PORT}/health`;
+    const client = targetUrl.startsWith('https') ? https : http;
+    client.get(targetUrl, (res) => {}).on('error', () => {});
+  }, 10 * 60 * 1000); // pings every 10 minutes
+});
