@@ -1,9 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,15 +12,55 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Simple JSON database storage for persistence
-const DB_FILE = path.join(__dirname, 'database.json');
-let db = { users: {}, statuses: {}, calls: [] };
-if (fs.existsSync(DB_FILE)) {
-  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e){}
-}
-function saveDB() {
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// Mongoose Schemas & Models
+const userSchema = new mongoose.Schema({
+  userCode: { type: String, unique: true, required: true, lowercase: true },
+  password: { type: String, required: true },
+  fullName: { type: String, default: 'User' },
+  mobile: { type: String, default: '' },
+  avatar: { type: String, default: '' },
+  blockedByMe: { type: Map, of: Boolean, default: {} }
+});
+const User = mongoose.model('User', userSchema);
+
+const viewerSchema = new mongoose.Schema({
+  userCode: String,
+  name: String,
+  avatar: String
+}, { _id: false });
+
+const statusItemSchema = new mongoose.Schema({
+  id: String,
+  media: String,
+  type: String,
+  time: String,
+  viewers: [viewerSchema]
+}, { _id: false });
+
+const statusSchema = new mongoose.Schema({
+  userCode: { type: String, unique: true, lowercase: true },
+  name: String,
+  avatar: String,
+  items: [statusItemSchema]
+});
+const Status = mongoose.model('Status', statusSchema);
+
+const callSchema = new mongoose.Schema({
+  callerCode: String,
+  otherUser: String,
+  otherName: String,
+  otherAvatar: String,
+  status: String,
+  timestamp: { type: Date, default: Date.now }
+});
+const Call = mongoose.model('Call', callSchema);
 
 // Cloudinary signature endpoint
 app.post('/api/cloudinary-signature', (req, res) => {
@@ -37,118 +77,175 @@ app.post('/api/cloudinary-signature', (req, res) => {
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  // 1. AUTHENTICATION (Old users: 6 digits, New users/Register: 8 digits strictly)
-  socket.on('auth-user', ({ userCode, password, fullName, mobile, avatar, isRegister }, callback) => {
+  // 1. AUTHENTICATION (Smart lookup + Register/Login)
+  socket.on('auth-user', async ({ userCode, password, fullName, mobile, avatar, isRegister }, callback) => {
     const query = String(userCode || '').trim();
     const passStr = String(password || '').trim();
 
-    if (isRegister) {
-      const uCode = query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase();
-      if (!/^@[a-z]{6,}$/.test(uCode)) return callback({ success: false, error: 'User ID must start with @ and have min 6 lowercase alphabetic letters.' });
-      if (passStr.length !== 8) return callback({ success: false, error: 'New registration password must be strictly 8 digits.' });
-      if (db.users[uCode]) return callback({ success: false, error: 'User ID already exists.' });
+    try {
+      if (isRegister) {
+        const uCode = query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase();
+        if (!/^@[a-z]{6,}$/.test(uCode)) return callback({ success: false, error: 'User ID must start with @ and have min 6 lowercase alphabetic letters.' });
+        if (passStr.length !== 8) return callback({ success: false, error: 'New registration password must be strictly 8 digits.' });
+        
+        const existing = await User.findOne({ userCode: uCode });
+        if (existing) return callback({ success: false, error: 'User ID already exists.' });
 
-      db.users[uCode] = { userCode: uCode, password: passStr, fullName: fullName || 'User', mobile: mobile || '', avatar: avatar || '', blockedBy: {} };
-      saveDB();
-      currentUserCode = uCode; socket.join(uCode);
-      io.emit('user-online-status', { targetCode: uCode, isOnline: true });
-      return callback({ success: true, user: db.users[uCode] });
-    } else {
-      // Login by userCode (@...) or mobile number
-      let userObj = Object.values(db.users).find(u => u.userCode.toLowerCase() === query.toLowerCase() || u.mobile === query);
-      if (!userObj) return callback({ success: false, error: 'Account not found by ID or mobile.' });
+        const newUser = await User.create({
+          userCode: uCode,
+          password: passStr,
+          fullName: fullName || 'User',
+          mobile: mobile || '',
+          avatar: avatar || '',
+          blockedByMe: {}
+        });
+        currentUserCode = uCode;
+        socket.join(uCode);
+        io.emit('user-online-status', { targetCode: uCode, isOnline: true });
+        return callback({ success: true, user: newUser });
+      } else {
+        // स्मार्ट लुकअप: मोबाइल नंबर या यूजर आईडी (@ के साथ या बिना दोनों डिटेक्ट करेगा)
+        const isMobileQuery = /^\d{10,13}$/.test(query);
+        const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
 
-      // Support old 6-digit or new 8-digit password login
-      if (passStr.length !== 6 && passStr.length !== 8) {
-        return callback({ success: false, error: 'Password must be 6 digits (old user) or 8 digits (new user).' });
+        const userObj = await User.findOne({
+          $or: [
+            ...(normalizedId ? [{ userCode: normalizedId }] : []),
+            ...(isMobileQuery ? [{ mobile: query }] : [])
+          ]
+        });
+
+        if (!userObj) return callback({ success: false, error: 'Account not found by ID or mobile.' });
+        if (passStr.length !== 6 && passStr.length !== 8) {
+          return callback({ success: false, error: 'Password must be 6 digits (old user) or 8 digits (new user).' });
+        }
+        if (userObj.password !== passStr) return callback({ success: false, error: 'Incorrect password.' });
+
+        currentUserCode = userObj.userCode;
+        socket.join(currentUserCode);
+        io.emit('user-online-status', { targetCode: currentUserCode, isOnline: true });
+        return callback({ success: true, user: userObj });
       }
-      if (userObj.password !== passStr) return callback({ success: false, error: 'Incorrect password.' });
-
-      currentUserCode = userObj.userCode; socket.join(currentUserCode);
-      io.emit('user-online-status', { targetCode: currentUserCode, isOnline: true });
-      return callback({ success: true, user: userObj });
+    } catch (err) {
+      return callback({ success: false, error: 'Auth error: ' + err.message });
     }
   });
 
-  // 2. RECOVERY VERIFICATION (Check User ID + Mobile match)
-  socket.on('verify-recovery', ({ userCode, mobile }, callback) => {
-    const query = String(userCode || '').trim().toLowerCase();
-    const uCode = query.startsWith('@') ? query : '@' + query;
+  // 2. RECOVERY VERIFICATION
+  socket.on('verify-recovery', async ({ userCode, mobile }, callback) => {
+    const rawId = String(userCode || '').trim().toLowerCase();
+    const uCode = rawId.startsWith('@') ? rawId : '@' + rawId;
     const mob = String(mobile || '').trim();
-    const userObj = Object.values(db.users).find(u => u.userCode.toLowerCase() === uCode.toLowerCase() && u.mobile === mob);
-    if (userObj) {
-      return callback({ success: true });
+    try {
+      const userObj = await User.findOne({ userCode: uCode, mobile: mob });
+      if (userObj) return callback({ success: true });
+      return callback({ success: false, error: 'User ID and mobile number do not match.' });
+    } catch (e) {
+      return callback({ success: false, error: 'Verification failed.' });
     }
-    return callback({ success: false, error: 'User ID and mobile number do not match.' });
   });
 
   // 3. UPDATE PASSWORD AFTER RECOVERY
-  socket.on('update-password', ({ userCode, newPassword }, callback) => {
-    const query = String(userCode || '').trim().toLowerCase();
-    const uCode = query.startsWith('@') ? query : '@' + query;
+  socket.on('update-password', async ({ userCode, newPassword }, callback) => {
+    const rawId = String(userCode || '').trim().toLowerCase();
+    const uCode = rawId.startsWith('@') ? rawId : '@' + rawId;
     const passStr = String(newPassword || '').trim();
     if (passStr.length !== 6 && passStr.length !== 8) {
       return callback({ success: false, error: 'New password must be 6 or 8 digits.' });
     }
-    const userObj = db.users[uCode];
-    if (!userObj) return callback({ success: false, error: 'User not found.' });
-    userObj.password = passStr;
-    saveDB();
-    return callback({ success: true });
+    try {
+      const userObj = await User.findOneAndUpdate({ userCode: uCode }, { password: passStr });
+      if (!userObj) return callback({ success: false, error: 'User not found.' });
+      return callback({ success: true });
+    } catch (e) {
+      return callback({ success: false, error: 'Password update failed.' });
+    }
   });
 
   // 4. STATUSES
-  socket.on('get-statuses', () => {
+  socket.on('get-statuses', async () => {
     if (!currentUserCode) return;
-    const myStatus = db.statuses[currentUserCode] || { userCode: currentUserCode, name: db.users[currentUserCode]?.fullName, avatar: db.users[currentUserCode]?.avatar, items: [] };
-    const contactsList = Object.values(db.statuses).filter(s => s.userCode !== currentUserCode);
-    socket.emit('status-data', { myStatus, contactStatuses: contactsList });
+    try {
+      const me = await User.findOne({ userCode: currentUserCode });
+      let myStatusDoc = await Status.findOne({ userCode: currentUserCode });
+      const myStatus = myStatusDoc ? myStatusDoc.toObject() : { userCode: currentUserCode, name: me?.fullName, avatar: me?.avatar, items: [] };
+      const contactsListDocs = await Status.find({ userCode: { $ne: currentUserCode } });
+      const contactsList = contactsListDocs.map(s => s.toObject());
+      socket.emit('status-data', { myStatus, contactStatuses: contactsList });
+    } catch (e) {}
   });
 
-  socket.on('post-status', (statusItem) => {
+  socket.on('post-status', async (statusItem) => {
     if (!currentUserCode) return;
-    if (!db.statuses[currentUserCode]) {
-      db.statuses[currentUserCode] = { userCode: currentUserCode, name: db.users[currentUserCode]?.fullName, avatar: db.users[currentUserCode]?.avatar, items: [] };
-    }
-    db.statuses[currentUserCode].items.push({ ...statusItem, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), viewers: [] });
-    saveDB();
+    try {
+      const me = await User.findOne({ userCode: currentUserCode });
+      const newItem = {
+        ...statusItem,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        viewers: []
+      };
+      await Status.findOneAndUpdate(
+        { userCode: currentUserCode },
+        {
+          $setOnInsert: { name: me?.fullName || 'User', avatar: me?.avatar || '' },
+          $push: { items: newItem }
+        },
+        { upsert: true, new: true }
+      );
+    } catch (e) {}
   });
 
-  socket.on('delete-status', ({ statusId }, cb) => {
-    if (!currentUserCode || !db.statuses[currentUserCode]) return cb && cb({ success: false });
-    db.statuses[currentUserCode].items = db.statuses[currentUserCode].items.filter(i => i.id !== statusId);
-    saveDB();
-    cb && cb({ success: true });
+  socket.on('delete-status', async ({ statusId }, cb) => {
+    if (!currentUserCode) return cb && cb({ success: false });
+    try {
+      await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: statusId } } });
+      cb && cb({ success: true });
+    } catch (e) {
+      cb && cb({ success: false });
+    }
   });
 
-  socket.on('mark-status-viewed', ({ authorCode, statusId }) => {
-    if (!currentUserCode || !db.statuses[authorCode]) return;
-    const item = db.statuses[authorCode].items.find(i => i.id === statusId);
-    if (item && !item.viewers.some(v => v.userCode === currentUserCode)) {
-      item.viewers.push({ userCode: currentUserCode, name: db.users[currentUserCode]?.fullName, avatar: db.users[currentUserCode]?.avatar });
-      saveDB();
-    }
+  socket.on('mark-status-viewed', async ({ authorCode, statusId }) => {
+    if (!currentUserCode) return;
+    try {
+      const me = await User.findOne({ userCode: currentUserCode });
+      const doc = await Status.findOne({ userCode: authorCode, 'items.id': statusId });
+      if (doc) {
+        const item = doc.items.find(i => i.id === statusId);
+        if (item && !item.viewers.some(v => v.userCode === currentUserCode)) {
+          item.viewers.push({ userCode: currentUserCode, name: me?.fullName || 'User', avatar: me?.avatar || '' });
+          await doc.save();
+        }
+      }
+    } catch (e) {}
   });
 
   // 5. CONTACTS & DIRECT CHAT
-  socket.on('get-contacts', () => {
+  socket.on('get-contacts', async () => {
     if (!currentUserCode) return;
-    const allUsers = Object.values(db.users).filter(u => u.userCode !== currentUserCode).map(u => ({
-      userCode: u.userCode,
-      name: u.fullName,
-      avatar: u.avatar,
-      lastMessage: ''
-    }));
-    socket.emit('contact-list-data', { contacts: allUsers });
+    try {
+      const allUsers = await User.find({ userCode: { $ne: currentUserCode } });
+      const contacts = allUsers.map(u => ({
+        userCode: u.userCode,
+        name: u.fullName,
+        avatar: u.avatar,
+        lastMessage: ''
+      }));
+      socket.emit('contact-list-data', { contacts });
+    } catch (e) {}
   });
 
-  socket.on('open-direct-chat', ({ targetCode, query }, cb) => {
-    const clean = targetCode.startsWith('@') ? targetCode.toLowerCase() : '@' + targetCode.toLowerCase();
-    let targetUser = db.users[clean] || Object.values(db.users).find(u => u.mobile === query);
-    if (targetUser) {
-      cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar } });
-    } else {
-      cb({ success: false, error: 'User not found.' });
+  socket.on('open-direct-chat', async ({ targetCode, query }, cb) => {
+    try {
+      const clean = targetCode.startsWith('@') ? targetCode.toLowerCase() : '@' + targetCode.toLowerCase();
+      let targetUser = await User.findOne({ $or: [{ userCode: clean }, { mobile: query }] });
+      if (targetUser) {
+        cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar } });
+      } else {
+        cb({ success: false, error: 'User not found.' });
+      }
+    } catch (e) {
+      cb({ success: false, error: 'Error finding user.' });
     }
   });
 
@@ -164,33 +261,56 @@ io.on('connection', (socket) => {
   });
 
   // 7. PROFILE & BLOCK
-  socket.on('update-profile', ({ fullName, avatar, newPassword }, cb) => {
-    if (!currentUserCode || !db.users[currentUserCode]) return cb({ success: false, error: 'Unauthorized' });
-    const userObj = db.users[currentUserCode];
-    if (fullName) userObj.fullName = fullName;
-    if (avatar) userObj.avatar = avatar;
-    if (newPassword && (newPassword.length === 6 || newPassword.length === 8)) userObj.password = newPassword;
-    saveDB();
-    cb({ success: true, user: userObj });
+  socket.on('update-profile', async ({ fullName, avatar, newPassword }, cb) => {
+    if (!currentUserCode) return cb({ success: false, error: 'Unauthorized' });
+    try {
+      const updateData = {};
+      if (fullName) updateData.fullName = fullName;
+      if (avatar) updateData.avatar = avatar;
+      if (newPassword && (newPassword.length === 6 || newPassword.length === 8)) updateData.password = newPassword;
+      
+      const updatedUser = await User.findOneAndUpdate({ userCode: currentUserCode }, updateData, { new: true });
+      if (updatedUser) {
+        await Status.updateOne({ userCode: currentUserCode }, { $set: { name: updatedUser.fullName, avatar: updatedUser.avatar } });
+        cb({ success: true, user: updatedUser });
+      } else {
+        cb({ success: false, error: 'User not found' });
+      }
+    } catch (e) {
+      cb({ success: false, error: e.message });
+    }
   });
 
-  socket.on('get-block-status', ({ targetCode }, cb) => {
-    const u = db.users[currentUserCode];
-    const blocked = u && u.blockedByMe && u.blockedByMe[targetCode];
-    cb({ blockedByMe: !!blocked });
+  socket.on('get-block-status', async ({ targetCode }, cb) => {
+    try {
+      const u = await User.findOne({ userCode: currentUserCode });
+      const blocked = u && u.blockedByMe && (u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode]);
+      cb({ blockedByMe: !!blocked });
+    } catch (e) {
+      cb({ blockedByMe: false });
+    }
   });
 
-  socket.on('toggle-block', ({ targetCode }, cb) => {
-    const u = db.users[currentUserCode];
-    if (!u) return cb({ success: false });
-    if (!u.blockedByMe) u.blockedByMe = {};
-    const curr = u.blockedByMe[targetCode];
-    u.blockedByMe[targetCode] = !curr;
-    saveDB();
-    cb({ success: true, blockedByMe: !curr });
+  socket.on('toggle-block', async ({ targetCode }, cb) => {
+    try {
+      const u = await User.findOne({ userCode: currentUserCode });
+      if (!u) return cb({ success: false });
+      if (!u.blockedByMe) u.blockedByMe = new Map();
+      const curr = u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode];
+      const nextVal = !curr;
+      if (u.blockedByMe.set) {
+        u.blockedByMe.set(targetCode, nextVal);
+      } else {
+        u.blockedByMe[targetCode] = nextVal;
+      }
+      await u.save();
+      cb({ success: true, blockedByMe: nextVal });
+    } catch (e) {
+      cb({ success: false, error: e.message });
+    }
   });
 
-  // 8. AUDIO CALL SIGNALING (Video calls completely removed)
+  // 8. AUDIO CALL SIGNALING & HISTORY
   socket.on('call-user', ({ targetCode, signal, callerData }) => {
     io.to(targetCode).emit('incoming-call', { from: currentUserCode, signal, callerData, isVideo: false });
   });
@@ -203,8 +323,13 @@ io.on('connection', (socket) => {
   socket.on('end-call', ({ targetCode }) => {
     io.to(targetCode).emit('call-ended');
   });
-  socket.on('get-call-history', () => {
-    socket.emit('call-history-data', db.calls || []);
+  socket.on('get-call-history', async () => {
+    try {
+      const calls = await Call.find({}).sort({ timestamp: -1 }).limit(50);
+      socket.emit('call-history-data', calls);
+    } catch (e) {
+      socket.emit('call-history-data', []);
+    }
   });
 
   socket.on('disconnect', () => {
