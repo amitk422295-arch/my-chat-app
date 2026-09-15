@@ -38,12 +38,11 @@ const userSchema = new mongoose.Schema({
   userCode: { type: String, unique: true, required: true, lowercase: true },
   password: { type: String, required: true },
   fullName: { type: String, default: 'User' },
-  mobile: { type: String, default: '' },
+  mobile: { type: String, required: true },
   avatar: { type: String, default: '' },
-  dateOfBirth: { type: String, default: '' },
-  secQ1: { type: String, default: '' }, // Pet Name
-  secQ2: { type: String, default: '' }, // Best Friend
-  secQ3: { type: String, default: '' }, // Favorite Color
+  secQ1: { type: String, default: '' },
+  secQ2: { type: String, default: '' },
+  secQ3: { type: String, default: '' },
   blockedByMe: { type: Map, of: Boolean, default: {} },
   contacts: { type: [String], default: [] }
 });
@@ -76,14 +75,27 @@ io.on('connection', (socket) => {
   socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar, q1, q2, q3 }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const passStr = String(password || '').trim();
+    const cleanMobile = String(mobile || '').trim();
 
     try {
       if (!rawId.startsWith('@') || rawId.length < 5) {
         return callback({ success: false, error: 'User ID must start with @ and have at least 4 characters after it.' });
       }
 
+      if (!cleanMobile || cleanMobile.length < 10) {
+        return callback({ success: false, error: 'Valid mobile number is compulsory.' });
+      }
+
       if (passStr.length !== 8) {
         return callback({ success: false, error: 'Password must be strictly 8 digits.' });
+      }
+
+      const cleanQ1 = String(q1 || '').trim().toLowerCase();
+      const cleanQ2 = String(q2 || '').trim().toLowerCase();
+      const cleanQ3 = String(q3 || '').trim().toLowerCase();
+
+      if (!cleanQ1 && !cleanQ2 && !cleanQ3) {
+        return callback({ success: false, error: 'Minimum one security question answer is required to secure your ID.' });
       }
 
       const existingUser = await User.findOne({ userCode: rawId });
@@ -91,7 +103,7 @@ io.on('connection', (socket) => {
         return callback({ success: false, error: 'This User ID is already taken.' });
       }
 
-      const existingMobile = await User.findOne({ mobile: String(mobile || '').trim() });
+      const existingMobile = await User.findOne({ mobile: cleanMobile });
       if (existingMobile) {
         return callback({ success: false, error: 'Mobile number already registered.' });
       }
@@ -99,12 +111,12 @@ io.on('connection', (socket) => {
       const newUser = await User.create({
         userCode: rawId,
         password: passStr,
-        fullName: fullName || 'User',
-        mobile: String(mobile || '').trim(),
+        fullName: fullName && fullName.trim() ? fullName.trim() : 'User',
+        mobile: cleanMobile,
         avatar: avatar || '',
-        secQ1: String(q1 || '').trim().toLowerCase(),
-        secQ2: String(q2 || '').trim().toLowerCase(),
-        secQ3: String(q3 || '').trim().toLowerCase(),
+        secQ1: cleanQ1,
+        secQ2: cleanQ2,
+        secQ3: cleanQ3,
         blockedByMe: {}
       });
 
@@ -145,7 +157,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Forgot Recovery via Mobile + Security Answers
   socket.on('recover-account', async ({ mobile, q1, q2, q3, newPassword }, callback) => {
     const cleanMobile = String(mobile || '').trim();
     const ans1 = String(q1 || '').trim().toLowerCase();
@@ -159,14 +170,34 @@ io.on('connection', (socket) => {
         return callback({ success: false, error: 'Mobile number not found in database.' });
       }
 
-      if (userObj.secQ1 !== ans1 || userObj.secQ2 !== ans2 || userObj.secQ3 !== ans3) {
-        return callback({ success: false, error: 'Incorrect security answers. Verification failed.' });
+      let matchesCount = 0;
+      let totalProvided = 0;
+      let hasMismatch = false;
+
+      if (ans1) {
+        totalProvided++;
+        if (userObj.secQ1 && userObj.secQ1 === ans1) matchesCount++;
+        else hasMismatch = true;
+      }
+      if (ans2) {
+        totalProvided++;
+        if (userObj.secQ2 && userObj.secQ2 === ans2) matchesCount++;
+        else hasMismatch = true;
+      }
+      if (ans3) {
+        totalProvided++;
+        if (userObj.secQ3 && userObj.secQ3 === ans3) matchesCount++;
+        else hasMismatch = true;
+      }
+
+      if (totalProvided === 0 || hasMismatch || matchesCount === 0) {
+        return callback({ success: false, error: 'Authentication failed! Incorrect security answers.' });
       }
 
       if (newPass && newPass.length === 8) {
         userObj.password = newPass;
         await userObj.save();
-        return callback({ success: true, userCode: userObj.userCode, message: 'Password updated successfully!' });
+        return callback({ success: true, userCode: userObj.userCode, message: 'Password updated & Account recovered successfully!' });
       } else {
         return callback({ success: true, userCode: userObj.userCode, message: 'Your User ID is: ' + userObj.userCode });
       }
@@ -237,7 +268,7 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
       const update = {};
-      if (typeof fullName === 'string' && fullName.trim()) update.fullName = fullName.trim().slice(0, 80);
+      if (typeof fullName === 'string') update.fullName = fullName.trim() ? fullName.trim().slice(0, 80) : 'User';
       if (typeof avatar === 'string') update.avatar = avatar;
       if (typeof dateOfBirth === 'string') update.dateOfBirth = dateOfBirth.slice(0, 20);
       const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
