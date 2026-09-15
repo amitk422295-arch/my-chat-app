@@ -17,6 +17,7 @@
     "express": "^5.2.1",
     "mongoose": "^8.18.0",
     "nodemailer": "^10.0.9",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "multer": "^2.0.2"
   }
 }
