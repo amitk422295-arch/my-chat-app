@@ -50,7 +50,7 @@
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
     .input-wrapper input { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; }
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; }
+    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\"><path fill=\"white\" fill-opacity=\"0.025\" d=\"M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z\"/></svg>'); background-size:54px 54px; }
     .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.25); cursor:pointer; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
@@ -144,7 +144,8 @@
   <div id="myProfileModal" class="modal" onclick="if(event.target===this)closeMyProfile()">
     <div class="modal-card">
       <h3 style="text-align:center;margin-bottom:14px;">My Profile</h3>
-      <img id="myProfileAvatar" class="profile-edit-avatar" src="" style="width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;">
+      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
+      <img id="myProfileAvatar" class="profile-edit-avatar" src="" style="width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;cursor:pointer;" onclick="document.getElementById('profileAvatarInput').click()">
       <input id="myProfileName" class="input-box" placeholder="Full Name">
       <div id="myProfileId" style="font-size:12px;color:#888;margin:10px 0;text-align:center"></div>
       <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
@@ -211,6 +212,14 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; };
+      reader.readAsDataURL(file);
+    }
+
+    function changeMyAvatar(inp) {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; };
       reader.readAsDataURL(file);
     }
 
@@ -346,6 +355,8 @@
                       (m.receiverCode === currentUserData.userCode && currentChatTarget?.userCode === m.senderCode);
       if (related) {
         const rm = document.getElementById('roomMessages');
+        const empty = rm.querySelector('div[style*="text-align:center"]');
+        if (empty) rm.innerHTML = '';
         rm.insertAdjacentHTML('beforeend', `<div class="msg-bubble ${m.senderCode === currentUserData.userCode ? 'mine' : 'theirs'}">${escapeHtml(m.text)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`);
         rm.scrollTop = rm.scrollHeight;
       }
@@ -354,9 +365,33 @@
     function toggleAppMenu(e){ if(e)e.stopPropagation(); const m=document.getElementById('appMenu'); m.style.display=m.style.display==='block'?'none':'block'; }
     function closeAppMenu(){ document.getElementById('appMenu').style.display='none'; }
     document.addEventListener('click', e=>{ if(!e.target.closest('#appMenu') && !e.target.closest('.icon-btn')) closeAppMenu(); });
-    function openMyProfile(){ closeAppMenu(); if(!currentUserData)return; document.getElementById('myProfileName').value=currentUserData.fullName||''; document.getElementById('myProfileId').textContent=currentUserData.userCode||''; document.getElementById('myProfileAvatar').src=currentUserData.avatar||''; document.getElementById('myProfileModal').style.display='flex'; }
+    
+    function openMyProfile(){ 
+      closeAppMenu(); 
+      if(!currentUserData)return; 
+      document.getElementById('myProfileName').value=currentUserData.fullName||''; 
+      document.getElementById('myProfileId').textContent=currentUserData.userCode||''; 
+      document.getElementById('myProfileAvatar').src=currentUserData.avatar||''; 
+      document.getElementById('myProfileModal').style.display='flex'; 
+    }
+    
     function closeMyProfile(){ document.getElementById('myProfileModal').style.display='none'; }
-    function saveMyProfile(){ const fullName=document.getElementById('myProfileName').value.trim(); const avatar=document.getElementById('myProfileAvatar').src||''; socket.emit('update-profile',{fullName,avatar},res=>{ if(res?.success){currentUserData=res.user; closeMyProfile(); loadContacts(); showToast('Profile saved','success');} else showToast(res?.error||'Could not save profile','error'); }); }
+    
+    function saveMyProfile(){ 
+      const fullName=document.getElementById('myProfileName').value.trim(); 
+      const avatar=document.getElementById('myProfileAvatar').src||''; 
+      socket.emit('update-profile',{fullName,avatar},res=>{ 
+        if(res?.success){
+          currentUserData=res.user; 
+          closeMyProfile(); 
+          loadContacts(); 
+          showToast('Profile saved','success');
+        } else {
+          showToast(res?.error||'Could not save profile','error');
+        } 
+      }); 
+    }
+    
     function logoutApp(){ closeAppMenu(); currentChatTarget=null; currentUserData=null; document.getElementById('mainApp').style.display='none'; document.getElementById('chatRoom').style.display='none'; document.getElementById('screenAuth').style.display='flex'; showToast('Logged out','success'); }
   </script>
 </body>
