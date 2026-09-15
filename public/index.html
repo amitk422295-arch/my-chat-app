@@ -196,7 +196,8 @@
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
     
     <div class="bottom-input-bar">
-      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onchange="sendMediaFile(this)">
+      <!-- 🌟 RESTORED: ACCEPT ALL MEDIA TYPES (VIDEOS, IMAGES, PDF, DOCS) 🌟 -->
+      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar" onchange="sendMediaFile(this)">
       <button class="icon-btn" style="width:38px;height:38px;font-size:20px;flex:none;background:#1c1c26;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById('chatMediaInput').click()">📎</button>
       <div class="input-wrapper">
         <div id="msgInputBox" contenteditable="true" placeholder="Type a message or paste..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto;"></div>
@@ -792,25 +793,9 @@
 
         const bottomCloseBtn = document.createElement('button');
         bottomCloseBtn.innerHTML = '▼ Close';
-        bottomCloseBtn.style.cssText = 'position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;';
+        bottomCloseBtn.style.cssText = 'position:absolute;bottom:40px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;';
         bottomCloseBtn.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
         overlay.appendChild(bottomCloseBtn);
-
-        const viewsFooter = document.createElement('div');
-        viewsFooter.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;display:flex;align-items:center;gap:6px;';
-        viewsFooter.innerHTML = `👁️ <span id="viewCountText">Views</span> (Tap to view) <span style="font-size:10px;">▲</span>`;
-        viewsFooter.onclick = (e) => {
-          e.stopPropagation();
-          const currentItem = items[currentIndex];
-          const viewers = currentItem.viewers || [];
-          let viewersHtml = viewers.length ? viewers.map(v => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><img src="${escapeAttr(v.avatar||DEFAULT_AVATAR)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"><div style="font-weight:600;color:#fff;">${escapeHtml(v.name||v.userCode)}</div></div>`).join('') : '<div style="color:#888;text-align:center;padding:20px;">No views yet</div>';
-          
-          const vModal = document.createElement('div');
-          vModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1300;display:flex;align-items:flex-end;justify-content:center;';
-          vModal.innerHTML = `<div style="width:100%;max-width:420px;max-height:60vh;background:#171720;border-top-left-radius:24px;border-top-right-radius:24px;padding:20px;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="color:#fff;font-size:16px;">Reel Viewers</h3><button onclick="this.closest('div').parentElement.remove()" style="background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;">✕</button></div>${viewersHtml}</div>`;
-          document.body.appendChild(vModal);
-        };
-        if (isMyReel) overlay.appendChild(viewsFooter);
 
         if (isUploading) {
           const badge = document.createElement('div');
@@ -832,8 +817,6 @@
           const currentItem = items[currentIndex];
           const localUrl = await cacheMediaUrl(currentItem.media);
           mediaElem.tagName === 'VIDEO' ? (mediaElem.src = localUrl || currentItem.media) : (mediaElem.src = localUrl || currentItem.media);
-          const viewers = currentItem.viewers || [];
-          if (isMyReel) viewsFooter.innerHTML = `👁️ ${viewers.length} views (Tap to view) <span style="font-size:10px;">▲</span>`;
         }
         updateMedia();
 
@@ -883,7 +866,7 @@
     }
 
     function loadCalls() { document.getElementById('callsList').innerHTML = 'Call history empty.'; }
-    function logoutApp() {
+    logoutApp = function() {
       localStorage.removeItem('chatAppUser'); currentUserData = null;
       document.getElementById('mainApp').style.display = 'none';
       document.getElementById('screenAuth').style.display = 'flex';
