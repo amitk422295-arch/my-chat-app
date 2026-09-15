@@ -41,6 +41,9 @@ const userSchema = new mongoose.Schema({
   mobile: { type: String, default: '' },
   avatar: { type: String, default: '' },
   dateOfBirth: { type: String, default: '' },
+  secQ1: { type: String, default: '' }, // Pet Name
+  secQ2: { type: String, default: '' }, // Best Friend
+  secQ3: { type: String, default: '' }, // Favorite Color
   blockedByMe: { type: Map, of: Boolean, default: {} },
   contacts: { type: [String], default: [] }
 });
@@ -70,7 +73,7 @@ const Message = mongoose.model('Message', messageSchema);
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar }, callback) => {
+  socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar, q1, q2, q3 }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const passStr = String(password || '').trim();
 
@@ -99,6 +102,9 @@ io.on('connection', (socket) => {
         fullName: fullName || 'User',
         mobile: String(mobile || '').trim(),
         avatar: avatar || '',
+        secQ1: String(q1 || '').trim().toLowerCase(),
+        secQ2: String(q2 || '').trim().toLowerCase(),
+        secQ3: String(q3 || '').trim().toLowerCase(),
         blockedByMe: {}
       });
 
@@ -136,6 +142,36 @@ io.on('connection', (socket) => {
       return callback({ success: true, user: userObj });
     } catch (err) {
       return callback({ success: false, error: 'Auth error: ' + err.message });
+    }
+  });
+
+  // Forgot Recovery via Mobile + Security Answers
+  socket.on('recover-account', async ({ mobile, q1, q2, q3, newPassword }, callback) => {
+    const cleanMobile = String(mobile || '').trim();
+    const ans1 = String(q1 || '').trim().toLowerCase();
+    const ans2 = String(q2 || '').trim().toLowerCase();
+    const ans3 = String(q3 || '').trim().toLowerCase();
+    const newPass = String(newPassword || '').trim();
+
+    try {
+      const userObj = await User.findOne({ mobile: cleanMobile });
+      if (!userObj) {
+        return callback({ success: false, error: 'Mobile number not found in database.' });
+      }
+
+      if (userObj.secQ1 !== ans1 || userObj.secQ2 !== ans2 || userObj.secQ3 !== ans3) {
+        return callback({ success: false, error: 'Incorrect security answers. Verification failed.' });
+      }
+
+      if (newPass && newPass.length === 8) {
+        userObj.password = newPass;
+        await userObj.save();
+        return callback({ success: true, userCode: userObj.userCode, message: 'Password updated successfully!' });
+      } else {
+        return callback({ success: true, userCode: userObj.userCode, message: 'Your User ID is: ' + userObj.userCode });
+      }
+    } catch (e) {
+      callback({ success: false, error: 'Recovery failed: ' + e.message });
     }
   });
 
