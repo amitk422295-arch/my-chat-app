@@ -29,13 +29,13 @@
     
     .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; pointer-events: auto; }
     .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); position: relative; z-index: 10; pointer-events: auto; }
-    .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; pointer-events: auto; }
+    .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; pointer-events: auto; touch-action: manipulation; position: relative; z-index: 20; -webkit-appearance: none; }
     .input-box:focus { border-color: #ff3b5c; background: rgba(255,255,255,0.12); }
-    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; opacity: 1; pointer-events: auto; box-shadow: 0 4px 15px rgba(255,59,92,0.4); position: relative; z-index: 10; }
+    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; opacity: 1; pointer-events: auto; box-shadow: 0 4px 15px rgba(255,59,92,0.4); position: relative; z-index: 20; }
     .btn-gradient:active { transform: scale(0.98); }
-    .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; position: relative; z-index: 10; }
+    .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; position: relative; z-index: 20; }
     .dp-circle.has-image { border-style: solid; }
-    .interactive-clickable { cursor: pointer; pointer-events: auto; position: relative; z-index: 20; display: inline-block; padding: 4px; }
+    .interactive-clickable { cursor: pointer; pointer-events: auto; position: relative; z-index: 30; display: inline-block; padding: 6px; }
 
     #mainApp { display: none; flex-direction: column; height: 100%; height: 100dvh; position: relative; z-index: 1; }
     .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; }
@@ -65,7 +65,6 @@
     .room-header-actions button { background: none; border: none; font-size: 21px; cursor: pointer; color: #fff; }
     #roomMessages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: transparent; position: relative; z-index: 1; }
     .msg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; user-select: text; position: relative; }
-    .msg-bubble:active { transform: scale(0.98); }
     .msg-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #ff3b5c 0%, #e02447 100%); color: #fff; border-bottom-right-radius: 4px; }
     .msg-bubble.other { align-self: flex-start; background: #1c1c28; color: #f0f2f5; border-bottom-left-radius: 4px; }
     .message-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 4px; min-height: 13px; }
@@ -138,29 +137,22 @@
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
-  <!-- AUTH FLOW SCREEN -->
+  <!-- AUTH FLOW SCREEN (Default: Register First) -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
-      <h3 style="color:#fff;" id="authTitle">Welcome Back</h3>
-      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Already registered? Enter here</p>
+      <h3 style="color:#fff;" id="authTitle">Create Account</h3>
+      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register first, or switch to login</p>
 
-      <!-- VIEW: LOGIN -->
-      <div id="viewLogin" style="display:flex; flex-direction:column; gap:12px;">
-        <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
-        <input type="password" id="loginPassInput" class="input-box" placeholder="6-digit (Old) or 8-digit (New) Pass" maxlength="8">
-        <button class="btn-gradient" onclick="handleLogin()">Login</button>
-      </div>
-
-      <!-- VIEW: REGISTER STEP 1 -->
-      <div id="viewRegStep1" style="display:none; flex-direction:column; gap:12px;">
+      <!-- VIEW: REGISTER STEP 1 (Default visible) -->
+      <div id="viewRegStep1" style="display:flex; flex-direction:column; gap:12px; pointer-events:auto;">
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
         <button class="btn-gradient" onclick="goRegStep2()">Next ➔</button>
       </div>
 
-      <!-- VIEW: REGISTER STEP 2 -->
-      <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
+      <!-- VIEW: REGISTER STEP 2 (DP + Unique ID + 8-Digit Password) -->
+      <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px; pointer-events:auto;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
         <p style="font-size:11px;color:#ff6b8b;">Optional: Tap to add DP</p>
@@ -172,8 +164,15 @@
         </div>
       </div>
 
-      <!-- SWITCH MODE (FIXED & CLICKABLE) -->
-      <p class="interactive-clickable" style="font-size:12px;color:#7e7e92;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">New here? Register</p>
+      <!-- VIEW: LOGIN (Hidden by default) -->
+      <div id="viewLogin" style="display:none; flex-direction:column; gap:12px; pointer-events:auto;">
+        <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
+        <input type="password" id="loginPassInput" class="input-box" placeholder="6-digit (Old) or 8-digit (New) Pass" maxlength="8">
+        <button class="btn-gradient" onclick="handleLogin()">Login</button>
+      </div>
+
+      <!-- SWITCH MODE -->
+      <p class="interactive-clickable" style="font-size:12px;color:#7e7e92;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
       <p class="interactive-clickable" style="font-size:11px;color:#5ac8fa;" onclick="openForgotModal()">Forgot User ID / Password?</p>
     </div>
   </div>
@@ -405,7 +404,7 @@
     }
     const fdb = typeof firebase !== 'undefined' && firebase.database ? firebase.database() : null;
     let socket = io({ transports: ['websocket'] });
-    let authMode = 'login';
+    let authMode = 'reg1'; // डिफॉल्ट रजिस्टर फर्स्ट
     let regTempData = { name: '', mobile: '', dp: '' };
     let myUserCode = '', myFullName = '', myAvatar = '', myMobileNumber = '', currentPartner = '', currentRoomId = '';
     let currentMyStatusObj = null; let activeStoryItem = null; let storyTimer = null;
@@ -421,22 +420,29 @@
     }
 
     function toggleAuthMode() {
+      const loginView = document.getElementById('viewLogin');
+      const reg1View = document.getElementById('viewRegStep1');
+      const reg2View = document.getElementById('viewRegStep2');
+      const title = document.getElementById('authTitle');
+      const sub = document.getElementById('authSub');
+      const switchText = document.getElementById('authSwitchText');
+
       if (authMode === 'login') {
         authMode = 'reg1';
-        document.getElementById('authTitle').textContent = 'Register (Step 1)';
-        document.getElementById('authSub').textContent = 'Enter Name & Mobile';
-        document.getElementById('viewLogin').style.display = 'none';
-        document.getElementById('viewRegStep1').style.display = 'flex';
-        document.getElementById('viewRegStep2').style.display = 'none';
-        document.getElementById('authSwitchText').textContent = 'Already registered? Login here';
+        title.textContent = 'Create Account';
+        sub.textContent = 'Register first, or switch to login';
+        loginView.style.display = 'none';
+        reg2View.style.display = 'none';
+        reg1View.style.display = 'flex';
+        switchText.textContent = 'Already have an account? Login';
       } else {
         authMode = 'login';
-        document.getElementById('authTitle').textContent = 'Welcome Back';
-        document.getElementById('authSub').textContent = 'Already registered? Enter here';
-        document.getElementById('viewLogin').style.display = 'flex';
-        document.getElementById('viewRegStep1').style.display = 'none';
-        document.getElementById('viewRegStep2').style.display = 'none';
-        document.getElementById('authSwitchText').textContent = 'New here? Register';
+        title.textContent = 'Welcome Back';
+        sub.textContent = 'Existing user? Login here';
+        reg1View.style.display = 'none';
+        reg2View.style.display = 'none';
+        loginView.style.display = 'flex';
+        switchText.textContent = 'New here? Register Account';
       }
     }
 
@@ -457,6 +463,8 @@
       authMode = 'reg1';
       document.getElementById('viewRegStep2').style.display = 'none';
       document.getElementById('viewRegStep1').style.display = 'flex';
+      document.getElementById('authTitle').textContent = 'Create Account';
+      document.getElementById('authSub').textContent = 'Register first, or switch to login';
     }
 
     function previewDp(inp) {
