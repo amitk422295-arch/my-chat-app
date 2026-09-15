@@ -69,6 +69,12 @@
 
     .profile-card { width:100%; max-width:360px; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.8); }
     .profile-card img { width:110px; height:110px; border-radius:50%; object-fit:cover; border:3px solid #ff3b5c; }
+    
+    @keyframes pulseRing { 
+      0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 
+      70% { box-shadow: 0 0 0 15px rgba(0,200,83,0); } 
+      100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } 
+    }
   </style>
 </head>
 <body>
@@ -163,11 +169,20 @@
         <div id="chatsList"></div>
       </div>
 
+      <!-- 👇 NEW STATUS UI 👇 -->
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
-          <div id="myStatusArea" style="margin-bottom:12px;font-weight:600;font-size:14px;"></div>
-          <button class="btn-gradient" style="width:100%;margin-bottom:12px;" onclick="document.getElementById('statusMediaInput').click()">＋ Add Status</button>
+          
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
+            <div style="width:56px; height:56px; border-radius:50%; background:#1c1c26; border:2px dashed #ff3b5c; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none;">+</div>
+            <div>
+              <div style="font-weight:700; font-size:15px; color:#fff;">My Status</div>
+              <div id="myStatusArea" style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to add status update</div>
+            </div>
+          </div>
+
+          <div style="font-size:13px; font-weight:700; color:#7e7e92; margin-bottom:12px;">RECENT UPDATES</div>
           <div id="contactStatusesArea"></div>
         </div>
       </div>
@@ -201,11 +216,14 @@
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+      <!-- 👇 DP Fullscreen in Header 👇 -->
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="if(this.src) openFullScreenImage(this.src)">
       <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Offline</div>
       </div>
+      <!-- 👇 NEW Call Button 👇 -->
+      <button class="icon-btn" onclick="startAudioCall()" style="background:transparent; border:none; font-size:22px; margin-right:5px; color:#5ac8fa;" title="Audio Call">📞</button>
     </div>
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
     
@@ -216,6 +234,20 @@
         <input type="text" id="msgInputBox" placeholder="Type a message or paste link...">
       </div>
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- 👇 INCOMING CALL MODAL 👇 -->
+  <div id="incomingCallModal" class="modal" style="z-index:9999;">
+    <div class="modal-card" style="text-align:center; max-width: 320px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(10px);">
+      <img id="callerAvatar" src="" style="width:90px;height:90px;border-radius:50%;margin:0 auto 15px;object-fit:cover;border:3px solid #00c853;animation:pulseRing 1.5s infinite;">
+      <h3 id="callerName" style="margin-bottom:5px;font-size:20px;">Caller Name</h3>
+      <p style="color:#00c853;font-size:13px;margin-bottom:24px;font-weight:600;">Incoming Audio Call...</p>
+      
+      <div style="display:flex;justify-content:space-around;padding:0 20px;">
+        <button onclick="rejectCall()" style="width:56px;height:56px;border-radius:50%;background:#ff3b5c;border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 15px rgba(255,59,92,0.4);">✕</button>
+        <button onclick="acceptCall()" style="width:56px;height:56px;border-radius:50%;background:#00c853;border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 15px rgba(0,200,83,0.4);">📞</button>
+      </div>
     </div>
   </div>
 
@@ -365,7 +397,6 @@
       }
     }
 
-    // First restore the shell/data from device, then sync only what changed from server.
     window.addEventListener('DOMContentLoaded', async () => {
       await initLocalStorageSystem();
 
@@ -554,12 +585,13 @@
       if (paneId === 'paneCalls') loadCalls();
     }
 
+    // 👇 DP Click update 👇
     function renderContacts(contacts) {
       const list=document.getElementById('chatsList');
       const arr=Array.isArray(contacts)?contacts:[];
       list.innerHTML=arr.length?arr.map(c=>`
         <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(c.avatar||'')}')">
-          <img src="${escapeAttr(c.avatar||'')}" onerror="this.style.opacity=.35">
+          <img src="${escapeAttr(c.avatar||'')}" onerror="this.style.opacity=.35" onclick="event.stopPropagation(); if(this.src) openFullScreenImage(this.src);" style="cursor:pointer;">
           <div><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
         </div>`).join(''):'<div style="padding:20px;color:#7e7e92;text-align:center;">No other users found yet.</div>';
     }
@@ -676,12 +708,32 @@
       });
     }
 
+    // 👇 Fast Render logic update 👇
     async function addMessageLocalAndRender(message) {
       if(!currentChatTarget)return;
+      
       const existing=await getMessagesLocal(currentChatTarget.userCode);
       const merged=mergeMessages(existing,[message]);
       await saveMessagesLocal(currentChatTarget.userCode,merged);
-      renderMessages(merged);
+
+      const rm = document.getElementById('roomMessages');
+      
+      // If message is already on screen, don't duplicate
+      if (document.querySelector(`[data-message-id="${message.messageId}"]`)) {
+          return; 
+      }
+      
+      const mine = currentUserData && message.senderCode === currentUserData.userCode;
+      
+      const newDiv = document.createElement('div');
+      newDiv.className = `msg-bubble ${mine ? 'mine' : 'theirs'}`;
+      newDiv.setAttribute('data-message-id', message.messageId);
+      newDiv.innerHTML = formatMessageContent(message);
+      
+      rm.appendChild(newDiv);
+      rm.scrollTop = rm.scrollHeight;
+      
+      hydrateMediaCache(newDiv);
     }
 
     async function removeMessageFromLocal(messageId) {
@@ -754,7 +806,6 @@
         const existing=await getMessagesLocal(otherCode);
         await saveMessagesLocal(otherCode,mergeMessages(existing,[m]));
       }
-      // Contact/chat list can be refreshed without a page refresh.
       syncContacts();
     });
 
@@ -786,17 +837,46 @@
       return true;
     }
 
+    // 👇 Status Sorting & UI Update 👇
     function renderStatuses(data) {
-      const my=document.getElementById('myStatusArea');
-      const contacts=document.getElementById('contactStatusesArea');
-      const myItems=(data?.myStatus?.items||[]).filter(statusIsActive);
-      my.innerHTML=myItems.length?`My Status: ${myItems.length} active`:'No active status';
-      const arr=(data?.contactStatuses||[]).map(s=>({...s,items:(s.items||[]).filter(statusIsActive)})).filter(s=>s.items.length);
-      contacts.innerHTML=arr.length?arr.map(s=>`
-        <div class="status-row" onclick="openStatusViewer('${escapeAttr(s.userCode)}')">
-          <img class="status-avatar" src="${escapeAttr(s.avatar||'')}">
-          <div><div style="font-weight:700;">${escapeHtml(s.name||s.userCode)}</div><div style="font-size:12px;color:#7e7e92;">${s.items.length} status${s.items.length>1?'es':''}</div></div>
-        </div>`).join(''):'<div style="padding:20px;color:#7e7e92;text-align:center;">No new status</div>';
+      const my = document.getElementById('myStatusArea');
+      const contacts = document.getElementById('contactStatusesArea');
+      const myItems = (data?.myStatus?.items || []).filter(statusIsActive);
+      
+      if(my) my.textContent = myItems.length ? `${myItems.length} active status` : 'Tap to add status update';
+
+      let arr = (data?.contactStatuses || []).map(s => ({...s, items: (s.items || []).filter(statusIsActive)})).filter(s => s.items.length);
+
+      const viewedStatuses = JSON.parse(localStorage.getItem('viewedStatuses') || '{}');
+
+      arr.sort((a, b) => {
+        const latestA = Math.max(...a.items.map(i => new Date(i.expiresAt).getTime()));
+        const latestB = Math.max(...b.items.map(i => new Date(i.expiresAt).getTime()));
+        
+        const aSeen = viewedStatuses[a.userCode] >= latestA;
+        const bSeen = viewedStatuses[b.userCode] >= latestB;
+
+        if (aSeen && !bSeen) return 1; 
+        if (!aSeen && bSeen) return -1;
+        return latestB - latestA;       
+      });
+
+      contacts.innerHTML = arr.length ? arr.map(s => {
+        const latestTime = Math.max(...s.items.map(i => new Date(i.expiresAt).getTime()));
+        const isSeen = viewedStatuses[s.userCode] >= latestTime;
+        const ringColor = isSeen ? '#7e7e92' : '#00ff88'; 
+
+        return `
+        <div class="status-row" onclick="openStatusViewer('${escapeAttr(s.userCode)}', ${latestTime})">
+          <div style="width:56px;height:56px;border-radius:50%;padding:2px;background:${ringColor};flex:none;">
+            <img class="status-avatar-inner" src="${escapeAttr(s.avatar||'')}">
+          </div>
+          <div>
+            <div style="font-weight:700;">${escapeHtml(s.name||s.userCode)}</div>
+            <div style="font-size:12px;color:#7e7e92;">${s.items.length} status${s.items.length>1?'es':''}</div>
+          </div>
+        </div>`
+      }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No recent updates</div>';
     }
 
     function uploadStatusMedia(inp) {
@@ -814,27 +894,36 @@
       }).catch(e=>{showToast(e.message||'Status upload failed','error');inp.value='';});
     }
 
-    function openStatusViewer(userCode) {
-      // Dynamic viewer only; existing UI remains untouched.
+    // 👇 Status Seen logic update 👇
+    function openStatusViewer(userCode, latestTime) {
+      if (latestTime) {
+        const viewedStatuses = JSON.parse(localStorage.getItem('viewedStatuses') || '{}');
+        viewedStatuses[userCode] = latestTime;
+        localStorage.setItem('viewedStatuses', JSON.stringify(viewedStatuses));
+        loadStatuses(true);
+      }
+
       getStatusesLocal().then(data=>{
         const user=(data?.contactStatuses||[]).find(s=>s.userCode===userCode);
         if(!user?.items?.length)return;
         const item=user.items.find(statusIsActive);
         if(!item)return;
+        
         const overlay=document.createElement('div');
         overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;';
         overlay.onclick=()=>overlay.remove();
+        
         const media=item.type==='video'?document.createElement('video'):document.createElement('img');
         media.controls=item.type==='video';
         media.autoplay=item.type==='video';
         media.style.cssText='max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;';
+        
         overlay.appendChild(media);
         document.body.appendChild(overlay);
         cacheMediaUrl(item.media).then(localUrl=>{media.src=localUrl||item.media;});
       });
     }
 
-    // Cleanup expired local status media metadata once per minute.
     setInterval(async()=>{
       const data=await getStatusesLocal();
       if(!data)return;
@@ -881,6 +970,11 @@
       document.getElementById('screenAuth').style.display='flex';
       showToast('Logged out','success');
     }
+
+    // Call Feature placeholders (To prevent errors before adding WebRTC logic)
+    function startAudioCall() { showToast('Call connecting...', 'info'); }
+    function acceptCall() { document.getElementById('incomingCallModal').style.display = 'none'; }
+    function rejectCall() { document.getElementById('incomingCallModal').style.display = 'none'; }
   </script>
 </body>
 </html>
