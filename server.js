@@ -1,4 +1,4 @@
-[source: 2]const express = require('express');
+const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
@@ -15,7 +15,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true, service: 'chat-app', time: new Date().toISOString() }));
 
-// Secure Firebase configuration endpoint for frontend (prevents github secret scanner alerts)
 app.get('/api/config', (req, res) => {
   res.json({
     apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBR96s32sM1BvzNtJD4KtGk4B6Io9-_dWA",
@@ -35,7 +34,6 @@ mongoose.connect(MONGO_URI, {
 }).then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err.message));
 
-// Schemas & Models
 const userSchema = new mongoose.Schema({
   userCode: { type: String, unique: true, required: true, lowercase: true },
   password: { type: String, required: true },
@@ -71,7 +69,6 @@ const Message = mongoose.model('Message', messageSchema);
 
 const otpStorage = new Map();
 
-// Optimized Nodemailer Transporter for Gmail SMTP
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
@@ -88,7 +85,6 @@ const transporter = nodemailer.createTransport({
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  // SEND EMAIL OTP
   socket.on('send-email-otp', async ({ email }, callback) => {
     const cleanEmail = String(email || '').trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
@@ -117,7 +113,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // VERIFY OTP & REGISTER
   socket.on('verify-otp-and-register', async ({ email, otp, password, fullName, mobile, avatar }, callback) => {
     const cleanEmail = String(email || '').trim().toLowerCase();
     const cleanOtp = String(otp || '').trim();
@@ -169,7 +164,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // FORGOT OTP VERIFY
   socket.on('verify-forgot-otp', async ({ email, otp, mode }, callback) => {
     const cleanEmail = String(email || '').trim().toLowerCase();
     const cleanOtp = String(otp || '').trim();
@@ -192,7 +186,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // UPDATE FORGOT PASSWORD
   socket.on('update-forgot-password', async ({ email, newPassword }, callback) => {
     const cleanEmail = String(email || '').trim().toLowerCase();
     const passStr = String(newPassword || '').trim();
@@ -207,7 +200,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // LOGIN AUTHENTICATION
   socket.on('auth-user', async ({ userCode, password, isRegister }, callback) => {
     const query = String(userCode || '').trim();
     const passStr = String(password || '').trim();
@@ -239,7 +231,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // STATUSES & CONTACTS & CHAT LOGIC
   socket.on('get-statuses', async () => {
     if (!currentUserCode) return;
     try {
