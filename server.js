@@ -276,7 +276,6 @@ io.on('connection', (socket) => {
     } catch (e) {}
   });
 
-  // Fixed the path conflict error here
   socket.on('post-status', async (statusItem, callback) => {
     if (!currentUserCode) return;
     try {
