@@ -42,8 +42,7 @@
     .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; background: #0c0c12; }
     .tab-pane.active { display: flex; }
     
-    /* 🌟 FULLY CLICKABLE CHAT ROW 🌟 */
-    .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; pointer-events: auto; }
+    .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
     .chat-row:hover { background: rgba(255,255,255,0.02); }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
     
@@ -220,6 +219,15 @@
     let unreadMap = {}; 
     let uploadingReelData = null; 
 
+    // 🌟 GLOBAL SINGLE VIDEO PLAYBACK CONTROLLER 🌟
+    document.addEventListener('play', (e) => {
+      if (e.target && e.target.tagName === 'VIDEO') {
+        document.querySelectorAll('video').forEach(v => {
+          if (v !== e.target) v.pause();
+        });
+      }
+    }, true);
+
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app'; const MEDIA_CACHE = 'mychat-media-v1';
     let dbPromise = null;
 
@@ -362,11 +370,12 @@
       list.innerHTML = globalContacts.length ? globalContacts.map(c => {
         const unreadCount = unreadMap[c.userCode] || 0;
         const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;">New ${unreadCount} message${unreadCount > 1 ? 's' : ''}</div>` : '';
+        const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
         return `
-        <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(c.avatar||DEFAULT_AVATAR)}')">
-          <img src="${escapeAttr(c.avatar||DEFAULT_AVATAR)}" onerror="this.src='${DEFAULT_AVATAR}'">
-          <div style="flex:1; pointer-events:none;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
-          <div style="pointer-events:none;">${unreadBadge}</div>
+        <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(userAvatar)}')">
+          <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'">
+          <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
+          <div>${unreadBadge}</div>
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet. Search above to start.</div>';
     }
@@ -543,9 +552,9 @@
     
     function handleMyStatusClick() {
       if (uploadingReelData) {
-        openCustomViewer(uploadingReelData.media, uploadingReelData.type, true);
+        openReelViewerForUser(currentUserData.userCode, 0, true);
       } else if (myActiveStatusesCount > 0) {
-        openStatusViewer(currentUserData.userCode);
+        openReelViewerForUser(currentUserData.userCode, 0, false);
       } else {
         document.getElementById('statusMediaInput').click();
       }
@@ -572,7 +581,7 @@
 
       const arr = (data?.contactStatuses || []).map(s => ({...s, items: (s.items || []).filter(statusIsActive)})).filter(s => s.items.length);
       contacts.innerHTML = arr.length ? arr.map(s => `
-        <div class="status-row" onclick="openStatusViewer('${escapeAttr(s.userCode)}')">
+        <div class="status-row" onclick="openReelViewerForUser('${escapeAttr(s.userCode)}', 0, false)">
           <div style="width:56px;height:56px;border-radius:50%;padding:2px;background:#00ff88;flex:none;">
             <img class="status-avatar-inner" src="${escapeAttr(s.avatar || DEFAULT_AVATAR)}" onerror="this.src='${DEFAULT_AVATAR}'">
           </div>
@@ -604,42 +613,146 @@
       });
     }
 
-    function openCustomViewer(mediaUrl, mediaType, isUploading = false) {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;';
-      overlay.onclick = () => overlay.remove(); 
-
-      const card = document.createElement('div');
-      card.style.cssText = 'position:relative;max-width:100%;max-height:90vh;display:flex;align-items:center;justify-content:center;';
-      card.onclick = (e) => e.stopPropagation();
-
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = '✕';
-      closeBtn.style.cssText = 'position:absolute;top:-40px;right:0;background:transparent;border:none;color:#fff;font-size:30px;cursor:pointer;z-index:1210;';
-      closeBtn.onclick = () => overlay.remove();
-      card.appendChild(closeBtn);
-
-      if (isUploading) {
-        const badge = document.createElement('div');
-        badge.textContent = 'Uploading Reel...';
-        badge.style.cssText = 'position:absolute;top:-40px;left:0;background:#ff3b5c;color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;z-index:1210;';
-        card.appendChild(badge);
-      }
-
-      const media = mediaType === 'video' ? document.createElement('video') : document.createElement('img');
-      media.controls = true; media.autoplay = true; media.src = mediaUrl;
-      media.style.cssText = 'max-width:100%;max-height:85vh;border-radius:12px;object-fit:contain;';
-      
-      card.appendChild(media);
-      overlay.appendChild(card);
-      document.body.appendChild(overlay);
+    // 🌟 DELETE REEL FUNCTION 🌟
+    function deleteCurrentReel(statusId) {
+      if (!confirm('Are you sure you want to delete this reel?')) return;
+      socket.emit('delete-status', { statusId }, res => {
+        if (res?.success) {
+          showToast('Reel deleted successfully', 'success');
+          loadStatuses(true);
+        } else {
+          showToast('Could not delete reel', 'error');
+        }
+      });
     }
 
-    function openStatusViewer(userCode) {
+    // 🌟 ADVANCED REEL VIEWER: LEFT/RIGHT, CLOSE, SWIPE-DOWN TO CLOSE, DELETE & SWIPE-UP VIEWS 🌟
+    function openReelViewerForUser(userCode, itemIndex = 0, isUploading = false) {
       getStatusesLocal().then(data => {
-        const user = userCode === currentUserData?.userCode ? data?.myStatus : (data?.contactStatuses || []).find(s => s.userCode === userCode);
-        const item = user?.items?.find(statusIsActive); if (!item) return;
-        openCustomViewer(item.media, item.type, false);
+        let items = [];
+        let isMyReel = (userCode === currentUserData?.userCode);
+        if (isUploading && uploadingReelData) {
+          items = [uploadingReelData];
+        } else {
+          const user = isMyReel ? data?.myStatus : (data?.contactStatuses || []).find(s => s.userCode === userCode);
+          items = (user?.items || []).filter(statusIsActive);
+        }
+        if (!items.length) return;
+
+        let currentIndex = Math.max(0, Math.min(itemIndex, items.length - 1));
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;transition: background 0.2s;';
+
+        // Close Button '✕'
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;z-index:1250;display:flex;align-items:center;justify-content:center;';
+        closeBtn.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+        overlay.appendChild(closeBtn);
+
+        // Delete Button (Only for my reels)
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.style.cssText = `position:absolute;top:20px;right:75px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:18px;width:40px;height:40px;border-radius:50%;cursor:pointer;z-index:1250;display:${isMyReel && !isUploading ? 'flex' : 'none'};align-items:center;justify-content:center;`;
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          const currentItem = items[currentIndex];
+          if (currentItem?.id) {
+            deleteCurrentReel(currentItem.id);
+            overlay.remove();
+          }
+        };
+        overlay.appendChild(deleteBtn);
+
+        // Views Footer (Swipe up to see viewers)
+        const viewsFooter = document.createElement('div');
+        viewsFooter.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;display:flex;align-items:center;gap:6px;';
+        viewsFooter.innerHTML = `👁️ <span id="viewCountText">Views</span> (Swipe up) <span style="font-size:10px;">▲</span>`;
+        if (isMyReel) overlay.appendChild(viewsFooter);
+
+        if (isUploading) {
+          const badge = document.createElement('div');
+          badge.textContent = 'Uploading Reel...';
+          badge.style.cssText = 'position:absolute;top:25px;left:25px;background:#ff3b5c;color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;z-index:1250;';
+          overlay.appendChild(badge);
+        }
+
+        const container = document.createElement('div');
+        container.style.cssText = 'position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;transition: transform 0.2s ease;';
+        
+        const mediaElem = document.createElement(items[currentIndex].type === 'video' ? 'video' : 'img');
+        mediaElem.controls = true; mediaElem.autoplay = true;
+        mediaElem.style.cssText = 'max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;';
+        container.appendChild(mediaElem);
+        overlay.appendChild(container);
+
+        async function updateMedia() {
+          const currentItem = items[currentIndex];
+          const localUrl = await cacheMediaUrl(currentItem.media);
+          mediaElem.tagName === 'VIDEO' ? (mediaElem.src = localUrl || currentItem.media) : (mediaElem.src = localUrl || currentItem.media);
+          const viewers = currentItem.viewers || [];
+          if (isMyReel) viewsFooter.innerHTML = `👁️ ${viewers.length} views (Swipe up) <span style="font-size:10px;">▲</span>`;
+        }
+        updateMedia();
+
+        // Swipe-down to close & Swipe-up to view viewers logic
+        let startY = 0, currentY = 0, startX = 0, isDragging = false;
+        container.addEventListener('touchstart', e => { 
+          startY = e.touches[0].clientY; 
+          startX = e.touches[0].clientX;
+          isDragging = true; 
+        });
+        container.addEventListener('touchmove', e => {
+          if (!isDragging) return;
+          currentY = e.touches[0].clientY;
+          const diffY = currentY - startY;
+          if (Math.abs(diffY) > 20) {
+            container.style.transform = `translateY(${diffY}px)`;
+          }
+        });
+        container.addEventListener('touchend', e => {
+          if (!isDragging) return;
+          isDragging = false;
+          const diffY = currentY - startY;
+          if (diffY > 100) {
+            overlay.remove(); // Swipe down to close
+          } else if (diffY < -100 && isMyReel) {
+            // Swipe up to see viewers modal
+            const currentItem = items[currentIndex];
+            const viewers = currentItem.viewers || [];
+            let viewersHtml = viewers.length ? viewers.map(v => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><img src="${escapeAttr(v.avatar||DEFAULT_AVATAR)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"><div style="font-weight:600;color:#fff;">${escapeHtml(v.name||v.userCode)}</div></div>`).join('') : '<div style="color:#888;text-align:center;padding:20px;">No views yet</div>';
+            
+            const vModal = document.createElement('div');
+            vModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1300;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s;';
+            vModal.innerHTML = `<div style="width:100%;max-width:420px;max-height:60vh;background:#171720;border-top-left-radius:24px;border-top-right-radius:24px;padding:20px;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="color:#fff;font-size:16px;">Reel Viewers</h3><button onclick="this.closest('div').parentElement.remove()" style="background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;">✕</button></div>${viewersHtml}</div>`;
+            document.body.appendChild(vModal);
+            container.style.transform = 'translateY(0px)';
+          } else {
+            container.style.transform = 'translateY(0px)';
+          }
+        });
+
+        // Left / Right Click Navigation Logic
+        overlay.onclick = (e) => {
+          const screenWidth = window.innerWidth;
+          const clickX = e.clientX;
+          if (clickX < screenWidth / 2) {
+            if (currentIndex > 0) {
+              currentIndex--;
+              updateMedia();
+            }
+          } else {
+            if (currentIndex < items.length - 1) {
+              currentIndex++;
+              updateMedia();
+            } else {
+              overlay.remove();
+            }
+          }
+        };
+
+        document.body.appendChild(overlay);
       });
     }
 
