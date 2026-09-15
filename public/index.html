@@ -17,7 +17,7 @@
     #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
     
     .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
-    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); }
+    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); max-height: 90vh; overflow-y: auto; }
     .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; }
     .input-box:focus { border-color: #ff3b5c; background: rgba(255,255,255,0.12); }
     .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255,59,92,0.4); }
@@ -71,23 +71,50 @@
       <h3 style="color:#fff;" id="authTitle">Create Account</h3>
       <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register with Custom User ID</p>
 
-      <div id="viewRegister" style="display:flex; flex-direction:column; gap:12px;">
+      <!-- Register View with Security Questions -->
+      <div id="viewRegister" style="display:flex; flex-direction:column; gap:10px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
         <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID (e.g. @amit123)">
         <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
-        <button class="btn-gradient" type="button" onclick="handleRegisterCustom()">Register Now ➔</button>
+        <div style="font-size:11px; color:#ff9aae; text-align:left; margin-top:2px;">Security Questions (For Account Recovery):</div>
+        <input type="text" id="regQ1Input" class="input-box" placeholder="1. What is your pet's name?">
+        <input type="text" id="regQ2Input" class="input-box" placeholder="2. Who is your best friend?">
+        <input type="text" id="regQ3Input" class="input-box" placeholder="3. What is your favorite color?">
+        <button class="btn-gradient" type="button" onclick="handleRegisterCustom()" style="margin-top:6px;">Register Now ➔</button>
       </div>
 
+      <!-- Login View -->
       <div id="viewLogin" style="display:none; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
         <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
         <button class="btn-gradient" type="button" onclick="handleLogin()">Login</button>
+        <div style="display:flex; justify-content:flex-end; font-size:12px;">
+          <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal()">Forgot ID / Password?</span>
+        </div>
       </div>
 
       <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
+    </div>
+  </div>
+
+  <!-- FORGOT RECOVERY MODAL -->
+  <div id="forgotModal" class="modal" onclick="if(event.target===this)closeForgotModal()">
+    <div class="modal-card">
+      <h3 style="margin-bottom:10px;">Recover Account</h3>
+      <p style="font-size:11px;color:#888;margin-bottom:10px;">Enter your registered mobile and answers to recover User ID or update password.</p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input type="tel" id="recMobileInput" class="input-box" placeholder="Registered Mobile Number">
+        <input type="text" id="recQ1Input" class="input-box" placeholder="1. Pet's name?">
+        <input type="text" id="recQ2Input" class="input-box" placeholder="2. Best friend's name?">
+        <input type="text" id="recQ3Input" class="input-box" placeholder="3. Favorite color?">
+        <input type="password" id="recNewPassInput" class="input-box" placeholder="New 8-digit Password (Optional)" maxlength="8">
+        <button class="btn-gradient" onclick="submitRecovery()">Recover Account</button>
+      </div>
+      <div id="recoveryResultDisplay" style="font-size:13px; color:#00ff88; font-weight:700; margin-top:10px; text-align:center;"></div>
+      <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">×</button>
     </div>
   </div>
 
@@ -229,14 +256,18 @@
       const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
       const userId = document.getElementById('regUserIdInput').value.trim().toLowerCase();
       const pass = document.getElementById('regPassInput').value.trim();
+      const q1 = document.getElementById('regQ1Input').value.trim();
+      const q2 = document.getElementById('regQ2Input').value.trim();
+      const q3 = document.getElementById('regQ3Input').value.trim();
 
       if (!name || mobile.length < 10) { showToast('Valid name & 10+ digit mobile required', 'error'); return; }
       if (!userId.startsWith('@') || userId.length < 5) { showToast('User ID must start with @ and have 4+ characters', 'error'); return; }
       if (pass.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
+      if (!q1 || !q2 || !q3) { showToast('Please answer all 3 security questions', 'error'); return; }
 
       showToast('Creating account...', 'info');
       socket.emit('register-custom', {
-        userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64
+        userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64, q1, q2, q3
       }, res => {
         if (res && res.success) {
           currentUserData = res.user;
@@ -261,6 +292,41 @@
           launchMainApp();
         } else {
           showToast(res?.error || 'Invalid credentials', 'error');
+        }
+      });
+    }
+
+    function openForgotModal() {
+      document.getElementById('recoveryResultDisplay').textContent = '';
+      document.getElementById('recMobileInput').value = '';
+      document.getElementById('recQ1Input').value = '';
+      document.getElementById('recQ2Input').value = '';
+      document.getElementById('recQ3Input').value = '';
+      document.getElementById('recNewPassInput').value = '';
+      document.getElementById('forgotModal').style.display = 'flex';
+    }
+
+    function closeForgotModal() {
+      document.getElementById('forgotModal').style.display = 'none';
+    }
+
+    function submitRecovery() {
+      const mobile = document.getElementById('recMobileInput').value.trim();
+      const q1 = document.getElementById('recQ1Input').value.trim();
+      const q2 = document.getElementById('recQ2Input').value.trim();
+      const q3 = document.getElementById('recQ3Input').value.trim();
+      const newPassword = document.getElementById('recNewPassInput').value.trim();
+
+      if (!mobile) { showToast('Enter your mobile number', 'error'); return; }
+      if (!q1 || !q2 || !q3) { showToast('Answer all 3 security questions', 'error'); return; }
+
+      showToast('Verifying answers...', 'info');
+      socket.emit('recover-account', { mobile, q1, q2, q3, newPassword }, res => {
+        if (res && res.success) {
+          document.getElementById('recoveryResultDisplay').innerHTML = `${res.message}<br><span style="color:#fff;font-size:12px;">Your User ID is: <b>${res.userCode}</b></span>`;
+          showToast('Recovery successful!', 'success');
+        } else {
+          showToast(res?.error || 'Verification failed', 'error');
         }
       });
     }
@@ -412,7 +478,7 @@
     });
 
     function toggleAppMenu(e){ if(e)e.stopPropagation(); const m=document.getElementById('appMenu'); m.style.display=m.style.display==='block'?'none':'block'; }
-    function closeAppMenu(){ document.getElementById('appMenu').style.display='none'; }
+    function closeAppMenu(){ document.getElementById('appMenu'); m.style.display='none'; }
     document.addEventListener('click', e=>{ if(!e.target.closest('#appMenu') && !e.target.closest('.icon-btn')) closeAppMenu(); });
     
     function openMyProfile(){ 
