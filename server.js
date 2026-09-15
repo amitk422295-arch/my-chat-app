@@ -104,7 +104,6 @@ io.on('connection', (socket) => {
         io.emit('user-online-status', { targetCode: uCode, isOnline: true });
         return callback({ success: true, user: newUser });
       } else {
-        // स्मार्ट लुकअप: मोबाइल नंबर या यूजर आईडी (@ के साथ या बिना दोनों डिटेक्ट करेगा)
         const isMobileQuery = /^\d{10,13}$/.test(query);
         const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
 
@@ -294,7 +293,7 @@ io.on('connection', (socket) => {
   socket.on('toggle-block', async ({ targetCode }, cb) => {
     try {
       const u = await User.findOne({ userCode: currentUserCode });
-      if (!u) return cb({ success: false });
+      if (!u) return cb({ salah: false });
       if (!u.blockedByMe) u.blockedByMe = new Map();
       const curr = u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode];
       const nextVal = !curr;
