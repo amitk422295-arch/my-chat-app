@@ -308,25 +308,20 @@
     </div>
   </div>
 
-  <!-- Firebase SDK Imports -->
+  <!-- Secure Firebase Loader from Backend Config -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBR96s32sM1BvzNtJD4KtGk4B6Io9-_dWA",
-      authDomain: "mychat01-aa2e4.firebaseapp.com",
-      projectId: "mychat01-aa2e4",
-      storageBucket: "mychat01-aa2e4.firebasestorage.app",
-      messagingSenderId: "899727602335",
-      appId: "1:899727602335:web:0ca859e6e818adac4ae8aa",
-      measurementId: "G-003L4FE647"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    window.fbAuth = getAuth(app);
-    window.fbCreateUser = createUserWithEmailAndPassword;
-    window.fbSignInUser = signInWithEmailAndPassword;
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(firebaseConfig => {
+        const app = initializeApp(firebaseConfig);
+        window.fbAuth = getAuth(app);
+        window.fbCreateUser = createUserWithEmailAndPassword;
+        window.fbSignInUser = signInWithEmailAndPassword;
+      })
+      .catch(err => console.error("Firebase config load error:", err));
   </script>
 
   <script>
@@ -416,13 +411,10 @@
       showToast('Creating account...', 'info');
 
       try {
-        // Firebase Authentication link
         if (window.fbAuth && window.fbCreateUser) {
           await window.fbCreateUser(window.fbAuth, regTempData.email, regTempData.pass);
         }
-      } catch(err) {
-        // Continue even if already registered on firebase auth directly
-      }
+      } catch(err) {}
 
       socket.emit('verify-otp-and-register', {
         email: regTempData.email,
@@ -460,7 +452,6 @@
       });
     }
 
-    // Forgot UI controls
     function openForgotModal(mode) {
       forgotMode = mode;
       document.getElementById('forgotModalTitle').textContent = mode === 'userid' ? 'Forgot User ID' : 'Forgot Password';
