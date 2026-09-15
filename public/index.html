@@ -101,7 +101,7 @@
     .edit-dp-wrap img { width:96px; height:96px; border-radius:50%; object-fit:cover; background:#222; border:2px solid #ff6b8b; }
     .edit-dp-wrap span { position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); font-size:10px; background:#ff6b8b; color:#fff; padding:4px 7px; border-radius:10px; white-space:nowrap; }
 
-    /* WebRTC Audio Call UI (Voice only, Video stripped) */
+    /* WebRTC Audio Call UI */
     #audioCallModal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 250; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
     .caller-dp-pulse { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #ff3b5c; }
     .audio-call-actions { display: flex; gap: 28px; align-items: center; margin-top: 24px; }
@@ -144,21 +144,21 @@
       <h3 style="color:#fff;" id="authTitle">Welcome Back</h3>
       <p style="font-size:12px;color:#8a8a9e;" id="authSub">Already registered? Enter here</p>
 
-      <!-- VIEW: LOGIN (Accepts 6-digit old or 8-digit new pass) -->
+      <!-- VIEW: LOGIN -->
       <div id="viewLogin" style="display:flex; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
         <input type="password" id="loginPassInput" class="input-box" placeholder="6-digit (Old) or 8-digit (New) Pass" maxlength="8">
         <button class="btn-gradient" onclick="handleLogin()">Login</button>
       </div>
 
-      <!-- VIEW: REGISTER STEP 1 (Name + Mobile) -->
+      <!-- VIEW: REGISTER STEP 1 -->
       <div id="viewRegStep1" style="display:none; flex-direction:column; gap:12px;">
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
         <button class="btn-gradient" onclick="goRegStep2()">Next ➔</button>
       </div>
 
-      <!-- VIEW: REGISTER STEP 2 (DP + Unique ID >=6 small letters + Strict 8-Digit Password) -->
+      <!-- VIEW: REGISTER STEP 2 -->
       <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
@@ -185,7 +185,6 @@
       <input type="tel" id="recMobileInp" class="input-box" placeholder="Registered Mobile" maxlength="13">
       <button class="btn-gradient" id="recVerifyBtn" onclick="verifyRecoveryAccount()">Verify Account</button>
       
-      <!-- Update section appears after verification -->
       <div id="recUpdateSection" style="display:none; flex-direction:column; gap:10px; margin-top:12px;">
         <input type="password" id="recNewPassInp" class="input-box" placeholder="New Password (6 or 8 digits)" maxlength="8">
         <button class="btn-gradient" onclick="updateRecoveryPassword()">Update Password</button>
@@ -325,7 +324,7 @@
     </div>
   </div>
 
-  <!-- WEBRTC AUDIO CALL MODAL (Voice call only, video stripped) -->
+  <!-- WEBRTC AUDIO CALL MODAL -->
   <div id="audioCallModal">
     <img id="audioCallerAvatar" class="caller-dp-pulse" src="">
     <div id="audioCallerName" style="font-size:22px;font-weight:800;color:#fff;">Caller</div>
@@ -347,7 +346,7 @@
     </div>
   </div>
 
-  <!-- CHAT ROOM (Audio call button kept, video call button removed) -->
+  <!-- CHAT ROOM -->
   <div id="chatRoom">
     <div class="room-header">
       <div class="room-header-profile">
@@ -766,7 +765,7 @@
     }
     function logoutUser() { document.getElementById('topMenuPanel').style.display = 'none'; localStorage.clear(); if(socket) socket.disconnect(); location.reload(); }
 
-    /* WEBRTC AUDIO CALL SYSTEM (Voice only) */
+    /* WEBRTC AUDIO CALL SYSTEM */
     let peerConn = null; let localStream = null; const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     let incomingCallerCode = null; let incomingSignal = null; let activeCallPartner = null;
 
