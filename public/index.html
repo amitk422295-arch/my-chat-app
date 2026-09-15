@@ -26,13 +26,17 @@
     #toastBox.error { border-color: #ff3b5c; color: #ff6b8b; }
     #toastBox.success { border-color: #00c853; color: #00ff88; }
     #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
-    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
-    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); position: relative; z-index: 1; }
-    .input-box { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; }
-    .input-box:focus { border-color: #ff3b5c; }
-    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; }
+    
+    /* AUTH FLOW SCREEN - FIXED INTERACTION */
+    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; pointer-events: auto; }
+    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); position: relative; z-index: 1; pointer-events: auto; }
+    .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; pointer-events: auto; }
+    .input-box:focus { border-color: #ff3b5c; background: rgba(255,255,255,0.12); }
+    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; opacity: 1; pointer-events: auto; box-shadow: 0 4px 15px rgba(255,59,92,0.4); }
+    .btn-gradient:active { transform: scale(0.98); }
     .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; }
     .dp-circle.has-image { border-style: solid; }
+
     #mainApp { display: none; flex-direction: column; height: 100%; height: 100dvh; position: relative; z-index: 1; }
     .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; }
     .user-profile-badge { display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(255,59,92,0.1); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(255,59,92,0.25); }
@@ -139,7 +143,7 @@
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
-  <!-- AUTH FLOW SCREEN -->
+  <!-- AUTH FLOW SCREEN - INTERACTIVE FIXED -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
@@ -179,20 +183,21 @@
     </div>
   </div>
 
-  <!-- FORGOT ID/PASS RECOVERY MODAL -->
-  <div id="recoveryModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;">
-    <div class="glass-card" style="max-width:320px;">
+  <!-- FORGOT ID/PASS RECOVERY MODAL - SHOWS PASSWORD DIRECTLY ON MATCH -->
+  <div id="recoveryModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;">
+    <div class="glass-card" style="max-width:340px;">
       <h3 style="color:#fff;font-size:16px;">Account Recovery</h3>
+      <input type="text" id="recUserIdInp" class="input-box" placeholder="Enter User ID (@username)">
       <input type="tel" id="recMobileInp" class="input-box" placeholder="Enter Registered Mobile" maxlength="13">
-      <button class="btn-gradient" onclick="recoverAccountFind()">Find User ID</button>
-      <div id="recResult" style="font-size:12px;color:#00ff88;margin-top:8px;"></div>
+      <button class="btn-gradient" onclick="recoverAccountDirectShow()">Show Password</button>
       
-      <div id="resetPassSection" style="display:none; flex-direction:column; gap:10px; margin-top:10px;">
-        <input type="password" id="recNewPassInp" class="input-box" placeholder="New 8-digit Password" maxlength="8">
-        <button class="btn-gradient" onclick="recoverAccountResetPass()">Update Password</button>
+      <div id="recResultBox" style="margin-top:12px; padding:12px; background:rgba(0,200,83,0.1); border:1px solid #00c853; border-radius:12px; display:none; text-align:left; font-size:13px; color:#00ff88;">
+        <div><b>User ID:</b> <span id="resFoundId"></span></div>
+        <div style="margin-top:4px;"><b>Password:</b> <span id="resFoundPass" style="font-family:monospace; background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px;"></span></div>
       </div>
 
-      <button class="btn-gradient" style="background:#333;margin-top:10px;" onclick="closeForgotModal()">Close</button>
+      <div id="recErrorBox" style="margin-top:10px; color:#ff6b8b; font-size:12px; display:none;"></div>
+      <button class="btn-gradient" style="background:#333;margin-top:14px;" onclick="closeForgotModal()">Close</button>
     </div>
   </div>
 
@@ -419,7 +424,6 @@
     let regTempData = { name: '', mobile: '', dp: '' };
     let myUserCode = '', myFullName = '', myAvatar = '', myMobileNumber = '', currentPartner = '', currentRoomId = '';
     let currentMyStatusObj = null; let activeStoryItem = null; let storyTimer = null;
-    let recoveredFoundUserId = null;
     let currentFirebaseChatRef = null; let currentFirebaseChildAdded = null;
     let longPressTimer = null; let selectedMsgId = null; let selectedMsgIsMine = false;
     let editDpFile = null; let selectedBlockUser = ''; let typingTimer = null;
@@ -519,39 +523,35 @@
     function openForgotModal() { document.getElementById('recoveryModal').style.display = 'flex'; }
     function closeForgotModal() {
       document.getElementById('recoveryModal').style.display = 'none';
-      document.getElementById('resetPassSection').style.display = 'none';
-      document.getElementById('recResult').textContent = '';
+      document.getElementById('recResultBox').style.display = 'none';
+      document.getElementById('recErrorBox').style.display = 'none';
+      document.getElementById('recUserIdInp').value = '';
       document.getElementById('recMobileInp').value = '';
-      document.getElementById('recNewPassInp').value = '';
-      recoveredFoundUserId = null;
     }
 
-    function recoverAccountFind() {
+    // DIRECT RECOVERY SHOW PASSWORD FUNCTION
+    function recoverAccountDirectShow() {
+      const rawId = document.getElementById('recUserIdInp').value.trim().toLowerCase();
+      const uCode = rawId.startsWith('@') ? rawId : '@' + rawId;
       const mob = document.getElementById('recMobileInp').value.trim();
-      if (!mob) return showToast('Error in mobile number: Please enter your mobile number.', 'error');
-      socket.emit('recover-id', { mobile: mob }, res => {
-        if (res && res.userCode) {
-          recoveredFoundUserId = res.userCode;
-          document.getElementById('recResult').innerHTML = `Found ID: <b>${res.userCode}</b><br>Now enter new 8-digit password below.`;
-          document.getElementById('resetPassSection').style.display = 'flex';
-        } else {
-          document.getElementById('recResult').textContent = 'No account found for this mobile number.';
-          document.getElementById('resetPassSection').style.display = 'none';
-          recoveredFoundUserId = null;
-        }
-      });
-    }
+      const resBox = document.getElementById('recResultBox');
+      const errBox = document.getElementById('recErrorBox');
+      resBox.style.display = 'none'; errBox.style.display = 'none';
 
-    function recoverAccountResetPass() {
-      const newPass = document.getElementById('recNewPassInp').value.trim();
-      if (!recoveredFoundUserId) return showToast('Error: Please find User ID first.', 'error');
-      if (newPass.length !== 8) return showToast('Error in password: New password must be strictly 8 characters.', 'error');
-      socket.emit('reset-password', { userCode: recoveredFoundUserId, newPassword: newPass }, res => {
-        if (res && res.success) {
-          showToast('Password updated successfully! Please login.', 'success');
-          closeForgotModal();
+      if (!uCode || uCode.length < 3 || !mob) {
+        errBox.textContent = 'Please enter valid User ID and Mobile Number.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      socket.emit('recover-password-direct', { userCode: uCode, mobile: mob }, res => {
+        if (res && res.success && res.password) {
+          document.getElementById('resFoundId').textContent = uCode;
+          document.getElementById('resFoundPass').textContent = res.password;
+          resBox.style.display = 'block';
         } else {
-          showToast(res?.error || 'Password update failed.', 'error');
+          errBox.textContent = res?.error || 'Account not found or mobile/ID mismatch.';
+          errBox.style.display = 'block';
         }
       });
     }
@@ -957,7 +957,7 @@
     function handleMicUp() { if (!isHoldingMic || isLocked) return; isHoldingMic = false; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; clearInterval(timerInterval); if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
     function cancelHoldRecording() { isCancelled = true; isHoldingMic = false; isLocked = false; clearInterval(timerInterval); document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
     function cancelLockedRecording() { isCancelled = true; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
-    function stopAndSendRecording() { isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
+    function stopAndSendRecording() { isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBoard').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
   </script>
 </body>
 </html>
