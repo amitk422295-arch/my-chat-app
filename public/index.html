@@ -219,66 +219,204 @@
     </div>
   </div>
 
-  <script>
-    const socket = io();
+    <script>
+    const socket = io({
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 250,
+      reconnectionDelayMax: 3000
+    });
+
     let authMode = 'reg';
     let regDpBase64 = '';
     let currentUserData = null;
     let currentChatTarget = null;
+    let uploadToken = '';
 
-    // Instant local cache restoration for zero-delay loading
-    window.addEventListener('DOMContentLoaded', () => {
+    const DB_NAME = 'MyChatLocalDB';
+    const DB_VERSION = 2;
+    const CHAT_STORE = 'chats';
+    const APP_STORE = 'app';
+    const MEDIA_CACHE = 'mychat-media-v1';
+
+    let dbPromise = null;
+
+    function openLocalDB() {
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) return resolve(null);
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: 'key' });
+          if (!db.objectStoreNames.contains(APP_STORE)) db.createObjectStore(APP_STORE, { keyPath: 'key' });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+      return dbPromise;
+    }
+
+    async function idbPut(storeName, value) {
+      const db = await openLocalDB();
+      if (!db) return;
+      return new Promise(resolve => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).put(value);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    }
+
+    async function idbGet(storeName, key) {
+      const db = await openLocalDB();
+      if (!db) return null;
+      return new Promise(resolve => {
+        const tx = db.transaction(storeName, 'readonly');
+        const req = tx.objectStore(storeName).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    async function idbDelete(storeName, key) {
+      const db = await openLocalDB();
+      if (!db) return;
+      return new Promise(resolve => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).delete(key);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    }
+
+    async function saveMessagesLocal(userCode, messages) {
+      const clean = Array.isArray(messages) ? messages : [];
+      await idbPut(CHAT_STORE, {
+        key: 'messages:' + String(userCode).toLowerCase(),
+        messages: clean,
+        updatedAt: Date.now()
+      });
+    }
+
+    async function getMessagesLocal(userCode) {
+      const row = await idbGet(CHAT_STORE, 'messages:' + String(userCode).toLowerCase());
+      return row?.messages || [];
+    }
+
+    async function saveContactsLocal(contacts) {
+      await idbPut(APP_STORE, { key: 'contacts', contacts: Array.isArray(contacts) ? contacts : [], updatedAt: Date.now() });
+    }
+
+    async function getContactsLocal() {
+      const row = await idbGet(APP_STORE, 'contacts');
+      return row?.contacts || [];
+    }
+
+    async function saveStatusesLocal(data) {
+      await idbPut(APP_STORE, { key: 'statuses', data, updatedAt: Date.now() });
+    }
+
+    async function getStatusesLocal() {
+      const row = await idbGet(APP_STORE, 'statuses');
+      return row?.data || null;
+    }
+
+    async function requestPersistentStorage() {
+      try {
+        if (navigator.storage?.persist) await navigator.storage.persist();
+      } catch (e) {}
+    }
+
+    async function initLocalStorageSystem() {
+      await openLocalDB();
+      await requestPersistentStorage();
+    }
+
+    async function cacheMediaUrl(url) {
+      if (!url || !/^https?:\/\//i.test(url) || !('caches' in window)) return null;
+      try {
+        const cache = await caches.open(MEDIA_CACHE);
+        const hit = await cache.match(url);
+        if (hit) return URL.createObjectURL(await hit.blob());
+        const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+        if (!response.ok) return null;
+        await cache.put(url, response.clone());
+        return URL.createObjectURL(await response.blob());
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function hydrateMediaCache(root = document) {
+      const nodes = root.querySelectorAll('[data-media-url]');
+      for (const node of nodes) {
+        const url = node.getAttribute('data-media-url');
+        if (!url) continue;
+        const localUrl = await cacheMediaUrl(url);
+        if (!localUrl) {
+          if (node.tagName === 'A') node.href = url;
+          else node.src = url;
+          continue;
+        }
+        if (node.tagName === 'A') node.href = localUrl;
+        else node.src = localUrl;
+      }
+    }
+
+    // First restore the shell/data from device, then sync only what changed from server.
+    window.addEventListener('DOMContentLoaded', async () => {
+      await initLocalStorageSystem();
+
       const savedUser = localStorage.getItem('chatAppUser');
       if (savedUser) {
         try {
           currentUserData = JSON.parse(savedUser);
           if (currentUserData && currentUserData.userCode) {
-            socket.emit('set-socket-user', { userCode: currentUserData.userCode });
+            socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
+              if (res?.token) uploadToken = res.token;
+            });
             launchMainApp();
-            
-            // Load local cached messages if available for instant display
+
             const cachedTarget = localStorage.getItem('lastChatTarget');
             if (cachedTarget) {
-              const cachedMsgs = localStorage.getItem('cache_msgs_' + cachedTarget);
-              if (cachedMsgs) {
-                renderMessages(JSON.parse(cachedMsgs));
+              const cachedMsgs = await getMessagesLocal(cachedTarget);
+              if (cachedMsgs.length) {
+                currentChatTarget = { userCode: cachedTarget, name: 'User', avatar: '' };
+                renderMessages(cachedMsgs);
               }
             }
           }
-        } catch(e) {
+        } catch (e) {
           localStorage.removeItem('chatAppUser');
         }
       }
     });
 
     window.addEventListener('focus', () => {
-      if (currentUserData && currentUserData.userCode) {
-        socket.emit('set-socket-user', { userCode: currentUserData.userCode });
-        loadContacts();
-        if (currentChatTarget) {
-          socket.emit('get-messages', { targetCode: currentChatTarget.userCode }, res => {
-            if (res?.success) {
-              localStorage.setItem('cache_msgs_' + currentChatTarget.userCode, JSON.stringify(res.messages));
-              renderMessages(res.messages || []);
-            }
-          });
-        }
+      if (!currentUserData?.userCode) return;
+      socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
+        if (res?.token) uploadToken = res.token;
+      });
+      syncContacts();
+      if (currentChatTarget) syncCurrentChat(true);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && currentUserData?.userCode) {
+        syncContacts();
+        if (currentChatTarget) syncCurrentChat(true);
       }
     });
 
     socket.on('connect', () => {
-      if (currentUserData && currentUserData.userCode) {
-        socket.emit('set-socket-user', { userCode: currentUserData.userCode });
-        loadContacts();
-        if (currentChatTarget) {
-          socket.emit('get-messages', { targetCode: currentChatTarget.userCode }, res => {
-            if (res?.success) {
-              localStorage.setItem('cache_msgs_' + currentChatTarget.userCode, JSON.stringify(res.messages));
-              renderMessages(res.messages || []);
-            }
-          });
-        }
-      }
+      if (!currentUserData?.userCode) return;
+      socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
+        if (res?.token) uploadToken = res.token;
+      });
+      syncContacts();
+      if (currentChatTarget) syncCurrentChat(true);
     });
 
     function showToast(msg, type='info') {
@@ -291,7 +429,6 @@
       const loginView = document.getElementById('viewLogin');
       const regView = document.getElementById('viewRegister');
       const title = document.getElementById('authTitle');
-      const sub = document.getElementById('authSub');
       const switchText = document.getElementById('authSwitchText');
       const secureBanner = document.getElementById('secureBanner');
 
@@ -338,25 +475,19 @@
       if (mobile.length < 10) { showToast('Valid 10+ digit mobile number required', 'error'); return; }
       if (!userId.startsWith('@') || userId.length < 5) { showToast('User ID must start with @ and have 4+ characters', 'error'); return; }
       if (pass.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
-      
-      if (!q1 && !q2 && !q3) {
-        showToast('Minimum one security question answer is required to secure your ID.', 'error');
-        return;
-      }
+      if (!q1 && !q2 && !q3) { showToast('Minimum one security question answer is required to secure your ID.', 'error'); return; }
 
       showToast('Creating account...', 'info');
-      socket.emit('register-custom', {
-        userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64, q1, q2, q3
-      }, res => {
-        if (res && res.success) {
+      socket.emit('register-custom', { userCode:userId, password:pass, fullName:name, mobile, avatar:regDpBase64, q1,q2,q3 }, res => {
+        if (res?.success) {
           currentUserData = res.user;
           localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          socket.emit('set-socket-user', { userCode: currentUserData.userCode });
+          socket.emit('set-socket-user', { userCode: currentUserData.userCode }, tokenRes => {
+            if (tokenRes?.token) uploadToken = tokenRes.token;
+          });
           showToast('Registration successful!', 'success');
           launchMainApp();
-        } else {
-          showToast(res?.error || 'Registration failed', 'error');
-        }
+        } else showToast(res?.error || 'Registration failed', 'error');
       });
     }
 
@@ -365,289 +496,390 @@
       const pass = document.getElementById('loginPassInput').value.trim();
       if(!id || !pass) { showToast('Enter ID/Mobile and Password', 'error'); return; }
       showToast('Logging in...', 'info');
-
-      socket.emit('auth-user', { userCode: id, password: pass }, res => {
-        if (res && res.success) {
+      socket.emit('auth-user', { userCode:id, password:pass }, res => {
+        if (res?.success) {
           currentUserData = res.user;
           localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          socket.emit('set-socket-user', { userCode: currentUserData.userCode });
+          socket.emit('set-socket-user', { userCode: currentUserData.userCode }, tokenRes => {
+            if (tokenRes?.token) uploadToken = tokenRes.token;
+          });
           showToast('Welcome back!', 'success');
           launchMainApp();
-        } else {
-          showToast(res?.error || 'Invalid credentials', 'error');
-        }
+        } else showToast(res?.error || 'Invalid credentials', 'error');
       });
     }
 
     function openForgotModal() {
-      document.getElementById('recoveryResultDisplay').textContent = '';
-      document.getElementById('recMobileInput').value = '';
-      document.getElementById('recQ1Input').value = '';
-      document.getElementById('recQ2Input').value = '';
-      document.getElementById('recQ3Input').value = '';
-      document.getElementById('recNewPassInput').value = '';
-      document.getElementById('forgotModal').style.display = 'flex';
+      document.getElementById('recoveryResultDisplay').textContent='';
+      document.getElementById('recMobileInput').value='';
+      document.getElementById('recQ1Input').value='';
+      document.getElementById('recQ2Input').value='';
+      document.getElementById('recQ3Input').value='';
+      document.getElementById('recNewPassInput').value='';
+      document.getElementById('forgotModal').style.display='flex';
     }
-
-    function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
+    function closeForgotModal(){ document.getElementById('forgotModal').style.display='none'; }
 
     function submitRecovery() {
-      const mobile = document.getElementById('recMobileInput').value.trim();
-      const q1 = document.getElementById('recQ1Input').value.trim();
-      const q2 = document.getElementById('recQ2Input').value.trim();
-      const q3 = document.getElementById('recQ3Input').value.trim();
-      const newPassword = document.getElementById('recNewPassInput').value.trim();
-
-      if (!mobile) { showToast('Enter your mobile number', 'error'); return; }
-      if (!q1 && !q2 && !q3) { showToast('Please answer at least one security question', 'error'); return; }
-
-      showToast('Verifying answers...', 'info');
-      socket.emit('recover-account', { mobile, q1, q2, q3, newPassword }, res => {
-        if (res && res.success) {
-          document.getElementById('recoveryResultDisplay').innerHTML = `${res.message}<br><span style="color:#fff;font-size:12px;">Your User ID is: <b>${res.userCode}</b></span>`;
-          showToast('Recovery successful!', 'success');
-        } else {
-          showToast(res?.error || 'Verification failed', 'error');
-        }
+      const mobile=document.getElementById('recMobileInput').value.trim();
+      const q1=document.getElementById('recQ1Input').value.trim();
+      const q2=document.getElementById('recQ2Input').value.trim();
+      const q3=document.getElementById('recQ3Input').value.trim();
+      const newPassword=document.getElementById('recNewPassInput').value.trim();
+      if(!mobile){showToast('Enter your mobile number','error');return;}
+      if(!q1&&!q2&&!q3){showToast('Please answer at least one security question','error');return;}
+      showToast('Verifying answers...','info');
+      socket.emit('recover-account',{mobile,q1,q2,q3,newPassword},res=>{
+        if(res?.success){
+          document.getElementById('recoveryResultDisplay').innerHTML=`${escapeHtml(res.message)}<br><span style="color:#fff;font-size:12px;">Your User ID is: <b>${escapeHtml(res.userCode)}</b></span>`;
+          showToast('Recovery successful!','success');
+        } else showToast(res?.error||'Verification failed','error');
       });
     }
 
     function launchMainApp() {
-      document.getElementById('screenAuth').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'flex';
+      document.getElementById('screenAuth').style.display='none';
+      document.getElementById('mainApp').style.display='flex';
       loadContacts();
+      loadStatuses(true);
     }
 
     function switchTab(paneId, tabEl) {
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
       document.getElementById(paneId).classList.add('active');
       tabEl.classList.add('active');
+      if (paneId === 'paneChats') loadContacts();
+      if (paneId === 'paneStatus') loadStatuses();
+      if (paneId === 'paneCalls') loadCalls();
     }
 
-    function loadContacts() { socket.emit('get-contacts'); }
+    function renderContacts(contacts) {
+      const list=document.getElementById('chatsList');
+      const arr=Array.isArray(contacts)?contacts:[];
+      list.innerHTML=arr.length?arr.map(c=>`
+        <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(c.avatar||'')}')">
+          <img src="${escapeAttr(c.avatar||'')}" onerror="this.style.opacity=.35">
+          <div><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
+        </div>`).join(''):'<div style="padding:20px;color:#7e7e92;text-align:center;">No other users found yet.</div>';
+    }
 
-    socket.on('contact-list-data', ({ contacts }) => {
-      const list = document.getElementById('chatsList');
-      list.innerHTML = contacts.length ? contacts.map(c => `
-        <div class="chat-row" onclick="openChatWith('${c.userCode}', '${c.name}', '${c.avatar || ''}')">
-          <img src="${c.avatar || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'50\' fill=\'%23333\'><circle cx=\'25\' cy=\'25\' r=\'25\'/></svg>'}">
-          <div>
-            <div style="font-weight:700;">${c.name}</div>
-            <div style="font-size:12px;color:#7e7e92;">${c.userCode}</div>
-          </div>
-        </div>
-      `).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No other users found yet.</div>';
+    function loadContacts() {
+      getContactsLocal().then(local=>{ if(local.length) renderContacts(local); });
+      syncContacts();
+    }
+
+    function syncContacts() {
+      if(!currentUserData?.userCode || !socket.connected) return;
+      socket.emit('get-contacts');
+    }
+
+    socket.on('contact-list-data', async ({contacts}) => {
+      const arr=Array.isArray(contacts)?contacts:[];
+      await saveContactsLocal(arr);
+      renderContacts(arr);
     });
 
     function openDirectChat() {
-      const query = document.getElementById('directSearchInput').value.trim();
-      if (!query) return;
-      socket.emit('open-direct-chat', { targetCode: query, query }, res => {
-        if (res.success) openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
-        else showToast(res.error, 'error');
+      const query=document.getElementById('directSearchInput').value.trim();
+      if(!query)return;
+      socket.emit('open-direct-chat',{targetCode:query,query},res=>{
+        if(res?.success) openChatWith(res.user.userCode,res.user.fullName,res.user.avatar);
+        else showToast(res?.error||'User not found.','error');
       });
     }
 
-    function openChatWith(uCode, name, avatar) {
-      currentChatTarget = { userCode: uCode, name, avatar };
-      localStorage.setItem('lastChatTarget', uCode);
-      document.getElementById('roomUserName').textContent = name || 'User';
-      document.getElementById('roomUserAvatar').src = avatar || '';
-      
-      // Instant load from local cache if available
-      const cachedMsgs = localStorage.getItem('cache_msgs_' + uCode);
-      if (cachedMsgs) {
-        renderMessages(JSON.parse(cachedMsgs));
-      } else {
-        document.getElementById('roomMessages').innerHTML = '<div style="text-align:center;color:#777;font-size:12px;padding:20px;">Loading messages...</div>';
-      }
+    async function openChatWith(uCode,name,avatar) {
+      currentChatTarget={userCode:String(uCode).toLowerCase(),name:name||'User',avatar:avatar||''};
+      localStorage.setItem('lastChatTarget',currentChatTarget.userCode);
+      document.getElementById('roomUserName').textContent=currentChatTarget.name;
+      document.getElementById('roomUserAvatar').src=currentChatTarget.avatar||'';
+      document.getElementById('chatRoom').style.display='flex';
 
-      document.getElementById('chatRoom').style.display = 'flex';
-      socket.emit('get-messages', { targetCode: uCode }, res => {
-        if (!res?.success) { showToast(res?.error || 'Could not load messages', 'error'); return; }
-        localStorage.setItem('cache_msgs_' + uCode, JSON.stringify(res.messages));
-        renderMessages(res.messages || []);
+      const cached=await getMessagesLocal(currentChatTarget.userCode);
+      if(cached.length) renderMessages(cached);
+      else document.getElementById('roomMessages').innerHTML='<div style="text-align:center;color:#777;font-size:12px;padding:20px;">Loading messages...</div>';
+
+      syncCurrentChat(false);
+    }
+
+    async function syncCurrentChat(silent) {
+      if(!currentChatTarget || !socket.connected) return;
+      const cached=await getMessagesLocal(currentChatTarget.userCode);
+      const after=cached.length ? cached[cached.length-1]?.createdAt : null;
+      socket.emit('get-messages',{targetCode:currentChatTarget.userCode,after},async res=>{
+        if(!res?.success) { if(!silent) showToast(res?.error||'Could not load messages','error'); return; }
+        if (res.full) {
+          await saveMessagesLocal(currentChatTarget.userCode,res.messages||[]);
+          renderMessages(res.messages||[]);
+        } else if ((res.messages||[]).length) {
+          const merged=mergeMessages(cached,res.messages);
+          await saveMessagesLocal(currentChatTarget.userCode,merged);
+          renderMessages(merged);
+        }
       });
     }
 
-    function closeChatRoom() {
-      document.getElementById('chatRoom').style.display = 'none';
-      currentChatTarget = null;
+    function mergeMessages(a,b) {
+      const map=new Map();
+      [...(a||[]),...(b||[])].forEach(m=>{ if(m?.messageId) map.set(m.messageId,m); });
+      return Array.from(map.values()).sort((x,y)=>new Date(x.createdAt)-new Date(y.createdAt)).slice(-500);
     }
 
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/[&<>\"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[ch]));
-    }
+    function closeChatRoom(){document.getElementById('chatRoom').style.display='none';currentChatTarget=null;}
 
-    function openFullScreenImage(imgSrc) {
-      document.getElementById('fullScreenImage').src = imgSrc;
-      document.getElementById('imageModal').style.display = 'flex';
-    }
+    function escapeHtml(value){return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
+    function escapeAttr(value){return escapeHtml(value).replace(/`/g,'&#96;');}
 
-    function closeImageModal() {
-      document.getElementById('imageModal').style.display = 'none';
-    }
+    function openFullScreenImage(imgSrc){document.getElementById('fullScreenImage').src=imgSrc;document.getElementById('imageModal').style.display='flex';}
+    function closeImageModal(){document.getElementById('imageModal').style.display='none';}
 
     function formatMessageContent(m) {
-      let timeStr = new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-      let innerHtml = '';
-      if (m.messageType === 'image') {
-        innerHtml = `<img src="${escapeHtml(m.media)}" onclick="openFullScreenImage('${escapeHtml(m.media)}')" style="max-width:100%; max-height:280px; border-radius:8px; display:block; margin-bottom:4px; cursor:pointer;" title="Click to view full screen">`;
-      } else if (m.messageType === 'video') {
-        innerHtml = `<video src="${escapeHtml(m.media)}" controls style="max-width:100%; max-height:280px; border-radius:8px; display:block; margin-bottom:4px;"></video>`;
-      } else if (m.messageType === 'document') {
-        innerHtml = `<a href="${escapeHtml(m.media)}" target="_blank" style="color:#5ac8fa; text-decoration:underline; display:block; margin-bottom:4px;">📎 ${escapeHtml(m.fileName || 'Download Document')}</a>${escapeHtml(m.text)}`;
+      const timeStr=new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      let innerHtml='';
+      if(m.messageType==='image'){
+        innerHtml=`<img data-media-url="${escapeAttr(m.media)}" src="" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;" title="Click to view full screen">`;
+      } else if(m.messageType==='video'){
+        innerHtml=`<video data-media-url="${escapeAttr(m.media)}" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
+      } else if(m.messageType==='document'){
+        innerHtml=`<a data-media-url="${escapeAttr(m.media)}" href="" target="_blank" style="color:#5ac8fa;text-decoration:underline;display:block;margin-bottom:4px;">📎 ${escapeHtml(m.fileName||'Open Document')}</a>${escapeHtml(m.text)}`;
       } else {
-        let txt = escapeHtml(m.text);
-        const ytRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
-        txt = txt.replace(ytRegex, (url, match, vidId) => {
-          return `<div style="margin-top:6px;"><a href="${url}" target="_blank" style="color:#ff3b5c; text-decoration:underline; font-weight:600;">▶ Watch Video</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${vidId}" frameborder="0" allowfullscreen style="border-radius:8px; margin-top:4px;"></iframe></div>`;
-        });
-        innerHtml = txt;
+        let txt=escapeHtml(m.text);
+        const ytRegex=/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
+        txt=txt.replace(ytRegex,(url,match,vidId)=>`<div style="margin-top:6px;"><a href="${escapeAttr(url)}" target="_blank" style="color:#ff3b5c;text-decoration:underline;font-weight:600;">▶ Watch Video</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${escapeAttr(vidId)}" frameborder="0" allowfullscreen style="border-radius:8px;margin-top:4px;"></iframe></div>`);
+        innerHtml=txt;
       }
       return `${innerHtml}<span class="msg-time">${timeStr}</span>`;
     }
 
     function renderMessages(messages) {
-      const rm = document.getElementById('roomMessages');
-      if (!messages.length) {
-        rm.innerHTML = '<div style="text-align:center;color:#777;font-size:12px;padding:30px;">No messages yet. Say hello 👋</div>';
-        return;
-      }
-      rm.innerHTML = messages.map(m => {
-        const mine = currentUserData && m.senderCode === currentUserData.userCode;
-        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${formatMessageContent(m)}</div>`;
+      const rm=document.getElementById('roomMessages');
+      if(!messages.length){rm.innerHTML='<div style="text-align:center;color:#777;font-size:12px;padding:30px;">No messages yet. Say hello 👋</div>';return;}
+      rm.innerHTML=messages.map(m=>{
+        const mine=currentUserData&&m.senderCode===currentUserData.userCode;
+        return `<div class="msg-bubble ${mine?'mine':'theirs'}" data-message-id="${escapeAttr(m.messageId)}">${formatMessageContent(m)}</div>`;
       }).join('');
-      rm.scrollTop = rm.scrollHeight;
+      rm.scrollTop=rm.scrollHeight;
+      hydrateMediaCache(rm);
     }
 
     function sendChatMessage() {
-      const box = document.getElementById('msgInputBox');
-      const val = box.value.trim();
-      if (!val || !currentChatTarget) return;
-      const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-      box.value = '';
-      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId }, res => {
-        if (!res?.success) { box.value = val; showToast(res?.error || 'Message failed', 'error'); }
+      const box=document.getElementById('msgInputBox');
+      const val=box.value.trim();
+      if(!val||!currentChatTarget)return;
+      const clientMessageId='msg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+      const optimistic={messageId:clientMessageId,senderCode:currentUserData.userCode,receiverCode:currentChatTarget.userCode,text:val,messageType:'text',media:'',fileName:'',createdAt:new Date().toISOString()};
+      box.value='';
+      addMessageLocalAndRender(optimistic);
+      socket.emit('send-message',{targetCode:currentChatTarget.userCode,text:val,messageType:'text',clientMessageId},res=>{
+        if(!res?.success){removeMessageFromLocal(clientMessageId);box.value=val;showToast(res?.error||'Message failed','error');}
       });
     }
 
-    function sendMediaFile(inp) {
-      const file = inp.files && inp.files[0];
-      if (!file || !currentChatTarget) return;
-
-      const rm = document.getElementById('roomMessages');
-      const tempId = 'sync_' + Date.now();
-      const placeholderHtml = `
-        <div id="${tempId}" class="msg-bubble mine" style="padding:4px;">
-          <div class="sync-placeholder">
-            <div style="width:24px; height:24px; border:2px solid #ff3b5c; border-top-color:transparent; border-radius:50%; animation: spin 0.8s linear infinite;"></div>
-            <span>Syncing & uploading media...</span>
-          </div>
-        </div>`;
-      rm.insertAdjacentHTML('beforeend', placeholderHtml);
-      rm.scrollTop = rm.scrollHeight;
-
-      const reader = new FileReader();
-      reader.onload = e => {
-        const base64Data = e.target.result;
-        let type = 'document';
-        if (file.type.startsWith('image/')) type = 'image';
-        else if (file.type.startsWith('video/')) type = 'video';
-        const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-
-        socket.emit('send-message', {
-          targetCode: currentChatTarget.userCode,
-          text: file.name,
-          media: base64Data,
-          messageType: type,
-          fileName: file.name,
-          clientMessageId
-        }, res => {
-          const tempEl = document.getElementById(tempId);
-          if (tempEl) tempEl.remove();
-
-          if (res && res.success) {
-            showToast('Uploaded & synced successfully!', 'success');
-          } else {
-            showToast(res?.error || 'Media upload failed', 'error');
-          }
-          inp.value = '';
-        });
-      };
-      reader.readAsDataURL(file);
+    async function addMessageLocalAndRender(message) {
+      if(!currentChatTarget)return;
+      const existing=await getMessagesLocal(currentChatTarget.userCode);
+      const merged=mergeMessages(existing,[message]);
+      await saveMessagesLocal(currentChatTarget.userCode,merged);
+      renderMessages(merged);
     }
 
-    const styleSheet = document.styleSheets[0];
-    styleSheet.insertRule(`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`, styleSheet.cssRules.length);
+    async function removeMessageFromLocal(messageId) {
+      if(!currentChatTarget)return;
+      const existing=await getMessagesLocal(currentChatTarget.userCode);
+      await saveMessagesLocal(currentChatTarget.userCode,existing.filter(m=>m.messageId!==messageId));
+      renderMessages(existing.filter(m=>m.messageId!==messageId));
+    }
 
-    document.getElementById('msgInputBox').addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
+    function uploadFileWithProgress(file,onProgress) {
+      return new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();
+        xhr.open('POST','/api/upload-media');
+        xhr.setRequestHeader('X-User-Code',currentUserData.userCode);
+        xhr.setRequestHeader('X-Upload-Token',uploadToken||'');
+        xhr.upload.onprogress=e=>{if(e.lengthComputable&&onProgress)onProgress(Math.round(e.loaded/e.total*100));};
+        xhr.onload=()=>{
+          try{
+            const data=JSON.parse(xhr.responseText||'{}');
+            if(xhr.status>=200&&xhr.status<300&&data.success)resolve(data);
+            else reject(new Error(data.error||'Upload failed'));
+          }catch(e){reject(new Error('Invalid upload response'));}
+        };
+        xhr.onerror=()=>reject(new Error('Network upload failed'));
+        const form=new FormData();
+        form.append('media',file,file.name);
+        xhr.send(form);
+      });
+    }
+
+    async function sendMediaFile(inp) {
+      const file=inp.files&&inp.files[0];
+      if(!file||!currentChatTarget)return;
+      const tempId='sync_'+Date.now();
+      const rm=document.getElementById('roomMessages');
+      rm.insertAdjacentHTML('beforeend',`<div id="${tempId}" class="msg-bubble mine" style="padding:4px;"><div class="sync-placeholder"><div style="width:24px;height:24px;border:2px solid #ff3b5c;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;"></div><span id="${tempId}_txt">Uploading 0%...</span></div></div>`);
+      rm.scrollTop=rm.scrollHeight;
+      try{
+        if(!uploadToken){
+          await new Promise(resolve=>socket.emit('set-socket-user',{userCode:currentUserData.userCode},r=>{uploadToken=r?.token||'';resolve();}));
+        }
+        const type=file.type.startsWith('image/')?'image':file.type.startsWith('video/')?'video':'document';
+        const result=await uploadFileWithProgress(file,p=>{const el=document.getElementById(tempId+'_txt');if(el)el.textContent='Uploading '+p+'%...';});
+        const clientMessageId='msg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        socket.emit('send-message',{targetCode:currentChatTarget.userCode,text:file.name,media:result.url,messageType:type,fileName:file.name,clientMessageId},async res=>{
+          document.getElementById(tempId)?.remove();
+          if(res?.success){
+            await addMessageLocalAndRender(res.message);
+            showToast('Uploaded & synced successfully!','success');
+          } else showToast(res?.error||'Media upload failed','error');
+          inp.value='';
+        });
+      }catch(e){
+        document.getElementById(tempId)?.remove();
+        showToast(e.message||'Media upload failed','error');
+        inp.value='';
+      }
+    }
+
+    const styleSheet=document.styleSheets[0];
+    styleSheet.insertRule(`@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`,styleSheet.cssRules.length);
+    document.getElementById('msgInputBox').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChatMessage();}});
+
+    socket.on('new-message',async m=>{
+      if(!currentUserData)return;
+      const otherCode=m.senderCode===currentUserData.userCode?m.receiverCode:m.senderCode;
+      if(currentChatTarget&&currentChatTarget.userCode===otherCode){
+        await addMessageLocalAndRender(m);
+      } else {
+        const existing=await getMessagesLocal(otherCode);
+        await saveMessagesLocal(otherCode,mergeMessages(existing,[m]));
+      }
+      // Contact/chat list can be refreshed without a page refresh.
+      syncContacts();
     });
 
-    socket.on('new-message', m => {
-      if (!currentUserData) return;
-      const related = (m.senderCode === currentUserData.userCode && currentChatTarget?.userCode === m.receiverCode) ||
-                      (m.receiverCode === currentUserData.userCode && currentChatTarget?.userCode === m.senderCode);
-      if (related) {
-        const rm = document.getElementById('roomMessages');
-        const empty = rm.querySelector('div[style*="text-align:center"]');
-        if (empty) rm.innerHTML = '';
-        
-        // Update local cache with new message
-        if (currentChatTarget) {
-          let cached = JSON.parse(localStorage.getItem('cache_msgs_' + currentChatTarget.userCode) || '[]');
-          cached.push(m);
-          localStorage.setItem('cache_msgs_' + currentChatTarget.userCode, JSON.stringify(cached));
-        }
-
-        const mine = m.senderCode === currentUserData.userCode;
-        rm.insertAdjacentHTML('beforeend', `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${formatMessageContent(m)}</div>`);
-        rm.scrollTop = rm.scrollHeight;
+    socket.on('user-online-status',({targetCode,isOnline})=>{
+      if(currentChatTarget?.userCode===String(targetCode).toLowerCase()){
+        document.getElementById('roomUserStatus').textContent=isOnline?'Online':'Offline';
       }
     });
 
-    function toggleAppMenu(e){ if(e)e.stopPropagation(); const m=document.getElementById('appMenu'); m.style.display=m.style.display==='block'?'none':'block'; }
-    function closeAppMenu(){ document.getElementById('appMenu').style.display='none'; }
-    document.addEventListener('click', e=>{ if(!e.target.closest('#appMenu') && !e.target.closest('.icon-btn')) closeAppMenu(); });
-    
-    function openMyProfile(){ 
-      closeAppMenu(); 
-      if(!currentUserData)return; 
-      document.getElementById('myProfileName').value=currentUserData.fullName||''; 
-      document.getElementById('myProfileId').textContent=currentUserData.userCode||''; 
-      document.getElementById('myProfileAvatar').src=currentUserData.avatar||''; 
-      document.getElementById('myProfileModal').style.display='flex'; 
+    async function loadStatuses(useLocalFirst=false) {
+      const local=await getStatusesLocal();
+      if(local) renderStatuses(local);
+      if(socket.connected) socket.emit('get-statuses');
     }
-    
-    function closeMyProfile(){ document.getElementById('myProfileModal').style.display='none'; }
-    
-    function saveMyProfile(){ 
-      const fullName=document.getElementById('myProfileName').value.trim(); 
-      const avatar=document.getElementById('myProfileAvatar').src||''; 
-      socket.emit('update-profile',{fullName,avatar},res => { 
-        if(res?.success){
-          currentUserData=res.user; 
-          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          closeMyProfile(); 
-          loadContacts(); 
-          showToast('Profile saved','success');
-        } else {
-          showToast(res?.error||'Could not save profile','error');
-        } 
-      }); 
+
+    socket.on('status-data',async data=>{
+      await saveStatusesLocal(data);
+      renderStatuses(data);
+      cacheStatusMedia(data);
+    });
+
+    async function cacheStatusMedia(data) {
+      const all=[...(data?.myStatus?.items||[]),...(data?.contactStatuses||[]).flatMap(s=>s.items||[])];
+      for(const item of all) if(item.media) await cacheMediaUrl(item.media);
     }
-    
-    function logoutApp(){ 
-      closeAppMenu(); 
-      localStorage.clear();
-      currentUserData=null; 
-      currentChatTarget=null; 
-      document.getElementById('mainApp').style.display='none'; 
-      document.getElementById('chatRoom').style.display='none'; 
-      document.getElementById('screenAuth').style.display='flex'; 
-      showToast('Logged out','success'); 
+
+    function statusIsActive(item) {
+      if(item?.expiresAt) return new Date(item.expiresAt).getTime()>Date.now();
+      return true;
+    }
+
+    function renderStatuses(data) {
+      const my=document.getElementById('myStatusArea');
+      const contacts=document.getElementById('contactStatusesArea');
+      const myItems=(data?.myStatus?.items||[]).filter(statusIsActive);
+      my.innerHTML=myItems.length?`My Status: ${myItems.length} active`:'No active status';
+      const arr=(data?.contactStatuses||[]).map(s=>({...s,items:(s.items||[]).filter(statusIsActive)})).filter(s=>s.items.length);
+      contacts.innerHTML=arr.length?arr.map(s=>`
+        <div class="status-row" onclick="openStatusViewer('${escapeAttr(s.userCode)}')">
+          <img class="status-avatar" src="${escapeAttr(s.avatar||'')}">
+          <div><div style="font-weight:700;">${escapeHtml(s.name||s.userCode)}</div><div style="font-size:12px;color:#7e7e92;">${s.items.length} status${s.items.length>1?'es':''}</div></div>
+        </div>`).join(''):'<div style="padding:20px;color:#7e7e92;text-align:center;">No new status</div>';
+    }
+
+    function uploadStatusMedia(inp) {
+      const file=inp.files&&inp.files[0];
+      if(!file||!currentUserData)return;
+      if(!file.type.startsWith('image/')&&!file.type.startsWith('video/')){showToast('Only image or video status is allowed','error');return;}
+      showToast('Uploading 0%...','info');
+      uploadFileWithProgress(file,p=>showToast('Uploading '+p+'%...','info')).then(res=>{
+        const type=file.type.startsWith('video/')?'video':'image';
+        socket.emit('post-status',{id:'status_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),media:res.url,type},reply=>{
+          if(reply?.success){showToast('Status uploaded','success');loadStatuses();}
+          else showToast(reply?.error||'Status upload failed','error');
+          inp.value='';
+        });
+      }).catch(e=>{showToast(e.message||'Status upload failed','error');inp.value='';});
+    }
+
+    function openStatusViewer(userCode) {
+      // Dynamic viewer only; existing UI remains untouched.
+      getStatusesLocal().then(data=>{
+        const user=(data?.contactStatuses||[]).find(s=>s.userCode===userCode);
+        if(!user?.items?.length)return;
+        const item=user.items.find(statusIsActive);
+        if(!item)return;
+        const overlay=document.createElement('div');
+        overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.onclick=()=>overlay.remove();
+        const media=item.type==='video'?document.createElement('video'):document.createElement('img');
+        media.controls=item.type==='video';
+        media.autoplay=item.type==='video';
+        media.style.cssText='max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;';
+        overlay.appendChild(media);
+        document.body.appendChild(overlay);
+        cacheMediaUrl(item.media).then(localUrl=>{media.src=localUrl||item.media;});
+      });
+    }
+
+    // Cleanup expired local status media metadata once per minute.
+    setInterval(async()=>{
+      const data=await getStatusesLocal();
+      if(!data)return;
+      const clean={
+        myStatus:data.myStatus?{...data.myStatus,items:(data.myStatus.items||[]).filter(statusIsActive)}:data.myStatus,
+        contactStatuses:(data.contactStatuses||[]).map(s=>({...s,items:(s.items||[]).filter(statusIsActive)})).filter(s=>(s.items||[]).length)
+      };
+      await saveStatusesLocal(clean);
+      if(document.getElementById('paneStatus')?.classList.contains('active'))renderStatuses(clean);
+    },60000);
+
+    function toggleAppMenu(e){if(e)e.stopPropagation();const m=document.getElementById('appMenu');m.style.display=m.style.display==='block'?'none':'block';}
+    function closeAppMenu(){document.getElementById('appMenu').style.display='none';}
+    document.addEventListener('click',e=>{if(!e.target.closest('#appMenu')&&!e.target.closest('.icon-btn'))closeAppMenu();});
+
+    function openMyProfile(){
+      closeAppMenu();
+      if(!currentUserData)return;
+      document.getElementById('myProfileName').value=currentUserData.fullName||'';
+      document.getElementById('myProfileId').textContent=currentUserData.userCode||'';
+      document.getElementById('myProfileAvatar').src=currentUserData.avatar||'';
+      document.getElementById('myProfileModal').style.display='flex';
+    }
+    function closeMyProfile(){document.getElementById('myProfileModal').style.display='none';}
+    function saveMyProfile(){
+      const fullName=document.getElementById('myProfileName').value.trim();
+      const avatar=document.getElementById('myProfileAvatar').src||'';
+      socket.emit('update-profile',{fullName,avatar},res=>{
+        if(res?.success){currentUserData=res.user;localStorage.setItem('chatAppUser',JSON.stringify(currentUserData));closeMyProfile();loadContacts();showToast('Profile saved','success');}
+        else showToast(res?.error||'Could not save profile','error');
+      });
+    }
+
+    function openSettings(){ showToast('Settings are available in the current app menu.','info'); }
+    function loadCalls(){ const el=document.getElementById('callsList'); if(el) el.innerHTML='Call history is not available yet.'; }
+
+    function logoutApp(){
+      closeAppMenu();
+      localStorage.removeItem('chatAppUser');
+      localStorage.removeItem('lastChatTarget');
+      currentUserData=null;currentChatTarget=null;uploadToken='';
+      document.getElementById('mainApp').style.display='none';
+      document.getElementById('chatRoom').style.display='none';
+      document.getElementById('screenAuth').style.display='flex';
+      showToast('Logged out','success');
     }
   </script>
 </body>
