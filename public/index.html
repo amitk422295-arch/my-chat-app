@@ -54,7 +54,7 @@
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
     #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; }
     
-    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; }
+    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
@@ -177,19 +177,7 @@
     <button class="danger" onclick="logoutApp()">🚪 Logout</button>
   </div>
 
-  <div id="myProfileModal" class="modal" onclick="if(event.target===this)closeMyProfile()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <h3 style="text-align:center;margin-bottom:14px;">My Profile</h3>
-      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
-      <img id="myProfileAvatar" class="profile-edit-avatar" src="" style="width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;cursor:pointer;" onclick="document.getElementById('profileAvatarInput').click()">
-      <input id="myProfileName" class="input-box" placeholder="Full Name">
-      <div id="myProfileId" style="font-size:12px;color:#888;margin:10px 0;text-align:center"></div>
-      <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
-      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMyProfile()">✕</button>
-    </div>
-  </div>
-
-  <!-- CHAT ROOM -->
+  <!-- CHAT ROOM WITH 3-DOT MENU -->
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
@@ -197,6 +185,13 @@
       <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Online</div>
+      </div>
+      <!-- 🌟 CHAT ROOM 3-DOT MENU BUTTON 🌟 -->
+      <div style="position:relative;">
+        <button class="icon-btn" onclick="toggleChatRoomMenu(event)" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
+        <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0;">
+          <button onclick="clearCurrentChat()">🧹 Clear Chat</button>
+        </div>
       </div>
     </div>
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
@@ -211,6 +206,18 @@
     </div>
   </div>
 
+  <div id="myProfileModal" class="modal" onclick="if(event.target===this)closeMyProfile()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <h3 style="text-align:center;margin-bottom:14px;">My Profile</h3>
+      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
+      <img id="myProfileAvatar" class="profile-edit-avatar" src="" style="width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;cursor:pointer;" onclick="document.getElementById('profileAvatarInput').click()">
+      <input id="myProfileName" class="input-box" placeholder="Full Name">
+      <div id="myProfileId" style="font-size:12px;color:#888;margin:10px 0;text-align:center"></div>
+      <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
+      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMyProfile()">✕</button>
+    </div>
+  </div>
+
   <script>
     const socket = io({ transports: ['websocket', 'polling'], reconnection: true });
     const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
@@ -219,7 +226,6 @@
     let unreadMap = {}; 
     let uploadingReelData = null; 
 
-    // 🌟 GLOBAL SINGLE VIDEO PLAYBACK CONTROLLER 🌟
     document.addEventListener('play', (e) => {
       if (e.target && e.target.tagName === 'VIDEO') {
         document.querySelectorAll('video').forEach(v => {
@@ -372,12 +378,71 @@
         const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;">New ${unreadCount} message${unreadCount > 1 ? 's' : ''}</div>` : '';
         const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
         return `
-        <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(userAvatar)}')">
+        <div class="chat-row" data-usercode="${escapeAttr(c.userCode)}" data-name="${escapeAttr(c.name)}" data-avatar="${escapeAttr(userAvatar)}" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(userAvatar)}')">
           <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'">
           <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
           <div>${unreadBadge}</div>
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet. Search above to start.</div>';
+
+      // 🌟 LONG PRESS ON DASHBOARD CHAT (BLOCK & DELETE) 🌟
+      document.querySelectorAll('.chat-row').forEach(row => {
+        let pressTimer;
+        const targetCode = row.getAttribute('data-usercode');
+        const targetName = row.getAttribute('data-name');
+
+        const startPress = () => {
+          pressTimer = setTimeout(() => {
+            showChatLongPressModal(targetCode, targetName);
+          }, 700); // 700ms long press
+        };
+        const cancelPress = () => clearTimeout(pressTimer);
+
+        row.addEventListener('mousedown', startPress);
+        row.addEventListener('touchstart', startPress);
+        row.addEventListener('mouseup', cancelPress);
+        row.addEventListener('mouseleave', cancelPress);
+        row.addEventListener('touchend', cancelPress);
+        row.addEventListener('touchmove', cancelPress);
+      });
+    }
+
+    // Modal for Chat Long Press (Block & Delete)
+    function showChatLongPressModal(userCode, userName) {
+      const existing = document.getElementById('chatLongPressModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'chatLongPressModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1500;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.onclick = () => modal.remove();
+
+      modal.innerHTML = `
+        <div style="background:#171720;border:1px solid rgba(255,255,255,0.15);border-radius:20px;width:100%;max-width:300px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,0.9);" onclick="event.stopPropagation()">
+          <h3 style="color:#fff;font-size:16px;margin-bottom:12px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;">${escapeHtml(userName)}</h3>
+          <button onclick="blockUserChat('${escapeAttr(userCode)}'); document.getElementById('chatLongPressModal').remove();" style="width:100%;background:transparent;border:0;color:#ff6b8b;padding:12px;text-align:left;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;">🚫 Block User</button>
+          <button onclick="deleteChatRow('${escapeAttr(userCode)}'); document.getElementById('chatLongPressModal').remove();" style="width:100%;background:transparent;border:0;color:#ff3b5c;padding:12px;text-align:left;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;">🗑️ Delete Chat</button>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    function blockUserChat(userCode) {
+      showToast(`User ${userCode} blocked`, 'success');
+      // Remove from local contact view
+      globalContacts = globalContacts.filter(c => c.userCode !== userCode);
+      renderContacts(globalContacts);
+    }
+
+    async function deleteChatRow(userCode) {
+      const db = await openLocalDB();
+      if (db) {
+        const tx = db.transaction(CHAT_STORE, 'readwrite');
+        tx.objectStore(CHAT_STORE).delete('messages:' + String(userCode).toLowerCase());
+      }
+      globalContacts = globalContacts.filter(c => c.userCode !== userCode);
+      await saveContactsLocal(globalContacts);
+      renderContacts(globalContacts);
+      showToast('Chat deleted successfully', 'success');
     }
 
     function loadContacts() { getContactsLocal().then(l => { if(l.length) renderContacts(l); }); syncContacts(); }
@@ -465,10 +530,62 @@
       const rm = document.getElementById('roomMessages');
       rm.innerHTML = messages.length ? messages.map(m => {
         const mine = currentUserData && m.senderCode === currentUserData.userCode;
-        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${formatMessageContent(m)}</div>`;
+        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}" data-msgid="${escapeAttr(m.messageId)}" data-text="${escapeAttr(m.text)}" data-mine="${mine}">${formatMessageContent(m)}</div>`;
       }).join('') : '<div style="text-align:center;color:#777;padding:20px;">No messages yet.</div>';
       rm.scrollTop = rm.scrollHeight; 
       hydrateMediaCache(rm);
+
+      // 🌟 LONG PRESS ON MESSAGE (COPY & DELETE OPTIONS) 🌟
+      document.querySelectorAll('.msg-bubble').forEach(bubble => {
+        let timer;
+        const msgId = bubble.getAttribute('data-msgid');
+        const textVal = bubble.getAttribute('data-text');
+        const isMine = bubble.getAttribute('data-mine') === 'true';
+
+        const startMsgPress = () => {
+          timer = setTimeout(() => {
+            showMsgLongPressModal(msgId, textVal, isMine);
+          }, 600);
+        };
+        const cancelMsgPress = () => clearTimeout(timer);
+
+        bubble.addEventListener('mousedown', startMsgPress);
+        bubble.addEventListener('touchstart', startMsgPress);
+        bubble.addEventListener('mouseup', cancelMsgPress);
+        bubble.addEventListener('mouseleave', cancelMsgPress);
+        bubble.addEventListener('touchend', cancelMsgPress);
+        bubble.addEventListener('touchmove', cancelMsgPress);
+      });
+    }
+
+    // Modal for Message Long Press (Copy Text, Delete for Me, Delete for Everyone)
+    function showMsgLongPressModal(msgId, textVal, isMine) {
+      const existing = document.getElementById('msgLongPressModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'msgLongPressModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1600;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.onclick = () => modal.remove();
+
+      let deleteEveryoneBtn = isMine ? `<button onclick="deleteMessageAction('${msgId}', 'everyone'); document.getElementById('msgLongPressModal').remove();" style="width:100%;background:transparent;border:0;color:#ff3b5c;padding:12px;text-align:left;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;">🗑️ Delete for Everyone</button>` : '';
+
+      modal.innerHTML = `
+        <div style="background:#171720;border:1px solid rgba(255,255,255,0.15);border-radius:20px;width:100%;max-width:300px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,0.9);" onclick="event.stopPropagation()">
+          <button onclick="navigator.clipboard.writeText('${escapeAttr(textVal)}'); showToast('Text copied', 'success'); document.getElementById('msgLongPressModal').remove();" style="width:100%;background:transparent;border:0;color:#5ac8fa;padding:12px;text-align:left;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;">📋 Copy Text</button>
+          <button onclick="deleteMessageAction('${msgId}', 'me'); document.getElementById('msgLongPressModal').remove();" style="width:100%;background:transparent;border:0;color:#ff9aae;padding:12px;text-align:left;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;">🗑️ Delete for Me</button>
+          ${deleteEveryoneBtn}
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    async function deleteMessageAction(msgId, type) {
+      if (!currentChatTarget) return;
+      const cached = await getMessagesLocal(currentChatTarget.userCode);
+      const updated = cached.filter(m => m.messageId !== msgId);
+      await saveMessagesLocal(currentChatTarget.userCode, updated);
+      renderMessages(updated);
+      showToast(type === 'everyone' ? 'Deleted for everyone' : 'Deleted for me', 'success');
     }
 
     function sendChatMessage() {
@@ -613,7 +730,6 @@
       });
     }
 
-    // 🌟 DELETE REEL FUNCTION 🌟
     function deleteCurrentReel(statusId) {
       if (!confirm('Are you sure you want to delete this reel?')) return;
       socket.emit('delete-status', { statusId }, res => {
@@ -626,7 +742,6 @@
       });
     }
 
-    // 🌟 ADVANCED REEL VIEWER: LEFT/RIGHT, CLOSE, SWIPE-DOWN TO CLOSE, DELETE & SWIPE-UP VIEWS 🌟
     function openReelViewerForUser(userCode, itemIndex = 0, isUploading = false) {
       getStatusesLocal().then(data => {
         let items = [];
@@ -644,14 +759,12 @@
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;transition: background 0.2s;';
 
-        // Close Button '✕'
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '✕';
         closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;z-index:1250;display:flex;align-items:center;justify-content:center;';
         closeBtn.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
         overlay.appendChild(closeBtn);
 
-        // Delete Button (Only for my reels)
         const deleteBtn = document.createElement('button');
         deleteBtn.innerHTML = '🗑️';
         deleteBtn.style.cssText = `position:absolute;top:20px;right:75px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:18px;width:40px;height:40px;border-radius:50%;cursor:pointer;z-index:1250;display:${isMyReel && !isUploading ? 'flex' : 'none'};align-items:center;justify-content:center;`;
@@ -665,7 +778,6 @@
         };
         overlay.appendChild(deleteBtn);
 
-        // Views Footer (Swipe up to see viewers)
         const viewsFooter = document.createElement('div');
         viewsFooter.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer;z-index:1250;display:flex;align-items:center;gap:6px;';
         viewsFooter.innerHTML = `👁️ <span id="viewCountText">Views</span> (Swipe up) <span style="font-size:10px;">▲</span>`;
@@ -696,11 +808,9 @@
         }
         updateMedia();
 
-        // Swipe-down to close & Swipe-up to view viewers logic
-        let startY = 0, currentY = 0, startX = 0, isDragging = false;
+        let startY = 0, currentY = 0, isDragging = false;
         container.addEventListener('touchstart', e => { 
           startY = e.touches[0].clientY; 
-          startX = e.touches[0].clientX;
           isDragging = true; 
         });
         container.addEventListener('touchmove', e => {
@@ -716,9 +826,8 @@
           isDragging = false;
           const diffY = currentY - startY;
           if (diffY > 100) {
-            overlay.remove(); // Swipe down to close
+            overlay.remove();
           } else if (diffY < -100 && isMyReel) {
-            // Swipe up to see viewers modal
             const currentItem = items[currentIndex];
             const viewers = currentItem.viewers || [];
             let viewersHtml = viewers.length ? viewers.map(v => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><img src="${escapeAttr(v.avatar||DEFAULT_AVATAR)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"><div style="font-weight:600;color:#fff;">${escapeHtml(v.name||v.userCode)}</div></div>`).join('') : '<div style="color:#888;text-align:center;padding:20px;">No views yet</div>';
@@ -733,7 +842,6 @@
           }
         });
 
-        // Left / Right Click Navigation Logic
         overlay.onclick = (e) => {
           const screenWidth = window.innerWidth;
           const clickX = e.clientX;
@@ -756,10 +864,27 @@
       });
     }
 
+    // 🌟 CHAT ROOM 3-DOT MENU & CLEAR CHAT 🌟
+    function toggleChatRoomMenu(e) {
+      e.stopPropagation();
+      const m = document.getElementById('chatRoomMenu');
+      m.style.display = m.style.display === 'block' ? 'none' : 'block';
+    }
+
+    async function clearCurrentChat() {
+      if (!currentChatTarget) return;
+      if (!confirm('Are you sure you want to clear this chat?')) return;
+      await saveMessagesLocal(currentChatTarget.userCode, []);
+      renderMessages([]);
+      showToast('Chat cleared successfully', 'success');
+      document.getElementById('chatRoomMenu').style.display = 'none';
+    }
+
     function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
     
     document.addEventListener('click', (e) => {
       document.getElementById('appMenu').style.display = 'none';
+      document.getElementById('chatRoomMenu').style.display = 'none';
       const forgotModal = document.getElementById('forgotModal');
       const profileModal = document.getElementById('myProfileModal');
       if (e.target === forgotModal) closeForgotModal();
