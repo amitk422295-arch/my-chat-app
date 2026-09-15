@@ -3,59 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Your Chat App</title>
+  <title>Complete Chat App</title>
   <meta name="theme-color" content="#08080c">
-
-  <!-- Socket.io -->
   <script src="/socket.io/socket.io.js"></script>
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
     html, body { height: 100%; height: 100dvh; background: #08080c; color: #f0f2f5; overflow: hidden; }
     .bg-heart-pattern { position: fixed; inset: 0; pointer-events: none; opacity: 0.025; z-index: 0; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'); background-size: 54px 54px; }
-    #chatRoom { position: fixed; inset: 0; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; }
     #toastBox { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1e1e2c; border: 1px solid rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; display: none; align-items: center; gap: 8px; z-index: 999; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
     #toastBox.error { border-color: #ff3b5c; color: #ff6b8b; }
     #toastBox.success { border-color: #00c853; color: #00ff88; }
     #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
     
-    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; pointer-events: auto; }
-    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); position: relative; z-index: 10; pointer-events: auto; }
-    .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; pointer-events: auto; touch-action: manipulation; position: relative; z-index: 20; -webkit-appearance: none; }
+    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
+    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); }
+    .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; }
     .input-box:focus { border-color: #ff3b5c; background: rgba(255,255,255,0.12); }
-    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; opacity: 1; pointer-events: auto; box-shadow: 0 4px 15px rgba(255,59,92,0.4); position: relative; z-index: 20; }
-    .btn-gradient:active { transform: scale(0.98); }
-    .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; position: relative; z-index: 20; }
-    .dp-circle.has-image { border-style: solid; }
-    .interactive-clickable { cursor: pointer; pointer-events: auto; position: relative; z-index: 30; display: inline-block; padding: 6px; }
+    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255,59,92,0.4); }
+    .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; }
+    
     #mainApp { display: none; flex-direction: column; height: 100%; height: 100dvh; position: relative; z-index: 1; }
     .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; }
-    .user-profile-badge { display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(255,59,92,0.1); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(255,59,92,0.25); }
     .nav-tabs { display: flex; }
-    .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; }
+    .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; }
     .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
     .panes-wrapper { flex: 1; position: relative; overflow: hidden; }
     .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; background: #0c0c12; }
     .tab-pane.active { display: flex; }
-    .search-bar-wrap { padding: 12px 16px; display: flex; gap: 8px; }
-    .search-bar-wrap input { flex: 1; background: #161622; border: 1px solid #232332; border-radius: 12px; padding: 10px 14px; color: #fff; font-size: 14px; outline: none; user-select: text; }
-    .search-bar-wrap button { background: #ff3b5c; border: none; border-radius: 12px; padding: 0 16px; color: #fff; font-weight: 600; cursor: pointer; }
     .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-    #roomMessages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-    .msg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; user-select: text; }
-    .msg-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #ff3b5c 0%, #e02447 100%); color: #fff; }
-    .msg-bubble.other { align-self: flex-start; background: #1c1c28; color: #f0f2f5; }
+    
+    #chatRoom { position: fixed; inset: 0; background: #09090e; z-index: 60; display: none; flex-direction: column; }
     .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
     .input-wrapper input { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; }
-    .btn-circle-action { width: 44px; height: 44px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -63,26 +46,23 @@
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
-  <!-- AUTH FLOW SCREEN (Default: Register First) -->
+  <!-- AUTH SCREEN -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
       <h3 style="color:#fff;" id="authTitle">Create Account</h3>
       <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register first, or switch to login</p>
 
-      <!-- VIEW: REGISTER STEP 1 -->
-      <div id="viewRegStep1" style="display:flex; flex-direction:column; gap:12px; pointer-events:auto;">
+      <div id="viewRegStep1" style="display:flex; flex-direction:column; gap:12px;">
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
         <button class="btn-gradient" type="button" onclick="goRegStep2()">Next ➔</button>
       </div>
 
-      <!-- VIEW: REGISTER STEP 2 -->
-      <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px; pointer-events:auto;">
+      <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
-        <p style="font-size:11px;color:#ff6b8b;">Optional: Tap to add DP</p>
-        <input type="text" id="regUserIdInput" class="input-box" placeholder="Unique User ID (@name, min 6 lowercase alpha)">
+        <input type="text" id="regUserIdInput" class="input-box" placeholder="Unique User ID (@name, min 6 char)">
         <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
         <div style="display:flex; gap:8px;">
           <button class="btn-gradient" type="button" style="flex:1; background:#333;" onclick="goRegStep1()">Back</button>
@@ -90,30 +70,81 @@
         </div>
       </div>
 
-      <!-- VIEW: LOGIN -->
-      <div id="viewLogin" style="display:none; flex-direction:column; gap:12px; pointer-events:auto;">
+      <div id="viewLogin" style="display:none; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
-        <input type="password" id="loginPassInput" class="input-box" placeholder="6-digit (Old) or 8-digit (New) Pass" maxlength="8">
+        <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
         <button class="btn-gradient" type="button" onclick="handleLogin()">Login</button>
       </div>
 
-      <!-- SWITCH MODE -->
-      <p class="interactive-clickable" style="font-size:12px;color:#7e7e92;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
+      <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
     </div>
   </div>
 
   <!-- MAIN APP -->
-  <div id="mainApp" style="display:none;">
+  <div id="mainApp">
     <div class="top-navbar">
-      <div style="font-size:20px;font-weight:800;">💖 Chat App</div>
+      <div style="font-size:20px;font-weight:800;display:flex;justify-content:space-between;align-items:center;">
+        <span>💖 Chat App</span>
+        <button onclick="loadContacts()" style="background:transparent;border:1px solid #ff3b5c;color:#ff3b5c;padding:4px 10px;border-radius:12px;font-size:11px;">Refresh</button>
+      </div>
       <div class="nav-tabs">
-        <div class="nav-tab active">CHATS</div>
+        <div class="nav-tab active" onclick="switchTab('paneChats', this)">CHATS</div>
+        <div class="nav-tab" onclick="switchTab('paneStatus', this); loadStatuses();">STATUS</div>
+        <div class="nav-tab" onclick="switchTab('paneCalls', this); loadCalls();">CALLS</div>
+        <div class="nav-tab" onclick="switchTab('paneProfile', this)">PROFILE</div>
       </div>
     </div>
+
     <div class="panes-wrapper">
+      <!-- CHATS PANE -->
       <div class="tab-pane active" id="paneChats">
+        <div style="padding:12px;display:flex;gap:8px;">
+          <input type="text" id="directSearchInput" class="input-box" placeholder="Search/Open @userid or mobile">
+          <button class="btn-gradient" onclick="openDirectChat()">Chat</button>
+        </div>
         <div id="chatsList"></div>
       </div>
+
+      <!-- STATUS PANE -->
+      <div class="tab-pane" id="paneStatus">
+        <div style="padding:16px;">
+          <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
+          <button class="btn-gradient" style="width:100%;margin-bottom:16px;" onclick="document.getElementById('statusMediaInput').click()">+ Add Status Story</button>
+          <div id="myStatusArea" style="margin-bottom:16px;font-weight:600;font-size:14px;">My Statuses</div>
+          <div id="contactStatusesArea"></div>
+        </div>
+      </div>
+
+      <!-- CALLS PANE -->
+      <div class="tab-pane" id="paneCalls">
+        <div id="callsList" style="padding:16px;">Loading call history...</div>
+      </div>
+
+      <!-- PROFILE PANE -->
+      <div class="tab-pane" id="paneProfile" style="padding:20px;gap:12px;">
+        <input type="text" id="profNameInput" class="input-box" placeholder="Full Name">
+        <button class="btn-gradient" onclick="updateProfile()">Update Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT ROOM UI -->
+  <div id="chatRoom">
+    <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;">←</button>
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+      <div style="flex:1;">
+        <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
+        <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Offline</div>
+      </div>
+      <button class="btn-circle" onclick="startAudioCall()">📞</button>
+    </div>
+    <div id="roomMessages" style="flex:1;overflow-y:auto;padding:14px;"></div>
+    <div class="bottom-input-bar">
+      <div class="input-wrapper">
+        <input type="text" id="msgInputBox" placeholder="Type a message...">
+      </div>
+      <button class="btn-circle" onclick="sendChatMessage()">➤</button>
     </div>
   </div>
 
@@ -121,6 +152,8 @@
     const socket = io({ transports: ['websocket'] });
     let authMode = 'reg1';
     let regTempData = { name: '', mobile: '', dp: '' };
+    let currentChatTarget = null;
+    let currentUserData = null;
 
     function showToast(msg, type='info') {
       const t = document.getElementById('toastBox');
@@ -140,45 +173,24 @@
         authMode = 'reg1';
         title.textContent = 'Create Account';
         sub.textContent = 'Register first, or switch to login';
-        loginView.style.display = 'none';
-        reg2View.style.display = 'none';
-        reg1View.style.display = 'flex';
+        loginView.style.display = 'none'; reg2View.style.display = 'none'; reg1View.style.display = 'flex';
         switchText.textContent = 'Already have an account? Login';
       } else {
         authMode = 'login';
         title.textContent = 'Welcome Back';
         sub.textContent = 'Existing user? Login here';
-        reg1View.style.display = 'none';
-        reg2View.style.display = 'none';
-        loginView.style.display = 'flex';
+        reg1View.style.display = 'none'; reg2View.style.display = 'none'; loginView.style.display = 'flex';
         switchText.textContent = 'New here? Register Account';
       }
     }
 
-    // यहाँ ट्रिगर होने वाला फिक्स किया गया गो-रेग-स्टेप-2 फंक्शन
     function goRegStep2() {
-      const nameInput = document.getElementById('regNameInput');
-      const mobileInput = document.getElementById('regMobileInput');
-      
-      const name = nameInput ? nameInput.value.trim() : '';
-      const mobileRaw = mobileInput ? mobileInput.value.trim() : '';
-      const cleanMobile = mobileRaw.replace(/[\s-+]/g, '');
-
-      if (!name) { 
-        showToast('Please enter your name.', 'error'); 
-        return; 
-      }
-      if (!cleanMobile || cleanMobile.length < 10) { 
-        showToast('Please enter a valid mobile number (10+ digits).', 'error'); 
-        return; 
-      }
-
-      regTempData.name = name; 
-      regTempData.mobile = cleanMobile;
-      
+      const name = document.getElementById('regNameInput').value.trim();
+      const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
+      if (!name || mobile.length < 10) { showToast('Valid name & 10+ digit mobile required', 'error'); return; }
+      regTempData.name = name; regTempData.mobile = mobile;
       authMode = 'reg2';
       document.getElementById('authTitle').textContent = 'Register (Step 2)';
-      document.getElementById('authSub').textContent = 'Unique ID & 8-digit Password';
       document.getElementById('viewRegStep1').style.display = 'none';
       document.getElementById('viewRegStep2').style.display = 'flex';
     }
@@ -187,19 +199,13 @@
       authMode = 'reg1';
       document.getElementById('viewRegStep2').style.display = 'none';
       document.getElementById('viewRegStep1').style.display = 'flex';
-      document.getElementById('authTitle').textContent = 'Create Account';
-      document.getElementById('authSub').textContent = 'Register first, or switch to login';
     }
 
     function previewDp(inp) {
       const file = inp.files && inp.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = e => {
-        regTempData.dp = e.target.result;
-        const img = document.getElementById('dpViewer');
-        img.src = regTempData.dp; img.classList.add('has-image');
-      };
+      reader.onload = e => { regTempData.dp = e.target.result; document.getElementById('dpViewer').src = regTempData.dp; };
       reader.readAsDataURL(file);
     }
 
@@ -207,41 +213,143 @@
       const uCodeRaw = document.getElementById('regUserIdInput').value.trim().toLowerCase();
       const uCode = uCodeRaw.startsWith('@') ? uCodeRaw : '@' + uCodeRaw;
       const pass = document.getElementById('regPassInput').value.trim();
-      
-      if (!/^@[a-z]{6,}$/.test(uCode)) { 
-        showToast('User ID must start with @ and have min 6 lowercase alphabetic letters.', 'error'); 
-        return; 
-      }
-      if (pass.length !== 8) { 
-        showToast('New registration password must be strictly 8 characters.', 'error'); 
-        return; 
-      }
+      if (!/^@[a-z0-9_]{6,}$/.test(uCode)) { showToast('Invalid User ID format', 'error'); return; }
+      if (pass.length !== 8) { showToast('Password must be 8 digits', 'error'); return; }
       
       socket.emit('auth-user', { userCode: uCode, password: pass, fullName: regTempData.name, mobile: regTempData.mobile, avatar: regTempData.dp, isRegister: true }, res => {
         if (res && res.success) {
+          currentUserData = res.user;
           showToast('Registration successful!', 'success');
-          document.getElementById('screenAuth').style.display = 'none';
-          document.getElementById('mainApp').style.display = 'flex';
-        } else {
-          showToast(res?.error || 'Registration failed', 'error');
-        }
+          launchMainApp();
+        } else { showToast(res?.error || 'Failed', 'error'); }
       });
     }
 
     function handleLogin() {
       const id = document.getElementById('loginIdInput').value.trim();
       const pass = document.getElementById('loginPassInput').value.trim();
-      if (!id) { showToast('Please enter your User ID or Mobile number.', 'error'); return; }
-      if (pass.length !== 6 && pass.length !== 8) { showToast('Password must be 6 digits (old user) or 8 digits (new user).', 'error'); return; }
-      
       socket.emit('auth-user', { userCode: id, password: pass, isRegister: false }, res => {
         if (res && res.success) {
+          currentUserData = res.user;
           showToast('Welcome back!', 'success');
-          document.getElementById('screenAuth').style.display = 'none';
-          document.getElementById('mainApp').style.display = 'flex';
-        } else {
-          showToast(res?.error || 'Invalid credentials.', 'error');
-        }
+          launchMainApp();
+        } else { showToast(res?.error || 'Invalid credentials', 'error'); }
+      });
+    }
+
+    function launchMainApp() {
+      document.getElementById('screenAuth').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'flex';
+      loadContacts();
+    }
+
+    function switchTab(paneId, tabEl) {
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(paneId).classList.add('active');
+      tabEl.classList.add('active');
+    }
+
+    function loadContacts() {
+      socket.emit('get-contacts');
+    }
+
+    socket.on('contact-list-data', ({ contacts }) => {
+      const list = document.getElementById('chatsList');
+      list.innerHTML = contacts.length ? contacts.map(c => `
+        <div class="chat-row" onclick="openChatWith('${c.userCode}', '${c.name}', '${c.avatar || ''}')">
+          <img src="${c.avatar || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'50\' fill=\'%23333\'><circle cx=\'25\' cy=\'25\' r=\'25\'/></svg>'}">
+          <div>
+            <div style="font-weight:700;">${c.name}</div>
+            <div style="font-size:12px;color:#7e7e92;">${c.userCode}</div>
+          </div>
+        </div>
+      `).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No other users found yet.</div>';
+    });
+
+    function openDirectChat() {
+      const query = document.getElementById('directSearchInput').value.trim();
+      if (!query) return;
+      socket.emit('open-direct-chat', { targetCode: query, query }, res => {
+        if (res.success) openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
+        else showToast(res.error, 'error');
+      });
+    }
+
+    function openChatWith(uCode, name, avatar) {
+      currentChatTarget = { userCode: uCode, name, avatar };
+      document.getElementById('roomUserName').textContent = name;
+      document.getElementById('roomUserAvatar').src = avatar || '';
+      document.getElementById('chatRoom').style.display = 'flex';
+      socket.emit('check-online', { targetCode: uCode });
+    }
+
+    function closeChatRoom() {
+      document.getElementById('chatRoom').style.display = 'none';
+      currentChatTarget = null;
+    }
+
+    function sendChatMessage() {
+      const box = document.getElementById('msgInputBox');
+      const val = box.value.trim();
+      if (!val || !currentChatTarget) return;
+      const rm = document.getElementById('roomMessages');
+      rm.innerHTML += `<div class="msg-bubble mine">${val}</div>`;
+      rm.scrollTop = rm.scrollHeight;
+      box.value = '';
+    }
+
+    socket.on('user-online-status', ({ targetCode, isOnline }) => {
+      if (currentChatTarget && currentChatTarget.userCode === targetCode) {
+        document.getElementById('roomUserStatus').textContent = isOnline ? 'Online' : 'Offline';
+        document.getElementById('roomUserStatus').style.color = isOnline ? '#00ff88' : '#7e7e92';
+      }
+    });
+
+    function loadStatuses() { socket.emit('get-statuses'); }
+    socket.on('status-data', data => {
+      document.getElementById('myStatusArea').innerHTML = 'My Statuses (' + (data.myStatus?.items?.length || 0) + ' items)';
+      document.getElementById('contactStatusesArea').innerHTML = (data.contactStatuses || []).map(s => `
+        <div style="padding:10px;border-bottom:1px solid #222;">
+          <div style="font-weight:700;">${s.name} (${s.userCode})</div>
+          <div style="font-size:12px;color:#aaa;">${s.items?.length || 0} stories</div>
+        </div>
+      `).join('') || '<div style="color:#7e7e92;">No contact stories.</div>';
+    });
+
+    function uploadStatusMedia(inp) {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        socket.emit('post-status', { id: 'st_' + Date.now(), media: e.target.result, type: 'image' });
+        showToast('Status posted!', 'success');
+        loadStatuses();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadCalls() { socket.emit('get-call-history'); }
+    socket.on('call-history-data', calls => {
+      document.getElementById('callsList').innerHTML = calls.length ? calls.map(c => `
+        <div style="padding:10px;border-bottom:1px solid #222;">
+          <div>Call with <b>${c.otherName || c.otherUser}</b></div>
+          <div style="font-size:11px;color:#7e7e92;">Status: ${c.status}</div>
+        </div>
+      `).join('') : '<div style="color:#7e7e92;">No call history.</div>';
+    });
+
+    function startAudioCall() {
+      if (!currentChatTarget) return;
+      socket.emit('call-user', { targetCode: currentChatTarget.userCode, signal: 'init', callerData: currentUserData });
+      showToast('Calling ' + currentChatTarget.name + '...', 'info');
+    }
+
+    function updateProfile() {
+      const name = document.getElementById('profNameInput').value.trim();
+      socket.emit('update-profile', { fullName: name }, res => {
+        if (res.success) showToast('Profile updated!', 'success');
+        else showToast(res.error, 'error');
       });
     }
   </script>
