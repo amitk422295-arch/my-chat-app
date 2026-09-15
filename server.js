@@ -9,7 +9,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true, service: 'chat-app', time: new Date().toISOString() }));
@@ -56,7 +57,8 @@ const messageSchema = new mongoose.Schema({
   receiverCode: { type: String, required: true, index: true, lowercase: true },
   text: { type: String, default: '' },
   media: { type: String, default: '' },
-  messageType: { type: String, enum: ['text','audio'], default: 'text' },
+  messageType: { type: String, enum: ['text', 'image', 'video', 'audio', 'document'], default: 'text' },
+  fileName: { type: String, default: '' },
   duration: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now, index: true },
   deletedForEveryone: { type: Boolean, default: false },
@@ -223,12 +225,16 @@ io.on('connection', (socket) => {
     } catch (e) { callback && callback({ success: false, error: 'Could not load messages.' }); }
   });
 
-  socket.on('send-message', async ({ targetCode, text, media, messageType, duration, clientMessageId }, callback) => {
+  socket.on('send-message', async ({ targetCode, text, media, messageType, fileName, duration, clientMessageId }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     const receiverCode = String(targetCode || '').trim().toLowerCase();
     const messageText = String(text || '').trim();
-    const type = messageType === 'audio' ? 'audio' : 'text';
-    if (!receiverCode || (type === 'text' && !messageText) || (type === 'audio' && !media)) return callback && callback({ success: false, error: 'Empty message.' });
+    const type = ['image', 'video', 'audio', 'document'].includes(messageType) ? messageType : 'text';
+    
+    if (!receiverCode || (type === 'text' && !messageText) || (type !== 'text' && !media)) {
+      return callback && callback({ success: false, error: 'Empty message content.' });
+    }
+
     try {
       const other = await User.findOne({ userCode: receiverCode }).lean();
       if (!other) return callback && callback({ success: false, error: 'User not found.' });
@@ -238,11 +244,17 @@ io.on('connection', (socket) => {
 
       const msg = await Message.create({
         messageId: String(clientMessageId || ('msg_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'))),
-        senderCode: currentUserCode, receiverCode, text: messageText, media: type === 'audio' ? String(media) : '', messageType: type, duration: Number(duration || 0)
+        senderCode: currentUserCode, 
+        receiverCode, 
+        text: messageText, 
+        media: type !== 'text' ? String(media) : '', 
+        messageType: type, 
+        fileName: String(fileName || ''),
+        duration: Number(duration || 0)
       });
       io.to(currentUserCode).to(receiverCode).emit('new-message', msg.toObject());
       callback && callback({ success: true, message: msg.toObject() });
-    } catch (e) { callback && callback({ success: false, error: 'Message failed.' }); }
+    } catch (e) { callback && callback({ success: false, error: 'Message failed: ' + e.message }); }
   });
 
   socket.on('disconnect', () => {
