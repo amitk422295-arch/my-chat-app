@@ -364,7 +364,8 @@
       }
     }
 
-    function requestEmailOtp() {
+    // Universal HTTP Fetch API for Sending OTP (Works for any friend/user)
+    async function requestEmailOtp() {
       const name = document.getElementById('regNameInput').value.trim();
       const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
       const email = document.getElementById('regEmailInput').value.trim().toLowerCase();
@@ -377,7 +378,14 @@
       regTempData = { name, mobile, email, pass, dp: regTempData.dp };
       showToast('Sending OTP...', 'info');
 
-      socket.emit('send-email-otp', { email }, res => {
+      try {
+        const response = await fetch('/api/send-email-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const res = await response.json();
+
         if (res && res.success) {
           showToast('OTP sent to your email!', 'success');
           authMode = 'reg2';
@@ -387,7 +395,9 @@
         } else {
           showToast(res?.error || 'Failed to send OTP', 'error');
         }
-      });
+      } catch (err) {
+        showToast('Network error while sending OTP', 'error');
+      }
     }
 
     function goRegStep1() {
@@ -473,12 +483,20 @@
     }
 
     let forgotTempEmail = '';
-    function requestForgotOtp() {
+    async function requestForgotOtp() {
       const email = document.getElementById('forgotEmailInput').value.trim().toLowerCase();
       if(!email || !email.includes('@')) { showToast('Valid email required', 'error'); return; }
       forgotTempEmail = email;
       showToast('Sending OTP...', 'info');
-      socket.emit('send-email-otp', { email }, res => {
+
+      try {
+        const response = await fetch('/api/send-email-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const res = await response.json();
+
         if(res && res.success) {
           showToast('OTP sent to email', 'success');
           document.getElementById('forgotStep1').style.display = 'none';
@@ -486,7 +504,9 @@
         } else {
           showToast(res?.error || 'Email not found', 'error');
         }
-      });
+      } catch(e) {
+        showToast('Network error', 'error');
+      }
     }
 
     function verifyForgotOtp() {
