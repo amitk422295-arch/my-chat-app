@@ -12,16 +12,16 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MongoDB Connection (Render पर process.env.MONGO_URI होना ज़रूरी है)
+// MongoDB Connection (Render environment variable MONGO_URI)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000 // 5 सेकंड में फेल होने पर तुरंत बता देगा
+  serverSelectionTimeoutMS: 5000
 }).then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err.message));
 
-// Mongoose Schemas & Models
+// Schemas & Models
 const userSchema = new mongoose.Schema({
   userCode: { type: String, unique: true, required: true, lowercase: true },
   password: { type: String, required: true },
@@ -32,39 +32,15 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-const viewerSchema = new mongoose.Schema({
-  userCode: String,
-  name: String,
-  avatar: String
-}, { _id: false });
-
-const statusItemSchema = new mongoose.Schema({
-  id: String,
-  media: String,
-  type: String,
-  time: String,
-  viewers: [viewerSchema]
-}, { _id: false });
-
-const statusSchema = new mongoose.Schema({
-  userCode: { type: String, unique: true, lowercase: true },
-  name: String,
-  avatar: String,
-  items: [statusItemSchema]
-});
+const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
+const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: String, time: String, viewers: [viewerSchema] }, { _id: false });
+const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
-const callSchema = new mongoose.Schema({
-  callerCode: String,
-  otherUser: String,
-  otherName: String,
-  otherAvatar: String,
-  status: String,
-  timestamp: { type: Date, default: Date.now }
-});
+const callSchema = new mongoose.Schema({ callerCode: String, otherUser: String, otherName: String, otherAvatar: String, status: String, timestamp: { type: Date, default: Date.now } });
 const Call = mongoose.model('Call', callSchema);
 
-// Cloudinary signature endpoint
+// Cloudinary signature
 app.post('/api/cloudinary-signature', (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
   const folder = req.body.folder || 'your-chat-app/status';
@@ -79,7 +55,7 @@ app.post('/api/cloudinary-signature', (req, res) => {
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  // 1. AUTHENTICATION (Smart lookup + Register/Login)
+  // 1. AUTHENTICATION (Register & Login)
   socket.on('auth-user', async ({ userCode, password, fullName, mobile, avatar, isRegister }, callback) => {
     const query = String(userCode || '').trim();
     const passStr = String(password || '').trim();
@@ -87,7 +63,6 @@ io.on('connection', (socket) => {
     try {
       if (isRegister) {
         const uCode = query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase();
-        // अब alphabets, numbers, underscore सब अलाउड (min 6 char)
         if (!/^@[a-z0-9_]{6,}$/.test(uCode)) {
           return callback({ success: false, error: 'User ID must start with @ and have min 6 lowercase letters/numbers/underscore.' });
         }
@@ -137,7 +112,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 2. RECOVERY VERIFICATION
+  // 2. RECOVERY VERIFY & UPDATE
   socket.on('verify-recovery', async ({ userCode, mobile }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const uCode = rawId.startsWith('@') ? rawId : '@' + rawId;
@@ -151,7 +126,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 3. UPDATE PASSWORD AFTER RECOVERY
   socket.on('update-password', async ({ userCode, newPassword }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const uCode = rawId.startsWith('@') ? rawId : '@' + rawId;
@@ -168,7 +142,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 4. STATUSES
+  // 3. STATUSES & CONTACTS
   socket.on('get-statuses', async () => {
     if (!currentUserCode) return;
     try {
@@ -176,8 +150,7 @@ io.on('connection', (socket) => {
       let myStatusDoc = await Status.findOne({ userCode: currentUserCode });
       const myStatus = myStatusDoc ? myStatusDoc.toObject() : { userCode: currentUserCode, name: me?.fullName, avatar: me?.avatar, items: [] };
       const contactsListDocs = await Status.find({ userCode: { $ne: currentUserCode } });
-      const contactsList = contactsListDocs.map(s => s.toObject());
-      socket.emit('status-data', { myStatus, contactStatuses: contactsList });
+      socket.emit('status-data', { myStatus, contactStatuses: contactsListDocs.map(s => s.toObject()) });
     } catch (e) {}
   });
 
@@ -185,59 +158,22 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return;
     try {
       const me = await User.findOne({ userCode: currentUserCode });
-      const newItem = {
-        ...statusItem,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        viewers: []
-      };
-      await Status.findOneAndUpdate(
-        { userCode: currentUserCode },
-        {
-          $setOnInsert: { name: me?.fullName || 'User', avatar: me?.avatar || '' },
-          $push: { items: newItem }
-        },
-        { upsert: true, new: true }
-      );
+      const newItem = { ...statusItem, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), viewers: [] };
+      await Status.findOneAndUpdate({ userCode: currentUserCode }, { $setOnInsert: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $push: { items: newItem } }, { upsert: true, new: true });
     } catch (e) {}
   });
 
   socket.on('delete-status', async ({ statusId }, cb) => {
     if (!currentUserCode) return cb && cb({ success: false });
-    try {
-      await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: statusId } } });
-      cb && cb({ success: true });
-    } catch (e) {
-      cb && cb({ success: false });
-    }
+    try { await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: statusId } } }); cb && cb({ success: true }); }
+    catch (e) { cb && cb({ success: false }); }
   });
 
-  socket.on('mark-status-viewed', async ({ authorCode, statusId }) => {
-    if (!currentUserCode) return;
-    try {
-      const me = await User.findOne({ userCode: currentUserCode });
-      const doc = await Status.findOne({ userCode: authorCode, 'items.id': statusId });
-      if (doc) {
-        const item = doc.items.find(i => i.id === statusId);
-        if (item && !item.viewers.some(v => v.userCode === currentUserCode)) {
-          item.viewers.push({ userCode: currentUserCode, name: me?.fullName || 'User', avatar: me?.avatar || '' });
-          await doc.save();
-        }
-      }
-    } catch (e) {}
-  });
-
-  // 5. CONTACTS & DIRECT CHAT
   socket.on('get-contacts', async () => {
     if (!currentUserCode) return;
     try {
       const allUsers = await User.find({ userCode: { $ne: currentUserCode } });
-      const contacts = allUsers.map(u => ({
-        userCode: u.userCode,
-        name: u.fullName,
-        avatar: u.avatar,
-        lastMessage: ''
-      }));
-      socket.emit('contact-list-data', { contacts });
+      socket.emit('contact-list-data', { contacts: allUsers.map(u => ({ userCode: u.userCode, name: u.fullName, avatar: u.avatar, lastMessage: '' })) });
     } catch (e) {}
   });
 
@@ -245,107 +181,15 @@ io.on('connection', (socket) => {
     try {
       const clean = targetCode.startsWith('@') ? targetCode.toLowerCase() : '@' + targetCode.toLowerCase();
       let targetUser = await User.findOne({ $or: [{ userCode: clean }, { mobile: query }] });
-      if (targetUser) {
-        cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar } });
-      } else {
-        cb({ success: false, error: 'User not found.' });
-      }
-    } catch (e) {
-      cb({ success: false, error: 'Error finding user.' });
-    }
-  });
-
-  socket.on('open-room', () => {});
-
-  // 6. TYPING / ONLINE
-  socket.on('typing', ({ targetCode, roomId }) => {
-    io.to(targetCode).emit('user-typing', { targetCode: currentUserCode, roomId });
-  });
-  socket.on('check-online', ({ targetCode }) => {
-    const isOnline = io.sockets.adapter.rooms.has(targetCode);
-    socket.emit('user-online-status', { targetCode, isOnline });
-  });
-
-  // 7. PROFILE & BLOCK
-  socket.on('update-profile', async ({ fullName, avatar, newPassword }, cb) => {
-    if (!currentUserCode) return cb({ success: false, error: 'Unauthorized' });
-    try {
-      const updateData = {};
-      if (fullName) updateData.fullName = fullName;
-      if (avatar) updateData.avatar = avatar;
-      if (newPassword && (newPassword.length === 6 || newPassword.length === 8)) updateData.password = newPassword;
-      
-      const updatedUser = await User.findOneAndUpdate({ userCode: currentUserCode }, updateData, { new: true });
-      if (updatedUser) {
-        await Status.updateOne({ userCode: currentUserCode }, { $set: { name: updatedUser.fullName, avatar: updatedUser.avatar } });
-        cb({ success: true, user: updatedUser });
-      } else {
-        cb({ success: false, error: 'User not found' });
-      }
-    } catch (e) {
-      cb({ success: false, error: e.message });
-    }
-  });
-
-  socket.on('get-block-status', async ({ targetCode }, cb) => {
-    try {
-      const u = await User.findOne({ userCode: currentUserCode });
-      const blocked = u && u.blockedByMe && (u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode]);
-      cb({ blockedByMe: !!blocked });
-    } else {
-      cb({ blockedByMe: false });
-    }
-  });
-
-  socket.on('toggle-block', async ({ targetCode }, cb) => {
-    try {
-      const u = await User.findOne({ userCode: currentUserCode });
-      if (!u) return cb({ success: false });
-      if (!u.blockedByMe) u.blockedByMe = new Map();
-      const curr = u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode];
-      const nextVal = !curr;
-      if (u.blockedByMe.set) {
-        u.blockedByMe.set(targetCode, nextVal);
-      } else {
-        u.blockedByMe[targetCode] = nextVal;
-      }
-      await u.save();
-      cb({ success: true, blockedByMe: nextVal });
-    } catch (e) {
-      cb({ success: false, error: e.message });
-    }
-  });
-
-  // 8. AUDIO CALL SIGNALING & HISTORY
-  socket.on('call-user', ({ targetCode, signal, callerData }) => {
-    io.to(targetCode).emit('incoming-call', { from: currentUserCode, signal, callerData, isVideo: false });
-  });
-  socket.on('answer-call', ({ targetCode, signal }) => {
-    io.to(targetCode).emit('call-accepted', { signal });
-  });
-  socket.on('ice-candidate', ({ targetCode, candidate }) => {
-    io.to(targetCode).emit('ice-candidate', { candidate });
-  });
-  socket.on('end-call', ({ targetCode }) => {
-    io.to(targetCode).emit('call-ended');
-  });
-  socket.on('get-call-history', async () => {
-    try {
-      const calls = await Call.find({}).sort({ timestamp: -1 }).limit(50);
-      socket.emit('call-history-data', calls);
-    } catch (e) {
-      socket.emit('call-history-data', []);
-    }
+      if (targetUser) cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar } });
+      else cb({ success: false, error: 'User not found.' });
+    } catch (e) { cb({ success: false, error: 'Error finding user.' }); }
   });
 
   socket.on('disconnect', () => {
-    if (currentUserCode) {
-      io.emit('user-online-status', { targetCode: currentUserCode, isOnline: false });
-    }
+    if (currentUserCode) io.emit('user-online-status', { targetCode: currentUserCode, isOnline: false });
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
