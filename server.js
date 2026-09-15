@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+const cloudinary = require('cloudinary').v2;
 
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +14,12 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+cloudinary.config({
+  cloud_name: 'gr8tp1tg',
+  api_key: '668573837891895',
+  api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
+});
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true, service: 'chat-app', time: new Date().toISOString() }));
 
@@ -77,6 +84,13 @@ const Message = mongoose.model('Message', messageSchema);
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
+  socket.on('set-socket-user', ({ userCode }) => {
+    if (userCode) {
+      currentUserCode = String(userCode).trim().toLowerCase();
+      socket.join(currentUserCode);
+    }
+  });
+
   socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar, q1, q2, q3 }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const passStr = String(password || '').trim();
@@ -100,6 +114,12 @@ io.on('connection', (socket) => {
         return callback({ success: false, error: 'Minimum one security question answer is required.' });
       }
 
+      let avatarUrl = avatar || '';
+      if (avatar && avatar.startsWith('data:image')) {
+        const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars' });
+        avatarUrl = uploadRes.secure_url;
+      }
+
       const existingUser = await User.findOne({ userCode: rawId });
       if (existingUser) return callback({ success: false, error: 'This User ID is already taken.' });
 
@@ -111,7 +131,7 @@ io.on('connection', (socket) => {
         password: passStr,
         fullName: fullName && fullName.trim() ? fullName.trim() : 'User',
         mobile: cleanMobile,
-        avatar: avatar || '',
+        avatar: avatarUrl,
         secQ1: cleanQ1,
         secQ2: cleanQ2,
         secQ3: cleanQ3,
@@ -204,8 +224,13 @@ io.on('connection', (socket) => {
   socket.on('post-status', async (statusItem, callback) => {
     if (!currentUserCode) return;
     try {
+      let mediaUrl = statusItem.media;
+      if (mediaUrl && mediaUrl.startsWith('data:')) {
+        const uploadRes = await cloudinary.uploader.upload(mediaUrl, { resource_type: 'auto', folder: 'chat_app_statuses' });
+        mediaUrl = uploadRes.secure_url;
+      }
       const me = await User.findOne({ userCode: currentUserCode });
-      const newItem = { ...statusItem, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), viewers: [] };
+      const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), viewers: [] };
       await Status.findOneAndUpdate({ userCode: currentUserCode }, { $setOnInsert: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $push: { items: newItem } }, { upsert: true, new: true });
       callback && callback({ success: true });
     } catch (e) { callback && callback({ success: false, error: e.message }); }
@@ -250,9 +275,14 @@ io.on('connection', (socket) => {
   socket.on('update-profile', async ({ fullName, avatar, dateOfBirth }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
+      let avatarUrl = avatar;
+      if (avatar && avatar.startsWith('data:image')) {
+        const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars' });
+        avatarUrl = uploadRes.secure_url;
+      }
       const update = {};
       if (typeof fullName === 'string') update.fullName = fullName.trim() ? fullName.trim().slice(0, 80) : 'User';
-      if (typeof avatar === 'string') update.avatar = avatar;
+      if (typeof avatarUrl === 'string') update.avatar = avatarUrl;
       if (typeof dateOfBirth === 'string') update.dateOfBirth = dateOfBirth.slice(0, 20);
       const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
       if (!user) return callback && callback({ success: false, error: 'User not found.' });
@@ -286,6 +316,12 @@ io.on('connection', (socket) => {
     }
 
     try {
+      let mediaUrl = media;
+      if (mediaUrl && mediaUrl.startsWith('data:')) {
+        const uploadRes = await cloudinary.uploader.upload(mediaUrl, { resource_type: 'auto', folder: 'chat_app_media' });
+        mediaUrl = uploadRes.secure_url;
+      }
+
       const other = await User.findOne({ userCode: receiverCode }).lean();
       if (!other) return callback && callback({ success: false, error: 'User not found.' });
       
@@ -298,7 +334,7 @@ io.on('connection', (socket) => {
         senderCode: currentUserCode, 
         receiverCode, 
         text: messageText, 
-        media: type !== 'text' ? String(media) : '', 
+        media: type !== 'text' ? String(mediaUrl) : '', 
         messageType: type, 
         fileName: String(fileName || ''),
         duration: Number(duration || 0)
@@ -308,12 +344,9 @@ io.on('connection', (socket) => {
     } catch (e) { callback && callback({ success: false, error: 'Message failed: ' + e.message }); }
   });
 
-  socket.on('disconnect', () => {
-    if (currentUserCode) io.emit('user-online-status', { targetCode: currentUserCode, isOnline: false });
-  });
+  socket.on('disconnect', () => {});
 });
 
-// Self-ping to prevent Render from going to sleep
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -321,5 +354,5 @@ server.listen(PORT, () => {
     const targetUrl = process.env.RENDER_EXTERNAL_URL || `http://127.0.0.1:${PORT}/health`;
     const client = targetUrl.startsWith('https') ? https : http;
     client.get(targetUrl, (res) => {}).on('error', () => {});
-  }, 10 * 60 * 1000); // pings every 10 minutes
+  }, 10 * 60 * 1000);
 });
