@@ -54,7 +54,7 @@
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
     #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; }
     
-    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; -webkit-touch-callout: none; }
+    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
@@ -389,7 +389,7 @@
         const targetCode = row.getAttribute('data-usercode');
         const targetName = row.getAttribute('data-name');
 
-        const startPress = () => { pressTimer = setTimeout(() => { showChatLongPressModal(targetCode, targetName); }, 400); };
+        const startPress = () => { pressTimer = setTimeout(() => { showChatLongPressModal(targetCode, targetName); }, 500); };
         const cancelPress = () => clearTimeout(pressTimer);
 
         row.addEventListener('mousedown', startPress);
@@ -533,7 +533,7 @@
         const textVal = bubble.getAttribute('data-text');
         const isMine = bubble.getAttribute('data-mine') === 'true';
 
-        const startMsgPress = () => { timer = setTimeout(() => { showMsgLongPressModal(msgId, textVal, isMine); }, 400); };
+        const startMsgPress = () => { timer = setTimeout(() => { showMsgLongPressModal(msgId, textVal, isMine); }, 500); };
         const cancelMsgPress = () => clearTimeout(timer);
 
         bubble.addEventListener('mousedown', startMsgPress);
@@ -728,7 +728,6 @@
       });
     }
 
-    // 🌟 REEL VIEWER WITH CLEAR SIDE ARROWS AND BOTTOM CLOSE/VIEW ARROWS (NO SCREEN FREEZING) 🌟
     function openReelViewerForUser(userCode, itemIndex = 0, isUploading = false) {
       getStatusesLocal().then(data => {
         let items = [];
@@ -857,7 +856,7 @@
       document.getElementById('chatRoomMenu').style.display = 'none';
     }
 
-    function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' 'none' : 'block'; }
+    function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
     
     document.addEventListener('click', (e) => {
       document.getElementById('appMenu').style.display = 'none';
