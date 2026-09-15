@@ -91,6 +91,8 @@ mongoose.connect(MONGO_URI, {
   console.log('MongoDB connected successfully');
   try {
     await mongoose.connection.collection('messages').dropIndex('id_1').catch(() => {});
+    await mongoose.connection.collection('status').dropIndex('id_1').catch(() => {});
+    await mongoose.connection.collection('statuses').dropIndex('id_1').catch(() => {});
   } catch(e) {}
 }).catch(err => console.error('MongoDB connection error:', err.message));
 
@@ -148,22 +150,13 @@ io.on('connection', (socket) => {
     const cleanMobile = String(mobile || '').trim();
 
     try {
-      if (!rawId.startsWith('@') || rawId.length < 5) {
-        return callback({ success: false, error: 'User ID must start with @ and have at least 4 characters after it.' });
-      }
-      if (!cleanMobile || cleanMobile.length < 10) {
-        return callback({ success: false, error: 'Valid mobile number is compulsory.' });
-      }
-      if (passStr.length !== 8) {
-        return callback({ success: false, error: 'Password must be strictly 8 digits.' });
-      }
+      if (!rawId.startsWith('@') || rawId.length < 5) { return callback({ success: false, error: 'User ID must start with @ and have at least 4 characters after it.' }); }
+      if (!cleanMobile || cleanMobile.length < 10) { return callback({ success: false, error: 'Valid mobile number is compulsory.' }); }
+      if (passStr.length !== 8) { return callback({ success: false, error: 'Password must be strictly 8 digits.' }); }
       const cleanQ1 = String(q1 || '').trim().toLowerCase();
       const cleanQ2 = String(q2 || '').trim().toLowerCase();
       const cleanQ3 = String(q3 || '').trim().toLowerCase();
-
-      if (!cleanQ1 && !cleanQ2 && !cleanQ3) {
-        return callback({ success: false, error: 'Minimum one security question answer is required.' });
-      }
+      if (!cleanQ1 && !cleanQ2 && !cleanQ3) { return callback({ success: false, error: 'Minimum one security question answer is required.' }); }
 
       let avatarUrl = avatar || '';
       if (avatar && avatar.startsWith('data:image')) {
@@ -178,41 +171,24 @@ io.on('connection', (socket) => {
       if (existingMobile) return callback({ success: false, error: 'Mobile number already registered.' });
 
       const newUser = await User.create({
-        userCode: rawId,
-        password: passStr,
-        fullName: fullName && fullName.trim() ? fullName.trim() : 'User',
-        mobile: cleanMobile,
-        avatar: avatarUrl,
-        secQ1: cleanQ1,
-        secQ2: cleanQ2,
-        secQ3: cleanQ3,
-        blockedByMe: {}
+        userCode: rawId, password: passStr, fullName: fullName && fullName.trim() ? fullName.trim() : 'User',
+        mobile: cleanMobile, avatar: avatarUrl, secQ1: cleanQ1, secQ2: cleanQ2, secQ3: cleanQ3, blockedByMe: {}
       });
 
       currentUserCode = rawId;
       socket.join(rawId);
       io.emit('user-online-status', { targetCode: rawId, isOnline: true });
       callback({ success: true, user: newUser });
-    } catch (e) {
-      callback({ success: false, error: 'Registration error: ' + e.message });
-    }
+    } catch (e) { callback({ success: false, error: 'Registration error: ' + e.message }); }
   });
 
   socket.on('auth-user', async ({ userCode, password }, callback) => {
     const query = String(userCode || '').trim();
     const passStr = String(password || '').trim();
-
     try {
       const isMobileQuery = /^\d{10,13}$/.test(query);
       const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
-
-      const userObj = await User.findOne({
-        $or: [
-          ...(normalizedId ? [{ userCode: normalizedId }] : []),
-          ...(isMobileQuery ? [{ mobile: query }] : [])
-        ]
-      });
-
+      const userObj = await User.findOne({ $or: [ ...(normalizedId ? [{ userCode: normalizedId }] : []), ...(isMobileQuery ? [{ mobile: query }] : []) ] });
       if (!userObj) return callback({ success: false, error: 'Account not found by ID or mobile.' });
       if (userObj.password !== passStr) return callback({ success: false, error: 'Incorrect password.' });
 
@@ -220,9 +196,7 @@ io.on('connection', (socket) => {
       socket.join(currentUserCode);
       io.emit('user-online-status', { targetCode: currentUserCode, isOnline: true });
       return callback({ success: true, user: userObj });
-    } catch (err) {
-      return callback({ success: false, error: 'Auth error: ' + err.message });
-    }
+    } catch (err) { return callback({ success: false, error: 'Auth error: ' + err.message }); }
   });
 
   socket.on('recover-account', async ({ mobile, q1, q2, q3, newPassword }, callback) => {
@@ -236,30 +210,23 @@ io.on('connection', (socket) => {
       const userObj = await User.findOne({ mobile: cleanMobile });
       if (!userObj) return callback({ success: false, error: 'Mobile number not found in database.' });
 
-      let matchesCount = 0;
-      let totalProvided = 0;
-      let hasMismatch = false;
-
+      let matchesCount = 0; let totalProvided = 0; let hasMismatch = false;
       if (ans1) { totalProvided++; if (userObj.secQ1 && userObj.secQ1 === ans1) matchesCount++; else hasMismatch = true; }
       if (ans2) { totalProvided++; if (userObj.secQ2 && userObj.secQ2 === ans2) matchesCount++; else hasMismatch = true; }
       if (ans3) { totalProvided++; if (userObj.secQ3 && userObj.secQ3 === ans3) matchesCount++; else hasMismatch = true; }
 
-      if (totalProvided === 0 || hasMismatch || matchesCount === 0) {
-        return callback({ success: false, error: 'Authentication failed! Incorrect security answers.' });
-      }
+      if (totalProvided === 0 || hasMismatch || matchesCount === 0) return callback({ success: false, error: 'Authentication failed! Incorrect security answers.' });
 
       if (newPass && newPass.length === 8) {
-        userObj.password = newPass;
-        await userObj.save();
+        userObj.password = newPass; await userObj.save();
         return callback({ success: true, userCode: userObj.userCode, message: 'Password updated & Account recovered successfully!' });
       } else {
         return callback({ success: true, userCode: userObj.userCode, message: 'Your User ID is: ' + userObj.userCode });
       }
-    } catch (e) {
-      callback({ success: false, error: 'Recovery failed: ' + e.message });
-    }
+    } catch (e) { callback({ success: false, error: 'Recovery failed: ' + e.message }); }
   });
 
+  // 🌟 REELS (STATUS) NOW PUBLIC TO EVERYONE 🌟
   socket.on('get-statuses', async () => {
     if (!currentUserCode) return;
     try {
@@ -270,9 +237,10 @@ io.on('connection', (socket) => {
       await Status.updateMany({}, { $pull: { items: { expiresAt: { $lte: now } } } });
       myStatusDoc = await Status.findOne({ userCode: currentUserCode });
       const refreshedMy = myStatusDoc ? myStatusDoc.toObject() : myStatus;
-      const allowedContacts = Array.isArray(me?.contacts) ? me.contacts : [];
-      const contactsListDocs = allowedContacts.length ? await Status.find({ userCode: { $in: allowedContacts } }) : [];
-      socket.emit('status-data', { myStatus: refreshedMy, contactStatuses: contactsListDocs.map(s => s.toObject()) });
+      
+      // Fetch all public reels except mine
+      const allOtherStatuses = await Status.find({ userCode: { $ne: currentUserCode } });
+      socket.emit('status-data', { myStatus: refreshedMy, contactStatuses: allOtherStatuses.map(s => s.toObject()) });
     } catch (e) {}
   });
 
@@ -289,14 +257,12 @@ io.on('connection', (socket) => {
       const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), expiresAt, viewers: [] };
       await Status.findOneAndUpdate(
         { userCode: currentUserCode }, 
-        { 
-          $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, 
-          $push: { items: newItem } 
-        }, 
+        { $set: { name: me?.fullName || 'User', avatar: me?.avatar || '' }, $push: { items: newItem } }, 
         { upsert: true, new: true }
       );
       callback && callback({ success: true, expiresAt });
-      for (const c of (me?.contacts || [])) io.to(c).emit('status-updated', { userCode: currentUserCode });
+      // Notify everyone globally about new reel
+      io.emit('status-updated');
     } catch (e) { callback && callback({ success: false, error: e.message }); }
   });
 
@@ -365,14 +331,10 @@ io.on('connection', (socket) => {
         ],
         deletedFor: { $ne: currentUserCode }
       };
-      let query = base;
-      let full = true;
+      let query = base; let full = true;
       if (after) {
         const afterDate = new Date(after);
-        if (!Number.isNaN(afterDate.getTime())) {
-          query = { $and: [base, { createdAt: { $gt: afterDate } }] };
-          full = false;
-        }
+        if (!Number.isNaN(afterDate.getTime())) { query = { $and: [base, { createdAt: { $gt: afterDate } }] }; full = false; }
       }
       const messages = await Message.find(query).sort({ createdAt: 1 }).limit(500).lean();
       callback && callback({ success: true, messages, full });
@@ -404,14 +366,9 @@ io.on('connection', (socket) => {
 
       const uniqueMsgId = String(clientMessageId || ('msg_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex')));
       const msg = await Message.create({
-        messageId: uniqueMsgId,
-        senderCode: currentUserCode, 
-        receiverCode, 
-        text: messageText, 
-        media: type !== 'text' ? String(mediaUrl) : '', 
-        messageType: type, 
-        fileName: String(fileName || ''),
-        duration: Number(duration || 0)
+        messageId: uniqueMsgId, senderCode: currentUserCode, receiverCode, 
+        text: messageText, media: type !== 'text' ? String(mediaUrl) : '', messageType: type, 
+        fileName: String(fileName || ''), duration: Number(duration || 0)
       });
       io.to(currentUserCode).to(receiverCode).emit('new-message', msg.toObject());
       callback && callback({ success: true, message: msg.toObject() });
