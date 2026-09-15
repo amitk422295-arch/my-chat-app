@@ -57,6 +57,11 @@
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
     
+    /* Syncing & Loading Skeleton/Placeholder UI */
+    .sync-placeholder { width: 100%; height: 160px; background: #181822; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #a0a0b0; font-size: 12px; position: relative; overflow: hidden; }
+    .sync-placeholder::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); animation: shimmer 1.5s infinite; }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
     .profile-card { width:100%; max-width:360px; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.8); }
     .profile-card img { width:110px; height:110px; border-radius:50%; object-fit:cover; border:3px solid #ff3b5c; }
   </style>
@@ -197,7 +202,7 @@
       <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onchange="sendMediaFile(this)">
       <button class="icon-btn" style="width:38px;height:38px;font-size:20px;flex:none;background:#1c1c26;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById('chatMediaInput').click()" title="Attach Photo/Video/Document">📎</button>
       <div class="input-wrapper">
-        <input type="text" id="msgInputBox" placeholder="Type a message or paste YouTube link...">
+        <input type="text" id="msgInputBox" placeholder="Type a message or paste link...">
       </div>
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
     </div>
@@ -210,13 +215,13 @@
     let currentUserData = null;
     let currentChatTarget = null;
 
-    // Persistent Login Check on Page Load & Auto-Sync on Reconnect
     window.addEventListener('DOMContentLoaded', () => {
       const savedUser = localStorage.getItem('chatAppUser');
       if (savedUser) {
         try {
           currentUserData = JSON.parse(savedUser);
           if (currentUserData && currentUserData.userCode) {
+            socket.emit('set-socket-user', { userCode: currentUserData.userCode });
             launchMainApp();
           }
         } catch(e) {
@@ -225,8 +230,21 @@
       }
     });
 
+    window.addEventListener('focus', () => {
+      if (currentUserData && currentUserData.userCode) {
+        socket.emit('set-socket-user', { userCode: currentUserData.userCode });
+        loadContacts();
+        if (currentChatTarget) {
+          socket.emit('get-messages', { targetCode: currentChatTarget.userCode }, res => {
+            if (res?.success) renderMessages(res.messages || []);
+          });
+        }
+      }
+    });
+
     socket.on('connect', () => {
       if (currentUserData && currentUserData.userCode) {
+        socket.emit('set-socket-user', { userCode: currentUserData.userCode });
         loadContacts();
         if (currentChatTarget) {
           socket.emit('get-messages', { targetCode: currentChatTarget.userCode }, res => {
@@ -306,6 +324,7 @@
         if (res && res.success) {
           currentUserData = res.user;
           localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
+          socket.emit('set-socket-user', { userCode: currentUserData.userCode });
           showToast('Registration successful!', 'success');
           launchMainApp();
         } else {
@@ -324,6 +343,7 @@
         if (res && res.success) {
           currentUserData = res.user;
           localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
+          socket.emit('set-socket-user', { userCode: currentUserData.userCode });
           showToast('Welcome back!', 'success');
           launchMainApp();
         } else {
@@ -436,7 +456,7 @@
         let txt = escapeHtml(m.text);
         const ytRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
         txt = txt.replace(ytRegex, (url, match, vidId) => {
-          return `<div style="margin-top:6px;"><a href="${url}" target="_blank" style="color:#ff3b5c; text-decoration:underline; font-weight:600;">▶ Watch on YouTube</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${vidId}" frameborder="0" allowfullscreen style="border-radius:8px; margin-top:4px;"></iframe></div>`;
+          return `<div style="margin-top:6px;"><a href="${url}" target="_blank" style="color:#ff3b5c; text-decoration:underline; font-weight:600;">▶ Watch Video</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${vidId}" frameborder="0" allowfullscreen style="border-radius:8px; margin-top:4px;"></iframe></div>`;
         });
         innerHtml = txt;
       }
@@ -470,7 +490,18 @@
     function sendMediaFile(inp) {
       const file = inp.files && inp.files[0];
       if (!file || !currentChatTarget) return;
-      showToast('Uploading media...', 'info');
+
+      const rm = document.getElementById('roomMessages');
+      const tempId = 'sync_' + Date.now();
+      const placeholderHtml = `
+        <div id="${tempId}" class="msg-bubble mine" style="padding:4px;">
+          <div class="sync-placeholder">
+            <div style="width:24px; height:24px; border:2px solid #5ac8fa; border-top-color:transparent; border-radius:50%; animation: spin 0.8s linear infinite;"></div>
+            <span>Syncing & uploading media...</span>
+          </div>
+        </div>`;
+      rm.insertAdjacentHTML('beforeend', placeholderHtml);
+      rm.scrollTop = rm.scrollHeight;
 
       const reader = new FileReader();
       reader.onload = e => {
@@ -488,8 +519,11 @@
           fileName: file.name,
           clientMessageId
         }, res => {
+          const tempEl = document.getElementById(tempId);
+          if (tempEl) tempEl.remove();
+
           if (res && res.success) {
-            showToast('Sent successfully!', 'success');
+            showToast('Uploaded & synced successfully!', 'success');
           } else {
             showToast(res?.error || 'Media upload failed', 'error');
           }
@@ -498,6 +532,10 @@
       };
       reader.readAsDataURL(file);
     }
+
+    // Add CSS spin animation dynamically
+    const styleSheet = document.styleSheets[0];
+    styleSheet.insertRule(`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`, styleSheet.cssRules.length);
 
     document.getElementById('msgInputBox').addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
