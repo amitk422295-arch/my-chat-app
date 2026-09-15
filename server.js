@@ -82,36 +82,37 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// REST API for Email OTP (Works universally for any user/friend)
+app.post('/api/send-email-otp', async (req, res) => {
+  const cleanEmail = String(req.body.email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    return res.status(400).json({ success: false, error: 'Invalid email address.' });
+  }
+
+  try {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStorage.set(cleanEmail, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      await transporter.sendMail({
+        from: `"Chat App Support" <${process.env.SMTP_USER}>`,
+        to: cleanEmail,
+        subject: 'Your Chat App Verification OTP',
+        text: `Your verification OTP is: ${otp}. It is valid for 5 minutes.`
+      });
+    } else {
+      console.log(`[DEV OTP] OTP for ${cleanEmail} is: ${otp}`);
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('SMTP Send Error:', e.message);
+    res.status(500).json({ success: false, error: 'Failed to send OTP email: ' + e.message });
+  }
+});
+
 io.on('connection', (socket) => {
   let currentUserCode = null;
-
-  socket.on('send-email-otp', async ({ email }, callback) => {
-    const cleanEmail = String(email || '').trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      return callback({ success: false, error: 'Invalid email address.' });
-    }
-
-    try {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otpStorage.set(cleanEmail, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
-
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        await transporter.sendMail({
-          from: `"Chat App Support" <${process.env.SMTP_USER}>`,
-          to: cleanEmail,
-          subject: 'Your Chat App Verification OTP',
-          text: `Your verification OTP is: ${otp}. It is valid for 5 minutes.`
-        });
-      } else {
-        console.log(`[DEV OTP] OTP for ${cleanEmail} is: ${otp}`);
-      }
-
-      callback({ success: true });
-    } catch (e) {
-      console.error('SMTP Send Error:', e.message);
-      callback({ success: false, error: 'Failed to send OTP email: ' + e.message });
-    }
-  });
 
   socket.on('verify-otp-and-register', async ({ email, otp, password, fullName, mobile, avatar }, callback) => {
     const cleanEmail = String(email || '').trim().toLowerCase();
