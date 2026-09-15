@@ -1,4 +1,4 @@
-const express = require('express');
+[source: 2]const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
@@ -71,13 +71,17 @@ const Message = mongoose.model('Message', messageSchema);
 
 const otpStorage = new Map();
 
+// Optimized Nodemailer Transporter for Gmail SMTP
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
+  port: Number(process.env.SMTP_PORT) || 587,
   secure: false,
   auth: {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || ''
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
@@ -97,7 +101,7 @@ io.on('connection', (socket) => {
 
       if (process.env.SMTP_USER && process.env.SMTP_PASS) {
         await transporter.sendMail({
-          from: process.env.SMTP_USER,
+          from: `"Chat App Support" <${process.env.SMTP_USER}>`,
           to: cleanEmail,
           subject: 'Your Chat App Verification OTP',
           text: `Your verification OTP is: ${otp}. It is valid for 5 minutes.`
@@ -108,6 +112,7 @@ io.on('connection', (socket) => {
 
       callback({ success: true });
     } catch (e) {
+      console.error('SMTP Send Error:', e.message);
       callback({ success: false, error: 'Failed to send OTP email: ' + e.message });
     }
   });
