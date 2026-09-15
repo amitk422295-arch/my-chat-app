@@ -68,7 +68,6 @@ const Message = mongoose.model('Message', messageSchema);
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  // Custom User ID Registration
   socket.on('register-custom', async ({ userCode, password, fullName, mobile, avatar }, callback) => {
     const rawId = String(userCode || '').trim().toLowerCase();
     const passStr = String(password || '').trim();
@@ -84,7 +83,7 @@ io.on('connection', (socket) => {
 
       const existingUser = await User.findOne({ userCode: rawId });
       if (existingUser) {
-        return callback({ success: false, error: 'This User ID is already taken. Choose another.' });
+        return callback({ success: false, error: 'This User ID is already taken.' });
       }
 
       const existingMobile = await User.findOne({ mobile: String(mobile || '').trim() });
@@ -213,8 +212,6 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
       const clean = String(targetCode || '').toLowerCase();
-      const me = await User.findOne({ userCode: currentUserCode }).lean();
-      if (!Array.isArray(me?.contacts) || !me.contacts.includes(clean)) return callback && callback({ success:false, error:'Not in contacts.' });
       const messages = await Message.find({
         $or: [
           { senderCode: currentUserCode, receiverCode: clean },
@@ -233,11 +230,12 @@ io.on('connection', (socket) => {
     const type = messageType === 'audio' ? 'audio' : 'text';
     if (!receiverCode || (type === 'text' && !messageText) || (type === 'audio' && !media)) return callback && callback({ success: false, error: 'Empty message.' });
     try {
-      const me = await User.findOne({ userCode: currentUserCode }).lean();
       const other = await User.findOne({ userCode: receiverCode }).lean();
       if (!other) return callback && callback({ success: false, error: 'User not found.' });
-      if (!Array.isArray(me?.contacts) || !me.contacts.includes(receiverCode)) return callback && callback({ success:false, error:'Add user first.' });
       
+      await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: receiverCode } });
+      await User.updateOne({ userCode: receiverCode }, { $addToSet: { contacts: currentUserCode } });
+
       const msg = await Message.create({
         messageId: String(clientMessageId || ('msg_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'))),
         senderCode: currentUserCode, receiverCode, text: messageText, media: type === 'audio' ? String(media) : '', messageType: type, duration: Number(duration || 0)
@@ -245,23 +243,6 @@ io.on('connection', (socket) => {
       io.to(currentUserCode).to(receiverCode).emit('new-message', msg.toObject());
       callback && callback({ success: true, message: msg.toObject() });
     } catch (e) { callback && callback({ success: false, error: 'Message failed.' }); }
-  });
-
-  socket.on('delete-message', async ({ messageId, mode }, callback) => {
-    if (!currentUserCode || !messageId) return callback && callback({ success: false });
-    try {
-      const msg = await Message.findOne({ messageId });
-      if (!msg) return callback && callback({ success: false, error: 'Message not found.' });
-      if (mode === 'everyone') {
-        if (msg.senderCode !== currentUserCode) return callback && callback({ success: false, error: 'Only sender can delete.' });
-        msg.deletedForEveryone = true; msg.text = ''; await msg.save();
-        io.to(msg.senderCode).to(msg.receiverCode).emit('message-deleted', { messageId, mode: 'everyone' });
-      } else {
-        if (!msg.deletedFor.includes(currentUserCode)) { msg.deletedFor.push(currentUserCode); await msg.save(); }
-        socket.emit('message-deleted', { messageId, mode: 'me' });
-      }
-      callback && callback({ success: true });
-    } catch (e) { callback && callback({ success: false, error: 'Delete failed.' }); }
   });
 
   socket.on('disconnect', () => {
