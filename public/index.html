@@ -6,7 +6,7 @@
   <title>Your Chat App</title>
   <meta name="theme-color" content="#08080c">
 
-  <!-- Socket.io for Auth, Calls, Status, Signaling -->
+  <!-- Socket.io for Auth, Status, Audio Call Signaling -->
   <script src="/socket.io/socket.io.js"></script>
 
   <!-- Firebase SDKs for Chat Message Realtime Offload -->
@@ -27,7 +27,6 @@
     #toastBox.success { border-color: #00c853; color: #00ff88; }
     #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
     
-    /* AUTH FLOW SCREEN - FIXED INTERACTION */
     .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; pointer-events: auto; }
     .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); position: relative; z-index: 1; pointer-events: auto; }
     .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; pointer-events: auto; }
@@ -62,7 +61,7 @@
     .room-header-profile img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
     .room-header-name { font-size: 16px; font-weight: 700; color: #fff; }
     .room-header-actions { display: flex; gap: 12px; align-items: center; }
-    .room-header-actions button { background: none; border: none; font-size: 21px; cursor: pointer; }
+    .room-header-actions button { background: none; border: none; font-size: 21px; cursor: pointer; color: #fff; }
     #roomMessages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: transparent; position: relative; z-index: 1; }
     .msg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; user-select: text; position: relative; }
     .msg-bubble:active { transform: scale(0.98); }
@@ -102,20 +101,15 @@
     .edit-dp-wrap img { width:96px; height:96px; border-radius:50%; object-fit:cover; background:#222; border:2px solid #ff6b8b; }
     .edit-dp-wrap span { position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); font-size:10px; background:#ff6b8b; color:#fff; padding:4px 7px; border-radius:10px; white-space:nowrap; }
 
-    /* Instagram-like Video/Audio Call UI */
-    #phoneCallModal { position: fixed; inset: 0; background: #000; z-index: 250; display: none; flex-direction: column; justify-content: space-between; overflow: hidden; }
-    .call-video-container { position: absolute; inset: 0; width: 100%; height: 100%; background: #111; z-index: 1; }
-    #remoteVideoEl { width: 100%; height: 100%; object-fit: cover; }
-    #localVideoPiP { position: absolute; top: 20px; right: 20px; width: 105px; height: 155px; border-radius: 14px; overflow: hidden; background: #222; border: 1.5px solid rgba(255,255,255,0.2); z-index: 5; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-    .call-top-overlay { position: relative; z-index: 10; padding: 45px 20px 20px; display: flex; flex-direction: column; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%); }
-    .caller-dp-pulse { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2.5px solid #ff3b5c; margin-bottom: 12px; }
-    .call-bottom-overlay { position: relative; z-index: 10; padding: 25px 24px 45px; display: flex; flex-direction: column; gap: 24px; align-items: center; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%); }
-    .call-actions-box { display: flex; gap: 28px; align-items: center; }
-    .btn-call-circle { width: 58px; height: 58px; border-radius: 50%; border: none; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: transform 0.1s; }
+    /* WebRTC Audio Call UI (Voice only, Video stripped) */
+    #audioCallModal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 250; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .caller-dp-pulse { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #ff3b5c; }
+    .audio-call-actions { display: flex; gap: 28px; align-items: center; margin-top: 24px; }
+    .btn-call-circle { width: 58px; height: 58px; border-radius: 50%; border: none; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; }
     .btn-call-circle:active { transform: scale(0.94); }
     .btn-call-neutral { background: rgba(255,255,255,0.2); }
     .btn-call-neutral.muted { background: #ff3b5c; }
-    .btn-call-green { background: #00c853; } 
+    .btn-call-green { background: #00c853; }
     .btn-call-red { background: #ff3b5c; width: 66px; height: 66px; font-size: 26px; }
 
     /* Story & Delete UI */
@@ -143,17 +137,17 @@
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
-  <!-- AUTH FLOW SCREEN - INTERACTIVE FIXED -->
+  <!-- AUTH FLOW SCREEN -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
       <h3 style="color:#fff;" id="authTitle">Welcome Back</h3>
       <p style="font-size:12px;color:#8a8a9e;" id="authSub">Already registered? Enter here</p>
 
-      <!-- VIEW: LOGIN -->
+      <!-- VIEW: LOGIN (Accepts 6-digit old or 8-digit new pass) -->
       <div id="viewLogin" style="display:flex; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
-        <input type="password" id="loginPassInput" class="input-box" placeholder="8-digit Password" maxlength="8">
+        <input type="password" id="loginPassInput" class="input-box" placeholder="6-digit (Old) or 8-digit (New) Pass" maxlength="8">
         <button class="btn-gradient" onclick="handleLogin()">Login</button>
       </div>
 
@@ -164,7 +158,7 @@
         <button class="btn-gradient" onclick="goRegStep2()">Next ➔</button>
       </div>
 
-      <!-- VIEW: REGISTER STEP 2 (DP + Unique ID >=6 small letters + 8-Digit Password) -->
+      <!-- VIEW: REGISTER STEP 2 (DP + Unique ID >=6 small letters + Strict 8-Digit Password) -->
       <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
@@ -183,17 +177,18 @@
     </div>
   </div>
 
-  <!-- FORGOT ID/PASS RECOVERY MODAL - SHOWS PASSWORD DIRECTLY ON MATCH -->
+  <!-- FORGOT ID / VERIFY & UPDATE PASSWORD MODAL -->
   <div id="recoveryModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;">
     <div class="glass-card" style="max-width:340px;">
-      <h3 style="color:#fff;font-size:16px;">Account Recovery</h3>
-      <input type="text" id="recUserIdInp" class="input-box" placeholder="Enter User ID (@username)">
-      <input type="tel" id="recMobileInp" class="input-box" placeholder="Enter Registered Mobile" maxlength="13">
-      <button class="btn-gradient" onclick="recoverAccountDirectShow()">Show Password</button>
+      <h3 style="color:#fff;font-size:16px;">Account Recovery & Update</h3>
+      <input type="text" id="recUserIdInp" class="input-box" placeholder="User ID (@username)">
+      <input type="tel" id="recMobileInp" class="input-box" placeholder="Registered Mobile" maxlength="13">
+      <button class="btn-gradient" id="recVerifyBtn" onclick="verifyRecoveryAccount()">Verify Account</button>
       
-      <div id="recResultBox" style="margin-top:12px; padding:12px; background:rgba(0,200,83,0.1); border:1px solid #00c853; border-radius:12px; display:none; text-align:left; font-size:13px; color:#00ff88;">
-        <div><b>User ID:</b> <span id="resFoundId"></span></div>
-        <div style="margin-top:4px;"><b>Password:</b> <span id="resFoundPass" style="font-family:monospace; background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px;"></span></div>
+      <!-- Update section appears after verification -->
+      <div id="recUpdateSection" style="display:none; flex-direction:column; gap:10px; margin-top:12px;">
+        <input type="password" id="recNewPassInp" class="input-box" placeholder="New Password (6 or 8 digits)" maxlength="8">
+        <button class="btn-gradient" onclick="updateRecoveryPassword()">Update Password</button>
       </div>
 
       <div id="recErrorBox" style="margin-top:10px; color:#ff6b8b; font-size:12px; display:none;"></div>
@@ -330,24 +325,15 @@
     </div>
   </div>
 
-  <!-- INSTAGRAM-LIKE VIDEO/AUDIO CALL MODAL -->
-  <div id="phoneCallModal">
-    <div class="call-video-container">
-      <video id="remoteVideoEl" autoplay playsinline></video>
-      <video id="localVideoPiP" autoplay playsinline muted></video>
-    </div>
-    <div class="call-top-overlay">
-      <img id="phoneCallerAvatar" class="caller-dp-pulse" src="">
-      <div id="phoneCallerName" style="font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);">Caller</div>
-      <div id="phoneCallState" style="font-size:13px;color:#bbb;text-shadow:0 1px 4px rgba(0,0,0,0.8);margin-top:4px;">Calling...</div>
-    </div>
-    <div class="call-bottom-overlay">
-      <div class="call-actions-box">
-        <button class="btn-call-circle btn-call-neutral" id="btnToggleMic" onclick="toggleCallAudio()">🎤</button>
-        <button class="btn-call-circle btn-call-neutral" id="btnToggleCam" onclick="toggleCallVideo()">📹</button>
-        <button class="btn-call-circle btn-call-green" id="btnAcceptCall" onclick="acceptIncomingCall()" style="display:none;">📞</button>
-        <button class="btn-call-circle btn-call-red" onclick="endPhoneCall(true)">✕</button>
-      </div>
+  <!-- WEBRTC AUDIO CALL MODAL (Voice call only, video stripped) -->
+  <div id="audioCallModal">
+    <img id="audioCallerAvatar" class="caller-dp-pulse" src="">
+    <div id="audioCallerName" style="font-size:22px;font-weight:800;color:#fff;">Caller</div>
+    <div id="audioCallState" style="font-size:13px;color:#bbb;">Calling...</div>
+    <div class="audio-call-actions">
+      <button class="btn-call-circle btn-call-neutral" id="btnToggleAudioMic" onclick="toggleCallAudio()">🎤</button>
+      <button class="btn-call-circle btn-call-green" id="btnAcceptAudioCall" onclick="acceptIncomingCall()" style="display:none;">📞</button>
+      <button class="btn-call-circle btn-call-red" onclick="endPhoneCall(true)">✕</button>
     </div>
     <audio id="remoteAudioPlayer" autoplay playsinline></audio>
   </div>
@@ -361,7 +347,7 @@
     </div>
   </div>
 
-  <!-- CHAT ROOM -->
+  <!-- CHAT ROOM (Audio call button kept, video call button removed) -->
   <div id="chatRoom">
     <div class="room-header">
       <div class="room-header-profile">
@@ -373,8 +359,7 @@
         </div>
       </div>
       <div class="room-header-actions">
-        <button onclick="startAudioOrVideoCall(false)" title="Audio Call">📞</button>
-        <button onclick="startAudioOrVideoCall(true)" title="Video Call">📹</button>
+        <button onclick="startAudioCall()" title="Audio Call">📞</button>
       </div>
     </div>
 
@@ -427,6 +412,7 @@
     let currentFirebaseChatRef = null; let currentFirebaseChildAdded = null;
     let longPressTimer = null; let selectedMsgId = null; let selectedMsgIsMine = false;
     let editDpFile = null; let selectedBlockUser = ''; let typingTimer = null;
+    let verifiedRecoveryUser = null;
 
     function showToast(msg, type='info') {
       const t = document.getElementById('toastBox');
@@ -457,8 +443,8 @@
     function goRegStep2() {
       const name = document.getElementById('regNameInput').value.trim();
       const mobile = document.getElementById('regMobileInput').value.trim();
-      if (!name) return showToast('Error in name: Name is required.', 'error');
-      if (!mobile || !/^\d{10,13}$/.test(mobile.replace(/[\s-+]/g, ''))) return showToast('Error in mobile number: Please provide a valid mobile number.', 'error');
+      if (!name) { showToast('Please enter your name.', 'error'); return; }
+      if (!mobile || !/^\d{10,13}$/.test(mobile.replace(/[\s-+]/g, ''))) { showToast('Please provide a valid mobile number (10-13 digits).', 'error'); return; }
       regTempData.name = name; regTempData.mobile = mobile;
       authMode = 'reg2';
       document.getElementById('authTitle').textContent = 'Register (Step 2)';
@@ -489,22 +475,30 @@
       const uCodeRaw = document.getElementById('regUserIdInput').value.trim().toLowerCase();
       const uCode = uCodeRaw.startsWith('@') ? uCodeRaw : '@' + uCodeRaw;
       const pass = document.getElementById('regPassInput').value.trim();
-      if (!/^@[a-z]{6,}$/.test(uCode)) return showToast('Error in user ID: Must start with @ and have at least 6 lowercase alphabetic letters.', 'error');
-      if (pass.length !== 8) return showToast('Error in password: Password must be strictly 8 characters.', 'error');
+      if (!/^@[a-z]{6,}$/.test(uCode)) { showToast('User ID must start with @ and have min 6 lowercase alphabetic letters.', 'error'); return; }
+      if (pass.length !== 8) { showToast('New registration password must be strictly 8 characters.', 'error'); return; }
       socket.emit('auth-user', { userCode: uCode, password: pass, fullName: regTempData.name, mobile: regTempData.mobile, avatar: regTempData.dp, isRegister: true }, res => {
-        if (res && res.success) launchApp(res.user);
-        else showToast(res?.error || 'Registration failed', 'error');
+        if (res && res.success) {
+          showToast('Registration successful!', 'success');
+          launchApp(res.user);
+        } else {
+          showToast(res?.error || 'Registration failed', 'error');
+        }
       });
     }
 
     function handleLogin() {
       const id = document.getElementById('loginIdInput').value.trim();
       const pass = document.getElementById('loginPassInput').value.trim();
-      if (!id) return showToast('Error: Please enter your User ID or Mobile number.', 'error');
-      if (pass.length !== 8) return showToast('Error in password: Password must be 8 characters long.', 'error');
+      if (!id) { showToast('Please enter your User ID or Mobile number.', 'error'); return; }
+      if (pass.length !== 6 && pass.length !== 8) { showToast('Password must be 6 digits (old user) or 8 digits (new user).', 'error'); return; }
       socket.emit('auth-user', { userCode: id, password: pass, isRegister: false }, res => {
-        if (res && res.success) launchApp(res.user);
-        else showToast(res?.error || 'Login failed', 'error');
+        if (res && res.success) {
+          showToast('Welcome back!', 'success');
+          launchApp(res.user);
+        } else {
+          showToast(res?.error || 'Invalid credentials. Check User ID and password.', 'error');
+        }
       });
     }
 
@@ -523,20 +517,20 @@
     function openForgotModal() { document.getElementById('recoveryModal').style.display = 'flex'; }
     function closeForgotModal() {
       document.getElementById('recoveryModal').style.display = 'none';
-      document.getElementById('recResultBox').style.display = 'none';
+      document.getElementById('recUpdateSection').style.display = 'none';
       document.getElementById('recErrorBox').style.display = 'none';
       document.getElementById('recUserIdInp').value = '';
       document.getElementById('recMobileInp').value = '';
+      document.getElementById('recNewPassInp').value = '';
+      verifiedRecoveryUser = null;
     }
 
-    // DIRECT RECOVERY SHOW PASSWORD FUNCTION
-    function recoverAccountDirectShow() {
+    function verifyRecoveryAccount() {
       const rawId = document.getElementById('recUserIdInp').value.trim().toLowerCase();
       const uCode = rawId.startsWith('@') ? rawId : '@' + rawId;
       const mob = document.getElementById('recMobileInp').value.trim();
-      const resBox = document.getElementById('recResultBox');
       const errBox = document.getElementById('recErrorBox');
-      resBox.style.display = 'none'; errBox.style.display = 'none';
+      errBox.style.display = 'none';
 
       if (!uCode || uCode.length < 3 || !mob) {
         errBox.textContent = 'Please enter valid User ID and Mobile Number.';
@@ -544,13 +538,39 @@
         return;
       }
 
-      socket.emit('recover-password-direct', { userCode: uCode, mobile: mob }, res => {
-        if (res && res.success && res.password) {
-          document.getElementById('resFoundId').textContent = uCode;
-          document.getElementById('resFoundPass').textContent = res.password;
-          resBox.style.display = 'block';
+      socket.emit('verify-recovery', { userCode: uCode, mobile: mob }, res => {
+        if (res && res.success) {
+          verifiedRecoveryUser = uCode;
+          document.getElementById('recUpdateSection').style.display = 'flex';
+          showToast('Account verified. Enter new password.', 'info');
         } else {
-          errBox.textContent = res?.error || 'Account not found or mobile/ID mismatch.';
+          errBox.textContent = res?.error || 'No account matched with this User ID & Mobile.';
+          errBox.style.display = 'block';
+          verifiedRecoveryUser = null;
+          document.getElementById('recUpdateSection').style.display = 'none';
+        }
+      });
+    }
+
+    function updateRecoveryPassword() {
+      const newPass = document.getElementById('recNewPassInp').value.trim();
+      const errBox = document.getElementById('recErrorBox');
+      if (!verifiedRecoveryUser) {
+        errBox.textContent = 'Please verify account first.';
+        errBox.style.display = 'block';
+        return;
+      }
+      if (newPass.length !== 6 && newPass.length !== 8) {
+        errBox.textContent = 'Password must be 6 or 8 digits.';
+        errBox.style.display = 'block';
+        return;
+      }
+      socket.emit('update-password', { userCode: verifiedRecoveryUser, newPassword: newPass }, res => {
+        if (res && res.success) {
+          showToast('Password updated! Please login.', 'success');
+          closeForgotModal();
+        } else {
+          errBox.textContent = res?.error || 'Failed to update password.';
           errBox.style.display = 'block';
         }
       });
@@ -566,10 +586,10 @@
 
     function sendDirectChat() {
       const raw = document.getElementById('searchTargetId').value.trim();
-      if (!raw) return showToast('Enter User ID or mobile number.', 'error');
+      if (!raw) { showToast('Enter User ID or mobile number.', 'error'); return; }
       socket.emit('open-direct-chat', { targetCode: raw.startsWith('@') ? raw : '@'+raw.replace(/@/g,'').toLowerCase(), query: raw }, res => {
         if (res?.success && res.user) { openRoom(res.user.userCode, res.user.fullName, res.user.avatar||''); document.getElementById('searchTargetId').value=''; }
-        else showToast(res?.error || 'User not found.', 'error');
+        else { showToast(res?.error || 'User not found.', 'error'); }
       });
     }
 
@@ -707,7 +727,7 @@
       const name = document.getElementById('editNameInput').value.trim();
       const newPassword = document.getElementById('editPasswordInput').value.trim();
       if (!name) return showToast('Name required', 'error');
-      if (newPassword && newPassword.length !== 8) return showToast('Password must be 8 digits', 'error');
+      if (newPassword && newPassword.length !== 8 && newPassword.length !== 6) return showToast('Password must be 6 or 8 digits', 'error');
       let avatar = myAvatar || '';
       try {
         if (editDpFile) avatar = await uploadToCloudinary(editDpFile, 'your-chat-app/profile');
@@ -746,55 +766,47 @@
     }
     function logoutUser() { document.getElementById('topMenuPanel').style.display = 'none'; localStorage.clear(); if(socket) socket.disconnect(); location.reload(); }
 
-    /* INSTAGRAM-LIKE WEBRTC AUDIO/VIDEO CALL SYSTEM */
+    /* WEBRTC AUDIO CALL SYSTEM (Voice only) */
     let peerConn = null; let localStream = null; const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    let incomingCallerCode = null; let incomingSignal = null; let activeCallPartner = null; let isVideoCallActive = false;
+    let incomingCallerCode = null; let incomingSignal = null; let activeCallPartner = null;
 
-    async function startAudioOrVideoCall(isVideo = false) {
+    async function startAudioCall() {
       if (!currentPartner) return showToast('Open chat first', 'error');
-      isVideoCallActive = isVideo; activeCallPartner = currentPartner;
-      document.getElementById('phoneCallModal').style.display = 'flex';
-      document.getElementById('phoneCallerAvatar').src = document.getElementById('roomPartnerAvatar').src;
-      document.getElementById('phoneCallerName').textContent = document.getElementById('roomPartnerName').textContent;
-      document.getElementById('phoneCallState').textContent = isVideo ? 'Video Calling...' : 'Audio Calling...';
-      document.getElementById('btnAcceptCall').style.display = 'none';
+      activeCallPartner = currentPartner;
+      document.getElementById('audioCallModal').style.display = 'flex';
+      document.getElementById('audioCallerAvatar').src = document.getElementById('roomPartnerAvatar').src;
+      document.getElementById('audioCallerName').textContent = document.getElementById('roomPartnerName').textContent;
+      document.getElementById('audioCallState').textContent = 'Audio Calling...';
+      document.getElementById('btnAcceptAudioCall').style.display = 'none';
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
-        if (isVideo) document.getElementById('localVideoPiP').srcObject = localStream;
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(track => peerConn.addTrack(track, localStream));
         peerConn.onicecandidate = e => { if (e.candidate) socket.emit('ice-candidate', { targetCode: activeCallPartner, candidate: e.candidate }); };
-        peerConn.ontrack = e => {
-          if (isVideo) document.getElementById('remoteVideoEl').srcObject = e.streams[0];
-          else document.getElementById('remoteAudioPlayer').srcObject = e.streams[0];
-        };
+        peerConn.ontrack = e => { document.getElementById('remoteAudioPlayer').srcObject = e.streams[0]; };
         const offer = await peerConn.createOffer(); await peerConn.setLocalDescription(offer);
-        socket.emit('call-user', { targetCode: activeCallPartner, signal: offer, callerData: { name: myFullName, avatar: myAvatar }, isVideo });
-      } catch (err) { showToast('Camera/Mic permission needed', 'error'); endPhoneCall(false); }
+        socket.emit('call-user', { targetCode: activeCallPartner, signal: offer, callerData: { name: myFullName, avatar: myAvatar }, isVideo: false });
+      } catch (err) { showToast('Microphone permission needed', 'error'); endPhoneCall(false); }
     }
 
     socket.on('incoming-call', async ({ from, signal, callerData, isVideo }) => {
-      incomingCallerCode = from; incomingSignal = signal; activeCallPartner = from; isVideoCallActive = isVideo;
-      document.getElementById('phoneCallModal').style.display = 'flex';
-      document.getElementById('phoneCallerAvatar').src = callerData?.avatar || defaultAvatar(callerData?.name);
-      document.getElementById('phoneCallerName').textContent = callerData?.name || 'Caller';
-      document.getElementById('phoneCallState').textContent = isVideo ? 'Incoming Video Call...' : 'Incoming Audio Call...';
-      document.getElementById('btnAcceptCall').style.display = 'flex';
+      incomingCallerCode = from; incomingSignal = signal; activeCallPartner = from;
+      document.getElementById('audioCallModal').style.display = 'flex';
+      document.getElementById('audioCallerAvatar').src = callerData?.avatar || defaultAvatar(callerData?.name);
+      document.getElementById('audioCallerName').textContent = callerData?.name || 'Caller';
+      document.getElementById('audioCallState').textContent = 'Incoming Audio Call...';
+      document.getElementById('btnAcceptAudioCall').style.display = 'flex';
     });
 
     async function acceptIncomingCall() {
-      document.getElementById('btnAcceptCall').style.display = 'none';
-      document.getElementById('phoneCallState').textContent = 'Connected (Live)';
+      document.getElementById('btnAcceptAudioCall').style.display = 'none';
+      document.getElementById('audioCallState').textContent = 'Connected (Live)';
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideoCallActive });
-        if (isVideoCallActive) document.getElementById('localVideoPiP').srcObject = localStream;
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(track => peerConn.addTrack(track, localStream));
         peerConn.onicecandidate = e => { if (e.candidate) socket.emit('ice-candidate', { targetCode: incomingCallerCode, candidate: e.candidate }); };
-        peerConn.ontrack = e => {
-          if (isVideoCallActive) document.getElementById('remoteVideoEl').srcObject = e.streams[0];
-          else document.getElementById('remoteAudioPlayer').srcObject = e.streams[0];
-        };
+        peerConn.ontrack = e => { document.getElementById('remoteAudioPlayer').srcObject = e.streams[0]; };
         await peerConn.setRemoteDescription(new RTCSessionDescription(incomingSignal));
         const answer = await peerConn.createAnswer(); await peerConn.setLocalDescription(answer);
         socket.emit('answer-call', { targetCode: incomingCallerCode, signal: answer });
@@ -802,7 +814,7 @@
     }
 
     socket.on('call-accepted', async ({ signal }) => {
-      document.getElementById('phoneCallState').textContent = 'Connected (Live)';
+      document.getElementById('audioCallState').textContent = 'Connected (Live)';
       if (peerConn && signal) await peerConn.setRemoteDescription(new RTCSessionDescription(signal));
     });
     socket.on('ice-candidate', async ({ candidate }) => { if (peerConn && candidate) try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e){} });
@@ -812,9 +824,7 @@
       if (notify && activeCallPartner) socket.emit('end-call', { targetCode: activeCallPartner });
       if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
       if (peerConn) { peerConn.close(); peerConn = null; }
-      document.getElementById('phoneCallModal').style.display = 'none';
-      document.getElementById('remoteVideoEl').srcObject = null;
-      document.getElementById('localVideoPiP').srcObject = null;
+      document.getElementById('audioCallModal').style.display = 'none';
       document.getElementById('remoteAudioPlayer').srcObject = null;
       incomingCallerCode = null; incomingSignal = null; activeCallPartner = null;
     }
@@ -822,12 +832,7 @@
     function toggleCallAudio() {
       if (!localStream) return;
       const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) { audioTrack.enabled = !audioTrack.enabled; document.getElementById('btnToggleMic').classList.toggle('muted', !audioTrack.enabled); }
-    }
-    function toggleCallVideo() {
-      if (!localStream || !isVideoCallActive) return;
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) { videoTrack.enabled = !videoTrack.enabled; document.getElementById('btnToggleCam').classList.toggle('muted', !videoTrack.enabled); }
+      if (audioTrack) { audioTrack.enabled = !audioTrack.enabled; document.getElementById('btnToggleAudioMic').classList.toggle('muted', !audioTrack.enabled); }
     }
 
     socket.on('call-history-data', (calls = []) => {
@@ -957,7 +962,7 @@
     function handleMicUp() { if (!isHoldingMic || isLocked) return; isHoldingMic = false; document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; clearInterval(timerInterval); if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
     function cancelHoldRecording() { isCancelled = true; isHoldingMic = false; isLocked = false; clearInterval(timerInterval); document.getElementById('actionBtn').classList.remove('recording-active'); document.getElementById('swipeLockBox').style.display = 'none'; document.getElementById('slideCancelText').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
     function cancelLockedRecording() { isCancelled = true; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
-    function stopAndSendRecording() { isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBoard').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
+    function stopAndSendRecording() { isCancelled = false; isLocked = false; isHoldingMic = false; clearInterval(timerInterval); document.getElementById('lockedRecordingBar').style.display = 'none'; if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
   </script>
 </body>
 </html>
