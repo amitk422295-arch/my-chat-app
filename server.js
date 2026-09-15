@@ -31,8 +31,12 @@ mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 5000
-}).then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.error('MongoDB connection error:', err.message));
+}).then(async () => {
+  console.log('MongoDB connected successfully');
+  try {
+    await mongoose.connection.collection('messages').dropIndex('id_1').catch(() => {});
+  } catch(e) {}
+}).catch(err => console.error('MongoDB connection error:', err.message));
 
 const userSchema = new mongoose.Schema({
   userCode: { type: String, unique: true, required: true, lowercase: true },
@@ -54,7 +58,7 @@ const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: tru
 const Status = mongoose.model('Status', statusSchema);
 
 const messageSchema = new mongoose.Schema({
-  messageId: { type: String, unique: true, index: true },
+  messageId: { type: String, unique: true, required: true, index: true },
   senderCode: { type: String, required: true, index: true, lowercase: true },
   receiverCode: { type: String, required: true, index: true, lowercase: true },
   text: { type: String, default: '' },
@@ -81,32 +85,25 @@ io.on('connection', (socket) => {
       if (!rawId.startsWith('@') || rawId.length < 5) {
         return callback({ success: false, error: 'User ID must start with @ and have at least 4 characters after it.' });
       }
-
       if (!cleanMobile || cleanMobile.length < 10) {
         return callback({ success: false, error: 'Valid mobile number is compulsory.' });
       }
-
       if (passStr.length !== 8) {
         return callback({ success: false, error: 'Password must be strictly 8 digits.' });
       }
-
       const cleanQ1 = String(q1 || '').trim().toLowerCase();
       const cleanQ2 = String(q2 || '').trim().toLowerCase();
       const cleanQ3 = String(q3 || '').trim().toLowerCase();
 
       if (!cleanQ1 && !cleanQ2 && !cleanQ3) {
-        return callback({ success: false, error: 'Minimum one security question answer is required to secure your ID.' });
+        return callback({ success: false, error: 'Minimum one security question answer is required.' });
       }
 
       const existingUser = await User.findOne({ userCode: rawId });
-      if (existingUser) {
-        return callback({ success: false, error: 'This User ID is already taken.' });
-      }
+      if (existingUser) return callback({ success: false, error: 'This User ID is already taken.' });
 
       const existingMobile = await User.findOne({ mobile: cleanMobile });
-      if (existingMobile) {
-        return callback({ success: false, error: 'Mobile number already registered.' });
-      }
+      if (existingMobile) return callback({ success: false, error: 'Mobile number already registered.' });
 
       const newUser = await User.create({
         userCode: rawId,
@@ -123,7 +120,6 @@ io.on('connection', (socket) => {
       currentUserCode = rawId;
       socket.join(rawId);
       io.emit('user-online-status', { targetCode: rawId, isOnline: true });
-
       callback({ success: true, user: newUser });
     } catch (e) {
       callback({ success: false, error: 'Registration error: ' + e.message });
@@ -166,29 +162,15 @@ io.on('connection', (socket) => {
 
     try {
       const userObj = await User.findOne({ mobile: cleanMobile });
-      if (!userObj) {
-        return callback({ success: false, error: 'Mobile number not found in database.' });
-      }
+      if (!userObj) return callback({ success: false, error: 'Mobile number not found in database.' });
 
       let matchesCount = 0;
       let totalProvided = 0;
       let hasMismatch = false;
 
-      if (ans1) {
-        totalProvided++;
-        if (userObj.secQ1 && userObj.secQ1 === ans1) matchesCount++;
-        else hasMismatch = true;
-      }
-      if (ans2) {
-        totalProvided++;
-        if (userObj.secQ2 && userObj.secQ2 === ans2) matchesCount++;
-        else hasMismatch = true;
-      }
-      if (ans3) {
-        totalProvided++;
-        if (userObj.secQ3 && userObj.secQ3 === ans3) matchesCount++;
-        else hasMismatch = true;
-      }
+      if (ans1) { totalProvided++; if (userObj.secQ1 && userObj.secQ1 === ans1) matchesCount++; else hasMismatch = true; }
+      if (ans2) { totalProvided++; if (userObj.secQ2 && userObj.secQ2 === ans2) matchesCount++; else hasMismatch = true; }
+      if (ans3) { totalProvided++; if (userObj.secQ3 && userObj.secQ3 === ans3) matchesCount++; else hasMismatch = true; }
 
       if (totalProvided === 0 || hasMismatch || matchesCount === 0) {
         return callback({ success: false, error: 'Authentication failed! Incorrect security answers.' });
@@ -309,8 +291,9 @@ io.on('connection', (socket) => {
       await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: receiverCode } });
       await User.updateOne({ userCode: receiverCode }, { $addToSet: { contacts: currentUserCode } });
 
+      const uniqueMsgId = String(clientMessageId || ('msg_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex')));
       const msg = await Message.create({
-        messageId: String(clientMessageId || ('msg_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'))),
+        messageId: uniqueMsgId,
         senderCode: currentUserCode, 
         receiverCode, 
         text: messageText, 
