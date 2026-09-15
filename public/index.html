@@ -41,7 +41,10 @@
     .panes-wrapper { flex: 1; position: relative; overflow: hidden; }
     .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; background: #0c0c12; }
     .tab-pane.active { display: flex; }
-    .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
+    
+    /* 🌟 FULLY CLICKABLE CHAT ROW 🌟 */
+    .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; pointer-events: auto; }
+    .chat-row:hover { background: rgba(255,255,255,0.02); }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
     
     #chatRoom { position: fixed; inset: 0; background: #09090e; z-index: 60; display: none; flex-direction: column; }
@@ -105,7 +108,7 @@
 
   <!-- FORGOT MODAL -->
   <div id="forgotModal" class="modal" onclick="if(event.target===this)closeForgotModal()">
-    <div class="modal-card">
+    <div class="modal-card" onclick="event.stopPropagation()">
       <h3 style="margin-bottom:8px;">Recover Account</h3>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <input type="tel" id="recMobileInput" class="input-box" placeholder="Registered Mobile *">
@@ -176,7 +179,7 @@
   </div>
 
   <div id="myProfileModal" class="modal" onclick="if(event.target===this)closeMyProfile()">
-    <div class="modal-card">
+    <div class="modal-card" onclick="event.stopPropagation()">
       <h3 style="text-align:center;margin-bottom:14px;">My Profile</h3>
       <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
       <img id="myProfileAvatar" class="profile-edit-avatar" src="" style="width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;border:3px solid #ff3b5c;cursor:pointer;" onclick="document.getElementById('profileAvatarInput').click()">
@@ -191,7 +194,7 @@
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 512 512\'><path fill=\'%239ca3af\' d=\'M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128 z\'/></svg>'">
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 512 512\'><path fill=\'%239ca3af\' d=\'M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z\'/></svg>'">
       <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Online</div>
@@ -200,7 +203,7 @@
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
     
     <div class="bottom-input-bar">
-      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx" onchange="sendMediaFile(this)">
+      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onchange="sendMediaFile(this)">
       <button class="icon-btn" style="width:38px;height:38px;font-size:20px;flex:none;background:#1c1c26;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById('chatMediaInput').click()">📎</button>
       <div class="input-wrapper">
         <div id="msgInputBox" contenteditable="true" placeholder="Type a message or paste..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto;"></div>
@@ -214,8 +217,8 @@
     const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
 
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
-    let unreadMap = {}; // Tracks unread messages count per user: { userCode: count }
-    let uploadingReelData = null; // Stores temporary uploading reel for instant popup preview
+    let unreadMap = {}; 
+    let uploadingReelData = null; 
 
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app'; const MEDIA_CACHE = 'mychat-media-v1';
     let dbPromise = null;
@@ -362,8 +365,8 @@
         return `
         <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(c.avatar||DEFAULT_AVATAR)}')">
           <img src="${escapeAttr(c.avatar||DEFAULT_AVATAR)}" onerror="this.src='${DEFAULT_AVATAR}'">
-          <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
-          <div>${unreadBadge}</div>
+          <div style="flex:1; pointer-events:none;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
+          <div style="pointer-events:none;">${unreadBadge}</div>
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet. Search above to start.</div>';
     }
@@ -384,7 +387,6 @@
       const cleanCode = String(uCode).toLowerCase();
       currentChatTarget = { userCode: cleanCode, name: name || 'User', avatar: avatar || DEFAULT_AVATAR };
       
-      // Clear unread count for this user when opening chat
       unreadMap[cleanCode] = 0;
       renderContacts(globalContacts);
 
@@ -394,6 +396,8 @@
       const cached = await getMessagesLocal(currentChatTarget.userCode);
       if (cached.length) renderMessages(cached);
       syncCurrentChat(false);
+      
+      setTimeout(() => { document.getElementById('msgInputBox').focus(); }, 100);
     }
 
     async function syncCurrentChat(silent) {
@@ -419,10 +423,33 @@
 
     function formatMessageContent(m) {
       const timeStr = new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      let inner = escapeHtml(m.text);
-      if (m.messageType === 'image') inner = `<img data-media-url="${escapeAttr(m.media)}" src="" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:260px;border-radius:8px;display:block;cursor:pointer;">`;
-      else if (m.messageType === 'video') inner = `<video data-media-url="${escapeAttr(m.media)}" controls style="max-width:100%;max-height:260px;border-radius:8px;display:block;"></video>`;
-      return `${inner}<span class="msg-time">${timeStr}</span>`;
+      let innerHtml = '';
+
+      if (m.messageType === 'image') {
+        innerHtml = `<img data-media-url="${escapeAttr(m.media)}" src="" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`;
+      } else if (m.messageType === 'video') {
+        innerHtml = `<video data-media-url="${escapeAttr(m.media)}" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
+      } else if (m.messageType === 'document') {
+        innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; align-items:center; gap:10px; margin-bottom:4px; border: 1px solid rgba(255,255,255,0.1);">
+             <div style="font-size:24px;">📄</div><div style="flex:1; overflow:hidden;">
+             <a href="${escapeAttr(m.media)}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:none; font-weight:600; display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHtml(m.fileName || 'View Document')}</a>
+             <div style="font-size:10px; color:#888; margin-top:2px;">Tap to open PDF/Doc</div></div></div>${escapeHtml(m.text)}`;
+      } else {
+        let txt = escapeHtml(m.text);
+        const ytRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
+        const generalUrlRegex = /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*))/g;
+        
+        if (ytRegex.test(txt)) {
+          txt = txt.replace(ytRegex, (url, match, vidId) => `<div style="margin-top:6px;"><a href="${escapeAttr(url)}" target="_blank" style="color:#ff3b5c;text-decoration:underline;font-weight:600;">▶ Watch Video</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${escapeAttr(vidId)}" frameborder="0" allowfullscreen style="border-radius:8px;margin-top:4px;"></iframe></div>`);
+        } else {
+          txt = txt.replace(generalUrlRegex, function(url) {
+            const cleanUrl = url.replace(/&amp;/g, '&');
+            return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:underline; word-break:break-all; font-weight:500;">${url}</a>`;
+          });
+        }
+        innerHtml = txt;
+      }
+      return `${innerHtml}<span class="msg-time">${timeStr}</span>`;
     }
 
     function renderMessages(messages) {
@@ -431,21 +458,30 @@
         const mine = currentUserData && m.senderCode === currentUserData.userCode;
         return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${formatMessageContent(m)}</div>`;
       }).join('') : '<div style="text-align:center;color:#777;padding:20px;">No messages yet.</div>';
-      rm.scrollTop = rm.scrollHeight; // Auto scroll to latest message
+      rm.scrollTop = rm.scrollHeight; 
       hydrateMediaCache(rm);
     }
 
     function sendChatMessage() {
-      const box = document.getElementById('msgInputBox'); const val = box.innerText.trim();
+      const box = document.getElementById('msgInputBox'); 
+      const val = box.innerText.trim();
       if (!val || !currentChatTarget) return;
       const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-      box.innerText = '';
+      
+      box.innerText = ''; 
+      box.focus(); 
+
       socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId }, res => {
         if (res?.success) syncCurrentChat(true);
       });
     }
 
-    document.getElementById('msgInputBox').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
+    document.getElementById('msgInputBox').addEventListener('keydown', e => { 
+      if (e.key === 'Enter' && !e.shiftKey) { 
+        e.preventDefault(); 
+        sendChatMessage(); 
+      } 
+    });
 
     function uploadFileWithProgress(file, onProgress) {
       return new Promise((resolve, reject) => {
@@ -474,9 +510,9 @@
         });
       } catch (e) { showToast(e.message || 'Upload failed', 'error'); }
       inp.value = '';
+      document.getElementById('msgInputBox').focus(); 
     }
 
-    // NEW MESSAGE LISTENER WITH AUTO-SCROLL AND "NEW MESSAGE" COUNTER
     socket.on('new-message', m => {
       if (!currentUserData) return;
       const sender = m.senderCode;
@@ -484,10 +520,8 @@
       const otherCode = sender === currentUserData.userCode ? receiver : sender;
 
       if (currentChatTarget && currentChatTarget.userCode === otherCode) {
-        // If we are currently inside this chat room, auto-sync and scroll down
         syncCurrentChat(true);
       } else {
-        // If we are outside this chat room, increment unread counter and update UI
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
         renderContacts(globalContacts);
         showToast(`New message from ${otherCode}`, 'info', 2000);
@@ -507,10 +541,8 @@
 
     let myActiveStatusesCount = 0;
     
-    // 🌟 REEL CLICK / VIEW WHILE UPLOADING FEATURE 🌟
     function handleMyStatusClick() {
       if (uploadingReelData) {
-        // View temporary uploading reel in full screen popup with close '✕' button
         openCustomViewer(uploadingReelData.media, uploadingReelData.type, true);
       } else if (myActiveStatusesCount > 0) {
         openStatusViewer(currentUserData.userCode);
@@ -551,20 +583,17 @@
         </div>`).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No recent reels</div>';
     }
 
-    // 🌟 UPLOAD REEL WITH PREVIEW SUPPORT 🌟
     function uploadStatusMedia(inp) {
       const file = inp.files?.[0]; if (!file || !currentUserData) return;
-      
       const tempPreviewUrl = URL.createObjectURL(file);
       const isVid = file.type.startsWith('video/');
       uploadingReelData = { media: tempPreviewUrl, type: isVid ? 'video' : 'image' };
-      
-      loadStatuses(true); // Refresh UI to show uploading indicator & preview capability
+      loadStatuses(true);
 
       uploadFileWithProgress(file).then(res => {
         const type = isVid ? 'video' : 'image';
         socket.emit('post-status', { id: 'status_' + Date.now(), media: res.url, type }, reply => {
-          uploadingReelData = null; // Clear uploading temp state
+          uploadingReelData = null; 
           if (reply?.success) { showToast('Reel posted successfully!', 'success'); loadStatuses(); }
           else { showToast(reply?.error || 'Failed to post', 'error'); loadStatuses(); }
           inp.value = '';
@@ -575,29 +604,34 @@
       });
     }
 
-    // Custom Popup Viewer with Close '✕' button for previewing uploading or active reels
     function openCustomViewer(mediaUrl, mediaType, isUploading = false) {
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;';
-      
+      overlay.onclick = () => overlay.remove(); 
+
+      const card = document.createElement('div');
+      card.style.cssText = 'position:relative;max-width:100%;max-height:90vh;display:flex;align-items:center;justify-content:center;';
+      card.onclick = (e) => e.stopPropagation();
+
       const closeBtn = document.createElement('button');
       closeBtn.textContent = '✕';
-      closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;background:transparent;border:none;color:#fff;font-size:30px;cursor:pointer;z-index:1210;';
+      closeBtn.style.cssText = 'position:absolute;top:-40px;right:0;background:transparent;border:none;color:#fff;font-size:30px;cursor:pointer;z-index:1210;';
       closeBtn.onclick = () => overlay.remove();
-      overlay.appendChild(closeBtn);
+      card.appendChild(closeBtn);
 
       if (isUploading) {
         const badge = document.createElement('div');
         badge.textContent = 'Uploading Reel...';
-        badge.style.cssText = 'position:absolute;top:25px;left:25px;background:#ff3b5c;color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;z-index:1210;';
-        overlay.appendChild(badge);
+        badge.style.cssText = 'position:absolute;top:-40px;left:0;background:#ff3b5c;color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;z-index:1210;';
+        card.appendChild(badge);
       }
 
       const media = mediaType === 'video' ? document.createElement('video') : document.createElement('img');
       media.controls = true; media.autoplay = true; media.src = mediaUrl;
-      media.style.cssText = 'max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;';
+      media.style.cssText = 'max-width:100%;max-height:85vh;border-radius:12px;object-fit:contain;';
       
-      overlay.appendChild(media);
+      card.appendChild(media);
+      overlay.appendChild(card);
       document.body.appendChild(overlay);
     }
 
@@ -610,7 +644,14 @@
     }
 
     function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
-    document.addEventListener('click', () => { document.getElementById('appMenu').style.display = 'none'; });
+    
+    document.addEventListener('click', (e) => {
+      document.getElementById('appMenu').style.display = 'none';
+      const forgotModal = document.getElementById('forgotModal');
+      const profileModal = document.getElementById('myProfileModal');
+      if (e.target === forgotModal) closeForgotModal();
+      if (e.target === profileModal) closeMyProfile();
+    });
 
     function openMyProfile() {
       document.getElementById('myProfileName').value = currentUserData.fullName || '';
