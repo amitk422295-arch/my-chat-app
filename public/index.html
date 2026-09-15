@@ -177,11 +177,11 @@
     <button class="danger" onclick="logoutApp()">🚪 Logout</button>
   </div>
 
-  <!-- CHAT ROOM WITH 3-DOT MENU -->
+  <!-- CHAT ROOM -->
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 512 512\'><path fill=\'%239ca3af\' d=\'M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z\'/></svg>'">
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 512 512\'><path fill=\'%239ca3af\' d=\'M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128 z\'/></svg>'">
       <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Online</div>
@@ -196,8 +196,7 @@
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
     
     <div class="bottom-input-bar">
-      <!-- 🌟 RESTORED: ACCEPT ALL MEDIA TYPES (VIDEOS, IMAGES, PDF, DOCS) 🌟 -->
-      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar" onchange="sendMediaFile(this)">
+      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this)">
       <button class="icon-btn" style="width:38px;height:38px;font-size:20px;flex:none;background:#1c1c26;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById('chatMediaInput').click()">📎</button>
       <div class="input-wrapper">
         <div id="msgInputBox" contenteditable="true" placeholder="Type a message or paste..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto;"></div>
@@ -575,7 +574,8 @@
       showToast(type === 'everyone' ? 'Deleted for everyone' : 'Deleted for me', 'success');
     }
 
-    function sendChatMessage() {
+    // 🌟 INSTANT OPTIMISTIC TEXT MESSAGE SENDING 🌟
+    async function sendChatMessage() {
       const box = document.getElementById('msgInputBox'); 
       const val = box.innerText.trim();
       if (!val || !currentChatTarget) return;
@@ -583,6 +583,20 @@
       
       box.innerText = ''; 
       box.focus(); 
+
+      const tempMsg = {
+        messageId: clientMessageId,
+        senderCode: currentUserData.userCode,
+        receiverCode: currentChatTarget.userCode,
+        text: val,
+        messageType: 'text',
+        createdAt: new Date().toISOString()
+      };
+
+      const cached = await getMessagesLocal(currentChatTarget.userCode);
+      const merged = [...cached, tempMsg];
+      await saveMessagesLocal(currentChatTarget.userCode, merged);
+      renderMessages(merged);
 
       socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId }, res => {
         if (res?.success) syncCurrentChat(true);
@@ -611,15 +625,18 @@
       });
     }
 
+    // 🌟 MEDIA AND VIDEO SENDING FIX 🌟
     async function sendMediaFile(inp) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
       try {
         if (!uploadToken) await new Promise(r => socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { uploadToken = res?.token || ''; r(); }));
         const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document';
-        showToast('Uploading file...', 'info', 2000);
+        showToast('Uploading file...', 'info', 3000);
         const result = await uploadFileWithProgress(file);
+        
         socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: type, fileName: file.name }, res => {
           if (res?.success) syncCurrentChat(true);
+          else showToast('Failed to send file', 'error');
         });
       } catch (e) { showToast(e.message || 'Upload failed', 'error'); }
       inp.value = '';
@@ -866,7 +883,7 @@
     }
 
     function loadCalls() { document.getElementById('callsList').innerHTML = 'Call history empty.'; }
-    logoutApp = function() {
+    function logoutApp() {
       localStorage.removeItem('chatAppUser'); currentUserData = null;
       document.getElementById('mainApp').style.display = 'none';
       document.getElementById('screenAuth').style.display = 'flex';
