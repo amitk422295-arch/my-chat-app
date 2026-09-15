@@ -12,12 +12,14 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app', {
+// MongoDB Connection (Render पर process.env.MONGO_URI होना ज़रूरी है)
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
+mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000 // 5 सेकंड में फेल होने पर तुरंत बता देगा
+}).then(() => console.log('MongoDB connected successfully'))
+  .catch(err => console.error('MongoDB connection error:', err.message));
 
 // Mongoose Schemas & Models
 const userSchema = new mongoose.Schema({
@@ -85,8 +87,13 @@ io.on('connection', (socket) => {
     try {
       if (isRegister) {
         const uCode = query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase();
-        if (!/^@[a-z]{6,}$/.test(uCode)) return callback({ success: false, error: 'User ID must start with @ and have min 6 lowercase alphabetic letters.' });
-        if (passStr.length !== 8) return callback({ success: false, error: 'New registration password must be strictly 8 digits.' });
+        // अब alphabets, numbers, underscore सब अलाउड (min 6 char)
+        if (!/^@[a-z0-9_]{6,}$/.test(uCode)) {
+          return callback({ success: false, error: 'User ID must start with @ and have min 6 lowercase letters/numbers/underscore.' });
+        }
+        if (passStr.length !== 8) {
+          return callback({ success: false, error: 'New registration password must be strictly 8 digits.' });
+        }
         
         const existing = await User.findOne({ userCode: uCode });
         if (existing) return callback({ success: false, error: 'User ID already exists.' });
@@ -285,7 +292,7 @@ io.on('connection', (socket) => {
       const u = await User.findOne({ userCode: currentUserCode });
       const blocked = u && u.blockedByMe && (u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode]);
       cb({ blockedByMe: !!blocked });
-    } catch (e) {
+    } else {
       cb({ blockedByMe: false });
     }
   });
@@ -293,7 +300,7 @@ io.on('connection', (socket) => {
   socket.on('toggle-block', async ({ targetCode }, cb) => {
     try {
       const u = await User.findOne({ userCode: currentUserCode });
-      if (!u) return cb({ salah: false });
+      if (!u) return cb({ success: false });
       if (!u.blockedByMe) u.blockedByMe = new Map();
       const curr = u.blockedByMe.get ? u.blockedByMe.get(targetCode) : u.blockedByMe[targetCode];
       const nextVal = !curr;
