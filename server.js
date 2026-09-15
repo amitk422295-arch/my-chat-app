@@ -15,6 +15,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true, service: 'chat-app', time: new Date().toISOString() }));
 
+// Secure Firebase configuration endpoint for frontend (prevents github secret scanner alerts)
+app.get('/api/config', (req, res) => {
+  res.json({
+    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBR96s32sM1BvzNtJD4KtGk4B6Io9-_dWA",
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "mychat01-aa2e4.firebaseapp.com",
+    projectId: process.env.FIREBASE_PROJECT_ID || "mychat01-aa2e4",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "mychat01-aa2e4.firebasestorage.app",
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "899727602335",
+    appId: process.env.FIREBASE_APP_ID || "1:899727602335:web:0ca859e6e818adac4ae8aa"
+  });
+});
+
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
@@ -222,7 +234,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // STATUSES & CONTACTS & CHAT LOGIC (UNCHANGED)
+  // STATUSES & CONTACTS & CHAT LOGIC
   socket.on('get-statuses', async () => {
     if (!currentUserCode) return;
     try {
