@@ -48,7 +48,10 @@
     #chatRoom { position: fixed; inset: 0; background: #09090e; z-index: 60; display: none; flex-direction: column; }
     .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
-    .input-wrapper input { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; }
+    
+    /* 🌟 ContentEditable Placeholder CSS 🌟 */
+    .input-wrapper [contenteditable]:empty::before { content: attr(placeholder); color: #888; pointer-events: none; }
+    
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
     #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\"><path fill=\"white\" fill-opacity=\"0.025\" d=\"M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z\"/></svg>'); background-size:54px 54px; padding: 14px; }
     
@@ -61,6 +64,10 @@
     .sync-placeholder::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
+    /* 🌟 Reels Uploading Popping Animation 🌟 */
+    @keyframes pulseSkeleton { 0% { opacity: 0.4; transform: scale(0.98); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 0.4; transform: scale(0.98); } }
+    .reel-uploading { animation: pulseSkeleton 1.2s infinite ease-in-out !important; pointer-events: none; opacity: 0.7; }
+
     #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
     #imageModal img { max-width: 100%; max-height: 100vh; object-fit: contain; border-radius: 4px; }
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; }
@@ -68,11 +75,7 @@
     .profile-card { width:100%; max-width:360px; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.8); }
     .profile-card img { width:110px; height:110px; border-radius:50%; object-fit:cover; border:3px solid #ff3b5c; }
     
-    @keyframes pulseRing { 
-      0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 
-      70% { box-shadow: 0 0 0 15px rgba(0,200,83,0); } 
-      100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } 
-    }
+    @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 70% { box-shadow: 0 0 0 15px rgba(0,200,83,0); } 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } }
   </style>
 </head>
 <body>
@@ -91,11 +94,7 @@
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
       <h3 style="color:#fff;" id="authTitle">Create Account</h3>
-      
-      <div id="secureBanner" style="background: rgba(0,200,83,0.15); border: 1px solid #00c853; color: #00ff88; font-size: 11px; font-weight: 700; padding: 6px; border-radius: 8px; text-align: center;">
-        Your ID is super secure! 🛡️
-      </div>
-
+      <div id="secureBanner" style="background: rgba(0,200,83,0.15); border: 1px solid #00c853; color: #00ff88; font-size: 11px; font-weight: 700; padding: 6px; border-radius: 8px; text-align: center;">Your ID is super secure! 🛡️</div>
       <div id="viewRegister" style="display:flex; flex-direction:column; gap:10px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
@@ -109,7 +108,6 @@
         <input type="text" id="regQ3Input" class="input-box" placeholder="3. What is your favorite color?">
         <button class="btn-gradient" type="button" onclick="handleRegisterCustom()" style="margin-top:4px;">Register Now ➔</button>
       </div>
-
       <div id="viewLogin" style="display:none; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
         <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
@@ -118,7 +116,6 @@
           <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal()">Forgot ID / Password?</span>
         </div>
       </div>
-
       <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
     </div>
   </div>
@@ -147,13 +144,14 @@
       <div style="font-size:20px;font-weight:800;display:flex;justify-content:space-between;align-items:center;">
         <span>💖 My Chat App</span>
         <div class="top-actions">
-          <!-- Refresh button strictly removed here for true auto-sync feel -->
+          <!-- Removed Refresh Button -->
           <button class="icon-btn" onclick="toggleAppMenu(event)" aria-label="Menu">⋮</button>
         </div>
       </div>
       <div class="nav-tabs">
         <div class="nav-tab active" onclick="switchTab('paneChats', this)">CHATS</div>
-        <div class="nav-tab" onclick="switchTab('paneStatus', this); loadStatuses();">STATUS</div>
+        <!-- 🌟 Renamed STATUS to REELS 🌟 -->
+        <div class="nav-tab" onclick="switchTab('paneStatus', this); loadStatuses();">REELS</div>
         <div class="nav-tab" onclick="switchTab('paneCalls', this); loadCalls();">CALLS</div>
       </div>
     </div>
@@ -167,7 +165,7 @@
         <div id="chatsList"></div>
       </div>
 
-      <!-- NEW STATUS UI WITH PROPER ID LIKES -->
+      <!-- 🌟 REELS UI 🌟 -->
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
@@ -175,20 +173,20 @@
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
             
             <div style="display:flex; align-items:center; gap:14px; cursor:pointer;" onclick="handleMyStatusClick()">
-              <div id="myStatusRing" style="width:56px; height:56px; border-radius:50%; background:#1c1c26; border:2px dashed #ff3b5c; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px;">
+              <div id="myStatusRing" style="width:56px; height:56px; border-radius:50%; background:#1c1c26; border:2px dashed #ff3b5c; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; transition: all 0.3s;">
                 +
               </div>
               <div>
-                <div style="font-weight:700; font-size:15px; color:#fff;">My Status</div>
-                <div id="myStatusArea" style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to add status update</div>
+                <div style="font-weight:700; font-size:15px; color:#fff;">My Reel</div>
+                <div id="myStatusArea" style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to post a reel</div>
               </div>
             </div>
 
-            <button class="icon-btn" style="width:36px; height:36px; font-size:18px; display:flex; align-items:center; justify-content:center; background:#ff3b5c; color:#fff; border:none;" onclick="document.getElementById('statusMediaInput').click()" title="Add New Status">+</button>
+            <button class="icon-btn" style="width:36px; height:36px; font-size:18px; display:flex; align-items:center; justify-content:center; background:#ff3b5c; color:#fff; border:none;" onclick="document.getElementById('statusMediaInput').click()" title="Post New Reel">+</button>
             
           </div>
 
-          <div style="font-size:13px; font-weight:700; color:#7e7e92; margin-bottom:12px;">RECENT UPDATES</div>
+          <div style="font-size:13px; font-weight:700; color:#7e7e92; margin-bottom:12px;">RECENT REELS</div>
           <div id="contactStatusesArea"></div>
         </div>
       </div>
@@ -235,7 +233,8 @@
       <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onchange="sendMediaFile(this)">
       <button class="icon-btn" style="width:38px;height:38px;font-size:20px;flex:none;background:#1c1c26;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById('chatMediaInput').click()" title="Attach Photo/Video/Document">📎</button>
       <div class="input-wrapper">
-        <input type="text" id="msgInputBox" placeholder="Type a message or paste link...">
+        <!-- 🌟 CONTENT EDITABLE DIV FOR GBOARD GIF/STICKER FIX 🌟 -->
+        <div id="msgInputBox" contenteditable="true" placeholder="Type a message or paste..." style="flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; min-height: 20px; max-height: 100px; overflow-y: auto; word-break: break-word;"></div>
       </div>
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
     </div>
@@ -256,13 +255,7 @@
   </div>
 
   <script>
-    const socket = io({
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 250,
-      reconnectionDelayMax: 3000
-    });
+    const socket = io({ transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 250, reconnectionDelayMax: 3000 });
 
     let authMode = 'reg';
     let regDpBase64 = '';
@@ -270,12 +263,7 @@
     let currentChatTarget = null;
     let uploadToken = '';
 
-    const DB_NAME = 'MyChatLocalDB';
-    const DB_VERSION = 2;
-    const CHAT_STORE = 'chats';
-    const APP_STORE = 'app';
-    const MEDIA_CACHE = 'mychat-media-v1';
-
+    const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app'; const MEDIA_CACHE = 'mychat-media-v1';
     let dbPromise = null;
 
     function openLocalDB() {
@@ -288,237 +276,102 @@
           if (!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: 'key' });
           if (!db.objectStoreNames.contains(APP_STORE)) db.createObjectStore(APP_STORE, { keyPath: 'key' });
         };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-      });
-      return dbPromise;
+        req.onsuccess = () => resolve(req.result); req.onerror = () => resolve(null);
+      }); return dbPromise;
     }
 
     async function idbPut(storeName, value) {
-      const db = await openLocalDB();
-      if (!db) return;
-      return new Promise(resolve => {
-        const tx = db.transaction(storeName, 'readwrite');
-        tx.objectStore(storeName).put(value);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => resolve(false);
-      });
+      const db = await openLocalDB(); if (!db) return;
+      return new Promise(resolve => { const tx = db.transaction(storeName, 'readwrite'); tx.objectStore(storeName).put(value); tx.oncomplete = () => resolve(true); tx.onerror = () => resolve(false); });
     }
 
     async function idbGet(storeName, key) {
-      const db = await openLocalDB();
-      if (!db) return null;
-      return new Promise(resolve => {
-        const tx = db.transaction(storeName, 'readonly');
-        const req = tx.objectStore(storeName).get(key);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      });
+      const db = await openLocalDB(); if (!db) return null;
+      return new Promise(resolve => { const tx = db.transaction(storeName, 'readonly'); const req = tx.objectStore(storeName).get(key); req.onsuccess = () => resolve(req.result || null); req.onerror = () => resolve(null); });
     }
 
-    async function idbDelete(storeName, key) {
-      const db = await openLocalDB();
-      if (!db) return;
-      return new Promise(resolve => {
-        const tx = db.transaction(storeName, 'readwrite');
-        tx.objectStore(storeName).delete(key);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => resolve(false);
-      });
-    }
-
-    async function saveMessagesLocal(userCode, messages) {
-      const clean = Array.isArray(messages) ? messages : [];
-      await idbPut(CHAT_STORE, {
-        key: 'messages:' + String(userCode).toLowerCase(),
-        messages: clean,
-        updatedAt: Date.now()
-      });
-    }
-
-    async function getMessagesLocal(userCode) {
-      const row = await idbGet(CHAT_STORE, 'messages:' + String(userCode).toLowerCase());
-      return row?.messages || [];
-    }
-
-    async function saveContactsLocal(contacts) {
-      await idbPut(APP_STORE, { key: 'contacts', contacts: Array.isArray(contacts) ? contacts : [], updatedAt: Date.now() });
-    }
-
-    async function getContactsLocal() {
-      const row = await idbGet(APP_STORE, 'contacts');
-      return row?.contacts || [];
-    }
-
-    async function saveStatusesLocal(data) {
-      await idbPut(APP_STORE, { key: 'statuses', data, updatedAt: Date.now() });
-    }
-
-    async function getStatusesLocal() {
-      const row = await idbGet(APP_STORE, 'statuses');
-      return row?.data || null;
-    }
-
-    async function requestPersistentStorage() {
-      try {
-        if (navigator.storage?.persist) await navigator.storage.persist();
-      } catch (e) {}
-    }
-
-    async function initLocalStorageSystem() {
-      await openLocalDB();
-      await requestPersistentStorage();
-    }
+    async function saveMessagesLocal(userCode, messages) { await idbPut(CHAT_STORE, { key: 'messages:' + String(userCode).toLowerCase(), messages: Array.isArray(messages) ? messages : [], updatedAt: Date.now() }); }
+    async function getMessagesLocal(userCode) { const row = await idbGet(CHAT_STORE, 'messages:' + String(userCode).toLowerCase()); return row?.messages || []; }
+    async function saveContactsLocal(contacts) { await idbPut(APP_STORE, { key: 'contacts', contacts: Array.isArray(contacts) ? contacts : [], updatedAt: Date.now() }); }
+    async function getContactsLocal() { const row = await idbGet(APP_STORE, 'contacts'); return row?.contacts || []; }
+    async function saveStatusesLocal(data) { await idbPut(APP_STORE, { key: 'statuses', data, updatedAt: Date.now() }); }
+    async function getStatusesLocal() { const row = await idbGet(APP_STORE, 'statuses'); return row?.data || null; }
+    
+    async function requestPersistentStorage() { try { if (navigator.storage?.persist) await navigator.storage.persist(); } catch (e) {} }
+    async function initLocalStorageSystem() { await openLocalDB(); await requestPersistentStorage(); }
 
     async function cacheMediaUrl(url) {
       if (!url || !/^https?:\/\//i.test(url) || !('caches' in window)) return null;
       try {
-        const cache = await caches.open(MEDIA_CACHE);
-        const hit = await cache.match(url);
+        const cache = await caches.open(MEDIA_CACHE); const hit = await cache.match(url);
         if (hit) return URL.createObjectURL(await hit.blob());
         const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-        if (!response.ok) return null;
-        await cache.put(url, response.clone());
-        return URL.createObjectURL(await response.blob());
-      } catch (e) {
-        return null;
-      }
+        if (!response.ok) return null; await cache.put(url, response.clone()); return URL.createObjectURL(await response.blob());
+      } catch (e) { return null; }
     }
 
     async function hydrateMediaCache(root = document) {
       const nodes = root.querySelectorAll('[data-media-url]');
       for (const node of nodes) {
-        const url = node.getAttribute('data-media-url');
-        if (!url) continue;
+        const url = node.getAttribute('data-media-url'); if (!url) continue;
         const localUrl = await cacheMediaUrl(url);
-        if (!localUrl) {
-          if (node.tagName === 'A') node.href = url;
-          else node.src = url;
-          continue;
-        }
-        if (node.tagName === 'A') node.href = localUrl;
-        else node.src = localUrl;
+        if (!localUrl) { if (node.tagName === 'A') node.href = url; else node.src = url; continue; }
+        if (node.tagName === 'A') node.href = localUrl; else node.src = localUrl;
       }
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
       await initLocalStorageSystem();
-
       const savedUser = localStorage.getItem('chatAppUser');
       if (savedUser) {
         try {
           currentUserData = JSON.parse(savedUser);
           if (currentUserData && currentUserData.userCode) {
-            socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
-              if (res?.token) uploadToken = res.token;
-            });
+            socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
             launchMainApp();
-
             const cachedTarget = localStorage.getItem('lastChatTarget');
-            if (cachedTarget) {
-              const cachedMsgs = await getMessagesLocal(cachedTarget);
-              if (cachedMsgs.length) {
-                currentChatTarget = { userCode: cachedTarget, name: 'User', avatar: '' };
-                renderMessages(cachedMsgs);
-              }
-            }
+            if (cachedTarget) { const cachedMsgs = await getMessagesLocal(cachedTarget); if (cachedMsgs.length) { currentChatTarget = { userCode: cachedTarget, name: 'User', avatar: '' }; renderMessages(cachedMsgs); } }
           }
-        } catch (e) {
-          localStorage.removeItem('chatAppUser');
-        }
+        } catch (e) { localStorage.removeItem('chatAppUser'); }
       }
     });
 
-    // ✨ AUTO SYNC FEATURE (NO REFRESH BUTTON NEEDED) ✨
+    // ✨ AUTO SYNC FEATURE ✨
     window.addEventListener('focus', () => {
       if (!currentUserData?.userCode) return;
-      socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
-        if (res?.token) uploadToken = res.token;
-      });
-      syncContacts();
-      loadStatuses(true);
-      if (currentChatTarget) syncCurrentChat(true);
+      socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
+      syncContacts(); loadStatuses(true); if (currentChatTarget) syncCurrentChat(true);
     });
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && currentUserData?.userCode) {
-        syncContacts();
-        loadStatuses(true);
-        if (currentChatTarget) syncCurrentChat(true);
-      }
+      if (!document.hidden && currentUserData?.userCode) { syncContacts(); loadStatuses(true); if (currentChatTarget) syncCurrentChat(true); }
     });
 
     socket.on('connect', () => {
       if (!currentUserData?.userCode) return;
-      socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
-        if (res?.token) uploadToken = res.token;
-      });
-      syncContacts();
-      if (currentChatTarget) syncCurrentChat(true);
+      socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
+      syncContacts(); if (currentChatTarget) syncCurrentChat(true);
     });
 
-    // ✨ BLINKING TOAST FIX ✨
     let toastTimeout;
     function showToast(msg, type='info', duration=3500) {
-      const t = document.getElementById('toastBox');
-      t.className = type; 
-      t.textContent = msg; 
-      t.style.display = 'flex';
-      
-      clearTimeout(toastTimeout);
-      
-      if(duration > 0) {
-        toastTimeout = setTimeout(()=> { if(t) t.style.display='none'; }, duration);
-      }
+      const t = document.getElementById('toastBox'); t.className = type; t.textContent = msg; t.style.display = 'flex';
+      clearTimeout(toastTimeout); if(duration > 0) toastTimeout = setTimeout(()=> { if(t) t.style.display='none'; }, duration);
     }
 
     function toggleAuthMode() {
-      const loginView = document.getElementById('viewLogin');
-      const regView = document.getElementById('viewRegister');
-      const title = document.getElementById('authTitle');
-      const switchText = document.getElementById('authSwitchText');
-      const secureBanner = document.getElementById('secureBanner');
-
-      if (authMode === 'login') {
-        authMode = 'reg';
-        title.textContent = 'Create Account';
-        secureBanner.style.display = 'block';
-        loginView.style.display = 'none'; regView.style.display = 'flex';
-        switchText.textContent = 'Already have an account? Login';
-      } else {
-        authMode = 'login';
-        title.textContent = 'Welcome Back';
-        secureBanner.style.display = 'none';
-        regView.style.display = 'none'; loginView.style.display = 'flex';
-        switchText.textContent = 'New here? Register Account';
-      }
+      const loginView = document.getElementById('viewLogin'); const regView = document.getElementById('viewRegister');
+      const title = document.getElementById('authTitle'); const switchText = document.getElementById('authSwitchText'); const secureBanner = document.getElementById('secureBanner');
+      if (authMode === 'login') { authMode = 'reg'; title.textContent = 'Create Account'; secureBanner.style.display = 'block'; loginView.style.display = 'none'; regView.style.display = 'flex'; switchText.textContent = 'Already have an account? Login'; } 
+      else { authMode = 'login'; title.textContent = 'Welcome Back'; secureBanner.style.display = 'none'; regView.style.display = 'none'; loginView.style.display = 'flex'; switchText.textContent = 'New here? Register Account'; }
     }
 
-    function previewDp(inp) {
-      const file = inp.files && inp.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; };
-      reader.readAsDataURL(file);
-    }
-
-    function changeMyAvatar(inp) {
-      const file = inp.files && inp.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; };
-      reader.readAsDataURL(file);
-    }
+    function previewDp(inp) { const file = inp.files && inp.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; }; reader.readAsDataURL(file); }
+    function changeMyAvatar(inp) { const file = inp.files && inp.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; }; reader.readAsDataURL(file); }
 
     function handleRegisterCustom() {
-      const name = document.getElementById('regNameInput').value.trim();
-      const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
-      const userId = document.getElementById('regUserIdInput').value.trim().toLowerCase();
-      const pass = document.getElementById('regPassInput').value.trim();
-      const q1 = document.getElementById('regQ1Input').value.trim();
-      const q2 = document.getElementById('regQ2Input').value.trim();
-      const q3 = document.getElementById('regQ3Input').value.trim();
-
+      const name = document.getElementById('regNameInput').value.trim(); const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, ''); const userId = document.getElementById('regUserIdInput').value.trim().toLowerCase();
+      const pass = document.getElementById('regPassInput').value.trim(); const q1 = document.getElementById('regQ1Input').value.trim(); const q2 = document.getElementById('regQ2Input').value.trim(); const q3 = document.getElementById('regQ3Input').value.trim();
       if (mobile.length < 10) { showToast('Valid 10+ digit mobile number required', 'error'); return; }
       if (!userId.startsWith('@') || userId.length < 5) { showToast('User ID must start with @ and have 4+ characters', 'error'); return; }
       if (pass.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
@@ -526,84 +379,38 @@
 
       showToast('Creating account...', 'info');
       socket.emit('register-custom', { userCode:userId, password:pass, fullName:name, mobile, avatar:regDpBase64, q1,q2,q3 }, res => {
-        if (res?.success) {
-          currentUserData = res.user;
-          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          socket.emit('set-socket-user', { userCode: currentUserData.userCode }, tokenRes => {
-            if (tokenRes?.token) uploadToken = tokenRes.token;
-          });
-          showToast('Registration successful!', 'success');
-          launchMainApp();
-        } else showToast(res?.error || 'Registration failed', 'error');
+        if (res?.success) { currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); socket.emit('set-socket-user', { userCode: currentUserData.userCode }, tokenRes => { if (tokenRes?.token) uploadToken = tokenRes.token; }); showToast('Registration successful!', 'success'); launchMainApp(); } 
+        else showToast(res?.error || 'Registration failed', 'error');
       });
     }
 
     function handleLogin() {
-      const id = document.getElementById('loginIdInput').value.trim();
-      const pass = document.getElementById('loginPassInput').value.trim();
+      const id = document.getElementById('loginIdInput').value.trim(); const pass = document.getElementById('loginPassInput').value.trim();
       if(!id || !pass) { showToast('Enter ID/Mobile and Password', 'error'); return; }
       showToast('Logging in...', 'info');
       socket.emit('auth-user', { userCode:id, password:pass }, res => {
-        if (res?.success) {
-          currentUserData = res.user;
-          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          socket.emit('set-socket-user', { userCode: currentUserData.userCode }, tokenRes => {
-            if (tokenRes?.token) uploadToken = tokenRes.token;
-          });
-          showToast('Welcome back!', 'success');
-          launchMainApp();
-        } else showToast(res?.error || 'Invalid credentials', 'error');
+        if (res?.success) { currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); socket.emit('set-socket-user', { userCode: currentUserData.userCode }, tokenRes => { if (tokenRes?.token) uploadToken = tokenRes.token; }); showToast('Welcome back!', 'success'); launchMainApp(); } 
+        else showToast(res?.error || 'Invalid credentials', 'error');
       });
     }
 
-    function openForgotModal() {
-      document.getElementById('recoveryResultDisplay').textContent='';
-      document.getElementById('recMobileInput').value='';
-      document.getElementById('recQ1Input').value='';
-      document.getElementById('recQ2Input').value='';
-      document.getElementById('recQ3Input').value='';
-      document.getElementById('recNewPassInput').value='';
-      document.getElementById('forgotModal').style.display='flex';
-    }
+    function openForgotModal() { document.getElementById('recoveryResultDisplay').textContent=''; document.getElementById('recMobileInput').value=''; document.getElementById('recQ1Input').value=''; document.getElementById('recQ2Input').value=''; document.getElementById('recQ3Input').value=''; document.getElementById('recNewPassInput').value=''; document.getElementById('forgotModal').style.display='flex'; }
     function closeForgotModal(){ document.getElementById('forgotModal').style.display='none'; }
-
     function submitRecovery() {
-      const mobile=document.getElementById('recMobileInput').value.trim();
-      const q1=document.getElementById('recQ1Input').value.trim();
-      const q2=document.getElementById('recQ2Input').value.trim();
-      const q3=document.getElementById('recQ3Input').value.trim();
-      const newPassword=document.getElementById('recNewPassInput').value.trim();
-      if(!mobile){showToast('Enter your mobile number','error');return;}
-      if(!q1&&!q2&&!q3){showToast('Please answer at least one security question','error');return;}
+      const mobile=document.getElementById('recMobileInput').value.trim(); const q1=document.getElementById('recQ1Input').value.trim(); const q2=document.getElementById('recQ2Input').value.trim(); const q3=document.getElementById('recQ3Input').value.trim(); const newPassword=document.getElementById('recNewPassInput').value.trim();
+      if(!mobile){showToast('Enter your mobile number','error');return;} if(!q1&&!q2&&!q3){showToast('Please answer at least one security question','error');return;}
       showToast('Verifying answers...','info');
       socket.emit('recover-account',{mobile,q1,q2,q3,newPassword},res=>{
-        if(res?.success){
-          document.getElementById('recoveryResultDisplay').innerHTML=`${escapeHtml(res.message)}<br><span style="color:#fff;font-size:12px;">Your User ID is: <b>${escapeHtml(res.userCode)}</b></span>`;
-          showToast('Recovery successful!','success');
-        } else showToast(res?.error||'Verification failed','error');
+        if(res?.success){ document.getElementById('recoveryResultDisplay').innerHTML=`${escapeHtml(res.message)}<br><span style="color:#fff;font-size:12px;">Your User ID is: <b>${escapeHtml(res.userCode)}</b></span>`; showToast('Recovery successful!','success'); } 
+        else showToast(res?.error||'Verification failed','error');
       });
     }
 
-    function launchMainApp() {
-      document.getElementById('screenAuth').style.display='none';
-      document.getElementById('mainApp').style.display='flex';
-      loadContacts();
-      loadStatuses(true);
-    }
-
-    function switchTab(paneId, tabEl) {
-      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-      document.getElementById(paneId).classList.add('active');
-      tabEl.classList.add('active');
-      if (paneId === 'paneChats') loadContacts();
-      if (paneId === 'paneStatus') loadStatuses();
-      if (paneId === 'paneCalls') loadCalls();
-    }
+    function launchMainApp() { document.getElementById('screenAuth').style.display='none'; document.getElementById('mainApp').style.display='flex'; loadContacts(); loadStatuses(true); }
+    function switchTab(paneId, tabEl) { document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active')); document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active')); document.getElementById(paneId).classList.add('active'); tabEl.classList.add('active'); if (paneId === 'paneChats') loadContacts(); if (paneId === 'paneStatus') loadStatuses(); if (paneId === 'paneCalls') loadCalls(); }
 
     function renderContacts(contacts) {
-      const list=document.getElementById('chatsList');
-      const arr=Array.isArray(contacts)?contacts:[];
+      const list=document.getElementById('chatsList'); const arr=Array.isArray(contacts)?contacts:[];
       list.innerHTML=arr.length?arr.map(c=>`
         <div class="chat-row" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(c.avatar||'')}')">
           <img src="${escapeAttr(c.avatar||'')}" onerror="this.style.opacity=.35" onclick="event.stopPropagation(); if(this.src) openFullScreenImage(this.src);" style="cursor:pointer;">
@@ -611,461 +418,236 @@
         </div>`).join(''):'<div style="padding:20px;color:#7e7e92;text-align:center;">No other users found yet.</div>';
     }
 
-    function loadContacts() {
-      getContactsLocal().then(local=>{ if(local.length) renderContacts(local); });
-      syncContacts();
-    }
+    function loadContacts() { getContactsLocal().then(local=>{ if(local.length) renderContacts(local); }); syncContacts(); }
+    function syncContacts() { if(!currentUserData?.userCode || !socket.connected) return; socket.emit('get-contacts'); }
+    socket.on('contact-list-data', async ({contacts}) => { const arr=Array.isArray(contacts)?contacts:[]; await saveContactsLocal(arr); renderContacts(arr); });
 
-    function syncContacts() {
-      if(!currentUserData?.userCode || !socket.connected) return;
-      socket.emit('get-contacts');
-    }
-
-    socket.on('contact-list-data', async ({contacts}) => {
-      const arr=Array.isArray(contacts)?contacts:[];
-      await saveContactsLocal(arr);
-      renderContacts(arr);
-    });
-
-    function openDirectChat() {
-      const query=document.getElementById('directSearchInput').value.trim();
-      if(!query)return;
-      socket.emit('open-direct-chat',{targetCode:query,query},res=>{
-        if(res?.success) openChatWith(res.user.userCode,res.user.fullName,res.user.avatar);
-        else showToast(res?.error||'User not found.','error');
-      });
-    }
-
+    function openDirectChat() { const query=document.getElementById('directSearchInput').value.trim(); if(!query)return; socket.emit('open-direct-chat',{targetCode:query,query},res=>{ if(res?.success) openChatWith(res.user.userCode,res.user.fullName,res.user.avatar); else showToast(res?.error||'User not found.','error'); }); }
     async function openChatWith(uCode,name,avatar) {
-      currentChatTarget={userCode:String(uCode).toLowerCase(),name:name||'User',avatar:avatar||''};
-      localStorage.setItem('lastChatTarget',currentChatTarget.userCode);
-      document.getElementById('roomUserName').textContent=currentChatTarget.name;
-      document.getElementById('roomUserAvatar').src=currentChatTarget.avatar||'';
-      document.getElementById('chatRoom').style.display='flex';
-
-      const cached=await getMessagesLocal(currentChatTarget.userCode);
-      if(cached.length) renderMessages(cached);
-      else document.getElementById('roomMessages').innerHTML='<div style="text-align:center;color:#777;font-size:12px;padding:20px;">Loading messages...</div>';
-
+      currentChatTarget={userCode:String(uCode).toLowerCase(),name:name||'User',avatar:avatar||''}; localStorage.setItem('lastChatTarget',currentChatTarget.userCode);
+      document.getElementById('roomUserName').textContent=currentChatTarget.name; document.getElementById('roomUserAvatar').src=currentChatTarget.avatar||''; document.getElementById('chatRoom').style.display='flex';
+      const cached=await getMessagesLocal(currentChatTarget.userCode); if(cached.length) renderMessages(cached); else document.getElementById('roomMessages').innerHTML='<div style="text-align:center;color:#777;font-size:12px;padding:20px;">Loading messages...</div>';
       syncCurrentChat(false);
     }
 
-    // ✨ FAST CHAT LOADING (NO SHAKE) ✨
     async function syncCurrentChat(silent) {
-      if(!currentChatTarget || !socket.connected) return;
-      const cached=await getMessagesLocal(currentChatTarget.userCode);
-      const after=cached.length ? cached[cached.length-1]?.createdAt : null;
+      if(!currentChatTarget || !socket.connected) return; const cached=await getMessagesLocal(currentChatTarget.userCode); const after=cached.length ? cached[cached.length-1]?.createdAt : null;
       socket.emit('get-messages',{targetCode:currentChatTarget.userCode,after},async res=>{
         if(!res?.success) { if(!silent) showToast(res?.error||'Could not load messages','error'); return; }
-        
-        if (res.full) {
-          await saveMessagesLocal(currentChatTarget.userCode,res.messages||[]);
-          renderMessages(res.messages||[]);
-        } else if ((res.messages||[]).length) {
-          
+        if (res.full) { await saveMessagesLocal(currentChatTarget.userCode,res.messages||[]); renderMessages(res.messages||[]); } 
+        else if ((res.messages||[]).length) {
           const newMsgs = res.messages.filter(m => !document.querySelector(`[data-message-id="${m.messageId}"]`));
-          
           if (newMsgs.length > 0) {
-            const merged = mergeMessages(cached, newMsgs);
-            await saveMessagesLocal(currentChatTarget.userCode, merged);
-            
+            const merged = mergeMessages(cached, newMsgs); await saveMessagesLocal(currentChatTarget.userCode, merged);
             const rm = document.getElementById('roomMessages');
             newMsgs.forEach(m => {
-                const mine = currentUserData && m.senderCode === currentUserData.userCode;
-                const newDiv = document.createElement('div');
-                newDiv.className = `msg-bubble ${mine ? 'mine' : 'theirs'}`;
-                newDiv.setAttribute('data-message-id', m.messageId);
-                newDiv.innerHTML = formatMessageContent(m);
-                rm.appendChild(newDiv);
-                hydrateMediaCache(newDiv);
-            });
-            rm.scrollTop = rm.scrollHeight;
+                const mine = currentUserData && m.senderCode === currentUserData.userCode; const newDiv = document.createElement('div');
+                newDiv.className = `msg-bubble ${mine ? 'mine' : 'theirs'}`; newDiv.setAttribute('data-message-id', m.messageId); newDiv.innerHTML = formatMessageContent(m);
+                rm.appendChild(newDiv); hydrateMediaCache(newDiv);
+            }); rm.scrollTop = rm.scrollHeight;
           }
         }
       });
     }
 
-    function mergeMessages(a,b) {
-      const map=new Map();
-      [...(a||[]),...(b||[])].forEach(m=>{ if(m?.messageId) map.set(m.messageId,m); });
-      return Array.from(map.values()).sort((x,y)=>new Date(x.createdAt)-new Date(y.createdAt)).slice(-500);
-    }
-
+    function mergeMessages(a,b) { const map=new Map(); [...(a||[]),...(b||[])].forEach(m=>{ if(m?.messageId) map.set(m.messageId,m); }); return Array.from(map.values()).sort((x,y)=>new Date(x.createdAt)-new Date(y.createdAt)).slice(-500); }
     function closeChatRoom(){document.getElementById('chatRoom').style.display='none';currentChatTarget=null;}
-
     function escapeHtml(value){return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
     function escapeAttr(value){return escapeHtml(value).replace(/`/g,'&#96;');}
-
     function openFullScreenImage(imgSrc){document.getElementById('fullScreenImage').src=imgSrc;document.getElementById('imageModal').style.display='flex';}
     function closeImageModal(){document.getElementById('imageModal').style.display='none';}
 
-    // ✨ PDF & UNIVERSAL LINKS FIX ✨
     function formatMessageContent(m) {
-      const timeStr=new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-      let innerHtml='';
-      
-      if(m.messageType==='image'){
-        innerHtml=`<img data-media-url="${escapeAttr(m.media)}" src="" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;" title="Click to view full screen">`;
-      } else if(m.messageType==='video'){
-        innerHtml=`<video data-media-url="${escapeAttr(m.media)}" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
-      } else if(m.messageType==='document'){
+      const timeStr=new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); let innerHtml='';
+      if(m.messageType==='image'){ innerHtml=`<img data-media-url="${escapeAttr(m.media)}" src="" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;" title="Click to view full screen">`; } 
+      else if(m.messageType==='video'){ innerHtml=`<video data-media-url="${escapeAttr(m.media)}" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`; } 
+      else if(m.messageType==='document'){
         innerHtml=`<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; align-items:center; gap:10px; margin-bottom:4px; border: 1px solid rgba(255,255,255,0.1);">
-             <div style="font-size:24px;">📄</div>
-             <div style="flex:1; overflow:hidden;">
-               <a href="${escapeAttr(m.media)}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:none; font-weight:600; display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHtml(m.fileName || 'View Document')}</a>
-               <div style="font-size:10px; color:#888; margin-top:2px;">Tap to open PDF/Doc</div>
-             </div>
-           </div>${escapeHtml(m.text)}`;
+             <div style="font-size:24px;">📄</div><div style="flex:1; overflow:hidden;">
+             <a href="${escapeAttr(m.media)}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:none; font-weight:600; display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHtml(m.fileName || 'View Document')}</a>
+             <div style="font-size:10px; color:#888; margin-top:2px;">Tap to open PDF/Doc</div></div></div>${escapeHtml(m.text)}`;
       } else {
         let txt=escapeHtml(m.text);
-        
         const ytRegex=/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
         const generalUrlRegex = /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*))/g;
-
-        if(ytRegex.test(txt)) {
-          txt=txt.replace(ytRegex,(url,match,vidId)=>`<div style="margin-top:6px;"><a href="${escapeAttr(url)}" target="_blank" style="color:#ff3b5c;text-decoration:underline;font-weight:600;">▶ Watch Video</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${escapeAttr(vidId)}" frameborder="0" allowfullscreen style="border-radius:8px;margin-top:4px;"></iframe></div>`);
-        } else {
-          txt = txt.replace(generalUrlRegex, function(url) {
-            const cleanUrl = url.replace(/&amp;/g, '&');
-            return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:underline; word-break:break-all; font-weight:500;">${url}</a>`;
-          });
-        }
+        if(ytRegex.test(txt)) { txt=txt.replace(ytRegex,(url,match,vidId)=>`<div style="margin-top:6px;"><a href="${escapeAttr(url)}" target="_blank" style="color:#ff3b5c;text-decoration:underline;font-weight:600;">▶ Watch Video</a><br><iframe width="100%" height="150" src="https://www.youtube.com/embed/${escapeAttr(vidId)}" frameborder="0" allowfullscreen style="border-radius:8px;margin-top:4px;"></iframe></div>`); } 
+        else { txt = txt.replace(generalUrlRegex, function(url) { const cleanUrl = url.replace(/&amp;/g, '&'); return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:underline; word-break:break-all; font-weight:500;">${url}</a>`; }); }
         innerHtml=txt;
-      }
-      return `${innerHtml}<span class="msg-time">${timeStr}</span>`;
+      } return `${innerHtml}<span class="msg-time">${timeStr}</span>`;
     }
 
     function renderMessages(messages) {
-      const rm=document.getElementById('roomMessages');
-      if(!messages.length){rm.innerHTML='<div style="text-align:center;color:#777;font-size:12px;padding:30px;">No messages yet. Say hello 👋</div>';return;}
-      rm.innerHTML=messages.map(m=>{
-        const mine=currentUserData&&m.senderCode===currentUserData.userCode;
-        return `<div class="msg-bubble ${mine?'mine':'theirs'}" data-message-id="${escapeAttr(m.messageId)}">${formatMessageContent(m)}</div>`;
-      }).join('');
-      rm.scrollTop=rm.scrollHeight;
-      hydrateMediaCache(rm);
+      const rm=document.getElementById('roomMessages'); if(!messages.length){rm.innerHTML='<div style="text-align:center;color:#777;font-size:12px;padding:30px;">No messages yet. Say hello 👋</div>';return;}
+      rm.innerHTML=messages.map(m=>{ const mine=currentUserData&&m.senderCode===currentUserData.userCode; return `<div class="msg-bubble ${mine?'mine':'theirs'}" data-message-id="${escapeAttr(m.messageId)}">${formatMessageContent(m)}</div>`; }).join('');
+      rm.scrollTop=rm.scrollHeight; hydrateMediaCache(rm);
     }
 
+    // 🌟 CONTENTEDITABLE CHAT SEND LOGIC 🌟
     function sendChatMessage() {
-      const box=document.getElementById('msgInputBox');
-      const val=box.value.trim();
-      if(!val||!currentChatTarget)return;
-      const clientMessageId='msg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-      const optimistic={messageId:clientMessageId,senderCode:currentUserData.userCode,receiverCode:currentChatTarget.userCode,text:val,messageType:'text',media:'',fileName:'',createdAt:new Date().toISOString()};
-      box.value='';
+      const box = document.getElementById('msgInputBox');
+      const val = box.innerText.trim();
+      if(!val || !currentChatTarget) return;
+      const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      const optimistic = {messageId:clientMessageId, senderCode:currentUserData.userCode, receiverCode:currentChatTarget.userCode, text:val, messageType:'text', media:'', fileName:'', createdAt:new Date().toISOString()};
+      box.innerText = '';
       addMessageLocalAndRender(optimistic);
-      socket.emit('send-message',{targetCode:currentChatTarget.userCode,text:val,messageType:'text',clientMessageId},res=>{
-        if(!res?.success){removeMessageFromLocal(clientMessageId);box.value=val;showToast(res?.error||'Message failed','error');}
+      socket.emit('send-message', {targetCode:currentChatTarget.userCode, text:val, messageType:'text', clientMessageId}, res => {
+        if(!res?.success){ removeMessageFromLocal(clientMessageId); box.innerText = val; showToast(res?.error||'Message failed','error'); }
       });
     }
 
-    async function addMessageLocalAndRender(message) {
-      if(!currentChatTarget)return;
-      
-      const existing=await getMessagesLocal(currentChatTarget.userCode);
-      const merged=mergeMessages(existing,[message]);
-      await saveMessagesLocal(currentChatTarget.userCode,merged);
-
-      const rm = document.getElementById('roomMessages');
-      
-      if (document.querySelector(`[data-message-id="${message.messageId}"]`)) {
-          return; 
+    // 🌟 KEYBOARD GIF/STICKER PASTE SUPPORT 🌟
+    document.getElementById('msgInputBox').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
+    document.getElementById('msgInputBox').addEventListener('paste', (e) => {
+      const items = (e.clipboardData || window.clipboardData).items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          e.preventDefault(); const file = items[i].getAsFile(); const dataTransfer = new DataTransfer(); dataTransfer.items.add(file);
+          const fileInput = document.getElementById('chatMediaInput'); fileInput.files = dataTransfer.files; sendMediaFile(fileInput); return;
+        }
       }
-      
-      const mine = currentUserData && message.senderCode === currentUserData.userCode;
-      
-      const newDiv = document.createElement('div');
-      newDiv.className = `msg-bubble ${mine ? 'mine' : 'theirs'}`;
-      newDiv.setAttribute('data-message-id', message.messageId);
-      newDiv.innerHTML = formatMessageContent(message);
-      
-      rm.appendChild(newDiv);
-      rm.scrollTop = rm.scrollHeight;
-      
-      hydrateMediaCache(newDiv);
+    });
+
+    async function addMessageLocalAndRender(message) {
+      if(!currentChatTarget)return; const existing=await getMessagesLocal(currentChatTarget.userCode); const merged=mergeMessages(existing,[message]); await saveMessagesLocal(currentChatTarget.userCode,merged);
+      const rm = document.getElementById('roomMessages'); if (document.querySelector(`[data-message-id="${message.messageId}"]`)) return; 
+      const mine = currentUserData && message.senderCode === currentUserData.userCode; const newDiv = document.createElement('div');
+      newDiv.className = `msg-bubble ${mine ? 'mine' : 'theirs'}`; newDiv.setAttribute('data-message-id', message.messageId); newDiv.innerHTML = formatMessageContent(message);
+      rm.appendChild(newDiv); rm.scrollTop = rm.scrollHeight; hydrateMediaCache(newDiv);
     }
 
     async function removeMessageFromLocal(messageId) {
-      if(!currentChatTarget)return;
-      const existing=await getMessagesLocal(currentChatTarget.userCode);
-      await saveMessagesLocal(currentChatTarget.userCode,existing.filter(m=>m.messageId!==messageId));
+      if(!currentChatTarget)return; const existing=await getMessagesLocal(currentChatTarget.userCode); await saveMessagesLocal(currentChatTarget.userCode,existing.filter(m=>m.messageId!==messageId));
       renderMessages(existing.filter(m=>m.messageId!==messageId));
     }
 
     function uploadFileWithProgress(file,onProgress) {
       return new Promise((resolve,reject)=>{
-        const xhr=new XMLHttpRequest();
-        xhr.open('POST','/api/upload-media');
-        xhr.setRequestHeader('X-User-Code',currentUserData.userCode);
-        xhr.setRequestHeader('X-Upload-Token',uploadToken||'');
+        const xhr=new XMLHttpRequest(); xhr.open('POST','/api/upload-media'); xhr.setRequestHeader('X-User-Code',currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token',uploadToken||'');
         xhr.upload.onprogress=e=>{if(e.lengthComputable&&onProgress)onProgress(Math.round(e.loaded/e.total*100));};
-        xhr.onload=()=>{
-          try{
-            const data=JSON.parse(xhr.responseText||'{}');
-            if(xhr.status>=200&&xhr.status<300&&data.success)resolve(data);
-            else reject(new Error(data.error||'Upload failed'));
-          }catch(e){reject(new Error('Invalid upload response'));}
-        };
-        xhr.onerror=()=>reject(new Error('Network upload failed'));
-        const form=new FormData();
-        form.append('media',file,file.name);
-        xhr.send(form);
+        xhr.onload=()=>{ try{ const data=JSON.parse(xhr.responseText||'{}'); if(xhr.status>=200&&xhr.status<300&&data.success)resolve(data); else reject(new Error(data.error||'Upload failed')); }catch(e){reject(new Error('Invalid upload response'));} };
+        xhr.onerror=()=>reject(new Error('Network upload failed')); const form=new FormData(); form.append('media',file,file.name); xhr.send(form);
       });
     }
 
     async function sendMediaFile(inp) {
-      const file=inp.files&&inp.files[0];
-      if(!file||!currentChatTarget)return;
-      const tempId='sync_'+Date.now();
-      const rm=document.getElementById('roomMessages');
-      rm.insertAdjacentHTML('beforeend',`<div id="${tempId}" class="msg-bubble mine" style="padding:4px;"><div class="sync-placeholder"><div style="width:24px;height:24px;border:2px solid #ff3b5c;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;"></div><span id="${tempId}_txt">Uploading 0%...</span></div></div>`);
+      const file=inp.files&&inp.files[0]; if(!file||!currentChatTarget)return; const tempId='sync_'+Date.now(); const rm=document.getElementById('roomMessages');
+      rm.insertAdjacentHTML('beforeend',`<div id="${tempId}" class="msg-bubble mine" style="padding:4px;"><div class="sync-placeholder"><div style="width:24px;height:24px;border:2px solid #ff3b5c;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;"></div><span id="${tempId}_txt">Uploading...</span></div></div>`);
       rm.scrollTop=rm.scrollHeight;
       try{
-        if(!uploadToken){
-          await new Promise(resolve=>socket.emit('set-socket-user',{userCode:currentUserData.userCode},r=>{uploadToken=r?.token||'';resolve();}));
-        }
+        if(!uploadToken) await new Promise(resolve=>socket.emit('set-socket-user',{userCode:currentUserData.userCode},r=>{uploadToken=r?.token||'';resolve();}));
         const type=file.type.startsWith('image/')?'image':file.type.startsWith('video/')?'video':'document';
-        const result=await uploadFileWithProgress(file,p=>{const el=document.getElementById(tempId+'_txt');if(el)el.textContent='Uploading '+p+'%...';});
+        const result=await uploadFileWithProgress(file, p=>{});
         const clientMessageId='msg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
         socket.emit('send-message',{targetCode:currentChatTarget.userCode,text:file.name,media:result.url,messageType:type,fileName:file.name,clientMessageId},async res=>{
           document.getElementById(tempId)?.remove();
-          if(res?.success){
-            await addMessageLocalAndRender(res.message);
-            showToast('Uploaded & synced successfully!','success');
-          } else showToast(res?.error||'Media upload failed','error');
-          inp.value='';
+          if(res?.success){ await addMessageLocalAndRender(res.message); } else showToast(res?.error||'Media upload failed','error'); inp.value='';
         });
-      }catch(e){
-        document.getElementById(tempId)?.remove();
-        showToast(e.message||'Media upload failed','error');
-        inp.value='';
-      }
+      }catch(e){ document.getElementById(tempId)?.remove(); showToast(e.message||'Media upload failed','error'); inp.value=''; }
     }
 
-    const styleSheet=document.styleSheets[0];
-    styleSheet.insertRule(`@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`,styleSheet.cssRules.length);
-    document.getElementById('msgInputBox').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChatMessage();}});
+    const styleSheet=document.styleSheets[0]; styleSheet.insertRule(`@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`,styleSheet.cssRules.length);
 
     socket.on('new-message',async m=>{
-      if(!currentUserData)return;
-      const otherCode=m.senderCode===currentUserData.userCode?m.receiverCode:m.senderCode;
-      if(currentChatTarget&&currentChatTarget.userCode===otherCode){
-        await addMessageLocalAndRender(m);
-      } else {
-        const existing=await getMessagesLocal(otherCode);
-        await saveMessagesLocal(otherCode,mergeMessages(existing,[m]));
-      }
+      if(!currentUserData)return; const otherCode=m.senderCode===currentUserData.userCode?m.receiverCode:m.senderCode;
+      if(currentChatTarget&&currentChatTarget.userCode===otherCode){ await addMessageLocalAndRender(m); } else { const existing=await getMessagesLocal(otherCode); await saveMessagesLocal(otherCode,mergeMessages(existing,[m])); }
       syncContacts();
     });
 
-    socket.on('user-online-status',({targetCode,isOnline})=>{
-      if(currentChatTarget?.userCode===String(targetCode).toLowerCase()){
-        document.getElementById('roomUserStatus').textContent=isOnline?'Online':'Offline';
-      }
-    });
+    socket.on('user-online-status',({targetCode,isOnline})=>{ if(currentChatTarget?.userCode===String(targetCode).toLowerCase()){ document.getElementById('roomUserStatus').textContent=isOnline?'Online':'Offline'; } });
+    socket.on('status-updated', () => { loadStatuses(); });
 
-    // ✨ STATUS UPDATED LISTENER ✨
-    socket.on('status-updated', () => {
-      loadStatuses(); 
-    });
+    async function loadStatuses(useLocalFirst=false) { const local=await getStatusesLocal(); if(local) renderStatuses(local); if(socket.connected) socket.emit('get-statuses'); }
+    socket.on('status-data',async data=>{ await saveStatusesLocal(data); renderStatuses(data); cacheStatusMedia(data); });
+    async function cacheStatusMedia(data) { const all=[...(data?.myStatus?.items||[]),...(data?.contactStatuses||[]).flatMap(s=>s.items||[])]; for(const item of all) if(item.media) await cacheMediaUrl(item.media); }
+    function statusIsActive(item) { if(item?.expiresAt) return new Date(item.expiresAt).getTime()>Date.now(); return true; }
 
-    async function loadStatuses(useLocalFirst=false) {
-      const local=await getStatusesLocal();
-      if(local) renderStatuses(local);
-      if(socket.connected) socket.emit('get-statuses');
-    }
-
-    socket.on('status-data',async data=>{
-      await saveStatusesLocal(data);
-      renderStatuses(data);
-      cacheStatusMedia(data);
-    });
-
-    async function cacheStatusMedia(data) {
-      const all=[...(data?.myStatus?.items||[]),...(data?.contactStatuses||[]).flatMap(s=>s.items||[])];
-      for(const item of all) if(item.media) await cacheMediaUrl(item.media);
-    }
-
-    function statusIsActive(item) {
-      if(item?.expiresAt) return new Date(item.expiresAt).getTime()>Date.now();
-      return true;
-    }
-
-    // ✨ STATUS CIRCLE UI LOGIC ✨
     let myActiveStatusesCount = 0;
-
-    function handleMyStatusClick() {
-      if (myActiveStatusesCount > 0) {
-        openStatusViewer(currentUserData.userCode, Date.now());
-      } else {
-        document.getElementById('statusMediaInput').click();
-      }
-    }
+    function handleMyStatusClick() { if (myActiveStatusesCount > 0) { openStatusViewer(currentUserData.userCode, Date.now()); } else { document.getElementById('statusMediaInput').click(); } }
 
     function renderStatuses(data) {
-      const myArea = document.getElementById('myStatusArea');
-      const myRing = document.getElementById('myStatusRing');
-      const contacts = document.getElementById('contactStatusesArea');
-      
-      const myItems = (data?.myStatus?.items || []).filter(statusIsActive);
-      myActiveStatusesCount = myItems.length;
+      const myArea = document.getElementById('myStatusArea'); const myRing = document.getElementById('myStatusRing'); const contacts = document.getElementById('contactStatusesArea');
+      const myItems = (data?.myStatus?.items || []).filter(statusIsActive); myActiveStatusesCount = myItems.length;
       
       if (myArea && myRing) {
         if (myItems.length > 0) {
-          myArea.textContent = `${myItems.length} active status (Tap to view)`;
-          myArea.style.color = '#00ff88';
+          myArea.textContent = `${myItems.length} active reels (Tap to view)`; myArea.style.color = '#00ff88';
           myRing.innerHTML = `<img src="${escapeAttr(currentUserData?.avatar || '')}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;border:2px solid #00ff88;">`;
-          myRing.style.border = 'none';
-          myRing.style.background = 'transparent';
+          myRing.style.border = 'none'; myRing.style.background = 'transparent';
         } else {
-          myArea.textContent = 'Tap to add status update';
-          myArea.style.color = '#7e7e92';
-          myRing.innerHTML = '+';
-          myRing.style.border = '2px dashed #ff3b5c';
-          myRing.style.background = '#1c1c26';
+          myArea.textContent = 'Tap to post a reel'; myArea.style.color = '#7e7e92'; myRing.innerHTML = '+';
+          myRing.style.border = '2px dashed #ff3b5c'; myRing.style.background = '#1c1c26';
         }
       }
 
       let arr = (data?.contactStatuses || []).map(s => ({...s, items: (s.items || []).filter(statusIsActive)})).filter(s => s.items.length);
-
       const viewedStatuses = JSON.parse(localStorage.getItem('viewedStatuses') || '{}');
-
-      arr.sort((a, b) => {
-        const latestA = Math.max(...a.items.map(i => new Date(i.expiresAt).getTime()));
-        const latestB = Math.max(...b.items.map(i => new Date(i.expiresAt).getTime()));
-        
-        const aSeen = viewedStatuses[a.userCode] >= latestA;
-        const bSeen = viewedStatuses[b.userCode] >= latestB;
-
-        if (aSeen && !bSeen) return 1; 
-        if (!aSeen && bSeen) return -1;
-        return latestB - latestA;       
-      });
+      arr.sort((a, b) => { const latestA = Math.max(...a.items.map(i => new Date(i.expiresAt).getTime())); const latestB = Math.max(...b.items.map(i => new Date(i.expiresAt).getTime())); const aSeen = viewedStatuses[a.userCode] >= latestA; const bSeen = viewedStatuses[b.userCode] >= latestB; if (aSeen && !bSeen) return 1; if (!aSeen && bSeen) return -1; return latestB - latestA; });
 
       contacts.innerHTML = arr.length ? arr.map(s => {
-        const latestTime = Math.max(...s.items.map(i => new Date(i.expiresAt).getTime()));
-        const isSeen = viewedStatuses[s.userCode] >= latestTime;
-        const ringColor = isSeen ? '#7e7e92' : '#00ff88'; 
-
+        const latestTime = Math.max(...s.items.map(i => new Date(i.expiresAt).getTime())); const isSeen = viewedStatuses[s.userCode] >= latestTime; const ringColor = isSeen ? '#7e7e92' : '#00ff88'; 
         return `
         <div class="status-row" onclick="openStatusViewer('${escapeAttr(s.userCode)}', ${latestTime})">
           <div style="width:56px;height:56px;border-radius:50%;padding:2px;background:${ringColor};flex:none;">
             <img class="status-avatar-inner" src="${escapeAttr(s.avatar||'')}">
           </div>
           <div>
-            <div style="font-weight:700;">${escapeHtml(s.name||s.userCode)}</div>
-            <div style="font-size:12px;color:#7e7e92;">${s.items.length} status${s.items.length>1?'es':''}</div>
+            <!-- 🌟 PRIVACY: USER ID HIDDEN IN PUBLIC REELS 🌟 -->
+            <div style="font-weight:700;">${escapeHtml(s.name || 'App User')}</div>
+            <div style="font-size:12px;color:#7e7e92;">${s.items.length} reel${s.items.length>1?'s':''}</div>
           </div>
         </div>`
-      }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No recent updates</div>';
+      }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No recent reels</div>';
     }
 
+    // 🌟 REEL UPLOADING POPPING ANIMATION 🌟
     function uploadStatusMedia(inp) {
       const file=inp.files&&inp.files[0];
       if(!file||!currentUserData)return;
-      if(!file.type.startsWith('image/')&&!file.type.startsWith('video/')){showToast('Only image or video status is allowed','error');return;}
+      if(!file.type.startsWith('image/')&&!file.type.startsWith('video/')){showToast('Only image or video allowed','error');return;}
       
-      uploadFileWithProgress(file,p=>showToast('Uploading '+p+'%...','info', 0)).then(res=>{
+      const myRing = document.getElementById('myStatusRing');
+      const myArea = document.getElementById('myStatusArea');
+      if(myRing) { myRing.classList.add('reel-uploading'); myRing.style.border = '2px dashed #ff3b5c'; myRing.innerHTML = ''; }
+      if(myArea) myArea.textContent = 'Posting reel...';
+
+      uploadFileWithProgress(file,p=>{}).then(res=>{
         const type=file.type.startsWith('video/')?'video':'image';
         socket.emit('post-status',{id:'status_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),media:res.url,type},reply=>{
-          if(reply?.success){
-            showToast('Status uploaded','success');
-            loadStatuses();
-          }
-          else showToast(reply?.error||'Status upload failed','error');
+          if(myRing) myRing.classList.remove('reel-uploading');
+          if(reply?.success){ loadStatuses(); } else { showToast(reply?.error||'Failed to post reel','error'); loadStatuses(); }
           inp.value='';
         });
       }).catch(e=>{
-        showToast(e.message||'Status upload failed','error');
-        inp.value='';
+        if(myRing) myRing.classList.remove('reel-uploading');
+        showToast(e.message||'Failed to post reel','error'); loadStatuses(); inp.value='';
       });
     }
 
     function openStatusViewer(userCode, latestTime) {
-      if (latestTime) {
-        const viewedStatuses = JSON.parse(localStorage.getItem('viewedStatuses') || '{}');
-        viewedStatuses[userCode] = latestTime;
-        localStorage.setItem('viewedStatuses', JSON.stringify(viewedStatuses));
-        loadStatuses(true);
-      }
-
+      if (latestTime) { const viewedStatuses = JSON.parse(localStorage.getItem('viewedStatuses') || '{}'); viewedStatuses[userCode] = latestTime; localStorage.setItem('viewedStatuses', JSON.stringify(viewedStatuses)); loadStatuses(true); }
       getStatusesLocal().then(data=>{
-        let user;
-        if (userCode === currentUserData?.userCode) {
-           user = data?.myStatus; 
-        } else {
-           user = (data?.contactStatuses||[]).find(s=>s.userCode===userCode);
-        }
-
-        if(!user?.items?.length)return;
-        const item=user.items.find(statusIsActive);
-        if(!item)return;
-        
-        const overlay=document.createElement('div');
-        overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;';
-        overlay.onclick=()=>overlay.remove();
-        
-        const media=item.type==='video'?document.createElement('video'):document.createElement('img');
-        media.controls=item.type==='video';
-        media.autoplay=item.type==='video';
-        media.style.cssText='max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;';
-        
-        overlay.appendChild(media);
-        document.body.appendChild(overlay);
-        cacheMediaUrl(item.media).then(localUrl=>{media.src=localUrl||item.media;});
+        let user; if (userCode === currentUserData?.userCode) { user = data?.myStatus; } else { user = (data?.contactStatuses||[]).find(s=>s.userCode===userCode); }
+        if(!user?.items?.length)return; const item=user.items.find(statusIsActive); if(!item)return;
+        const overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;'; overlay.onclick=()=>overlay.remove();
+        const media=item.type==='video'?document.createElement('video'):document.createElement('img'); media.controls=item.type==='video'; media.autoplay=item.type==='video'; media.style.cssText='max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;';
+        overlay.appendChild(media); document.body.appendChild(overlay); cacheMediaUrl(item.media).then(localUrl=>{media.src=localUrl||item.media;});
       });
     }
 
     setInterval(async()=>{
-      const data=await getStatusesLocal();
-      if(!data)return;
-      const clean={
-        myStatus:data.myStatus?{...data.myStatus,items:(data.myStatus.items||[]).filter(statusIsActive)}:data.myStatus,
-        contactStatuses:(data.contactStatuses||[]).map(s=>({...s,items:(s.items||[]).filter(statusIsActive)})).filter(s=>(s.items||[]).length)
-      };
-      await saveStatusesLocal(clean);
-      if(document.getElementById('paneStatus')?.classList.contains('active'))renderStatuses(clean);
+      const data=await getStatusesLocal(); if(!data)return;
+      const clean={ myStatus:data.myStatus?{...data.myStatus,items:(data.myStatus.items||[]).filter(statusIsActive)}:data.myStatus, contactStatuses:(data.contactStatuses||[]).map(s=>({...s,items:(s.items||[]).filter(statusIsActive)})).filter(s=>(s.items||[]).length) };
+      await saveStatusesLocal(clean); if(document.getElementById('paneStatus')?.classList.contains('active'))renderStatuses(clean);
     },60000);
 
-    function toggleAppMenu(e){if(e)e.stopPropagation();const m=document.getElementById('appMenu');m.style.display=m.style.display==='block'?'none':'block';}
-    function closeAppMenu(){document.getElementById('appMenu').style.display='none';}
-    document.addEventListener('click',e=>{if(!e.target.closest('#appMenu')&&!e.target.closest('.icon-btn'))closeAppMenu();});
-
-    function openMyProfile(){
-      closeAppMenu();
-      if(!currentUserData)return;
-      document.getElementById('myProfileName').value=currentUserData.fullName||'';
-      document.getElementById('myProfileId').textContent=currentUserData.userCode||'';
-      document.getElementById('myProfileAvatar').src=currentUserData.avatar||'';
-      document.getElementById('myProfileModal').style.display='flex';
-    }
+    function toggleAppMenu(e){if(e)e.stopPropagation();const m=document.getElementById('appMenu');m.style.display=m.style.display==='block'?'none':'block';} function closeAppMenu(){document.getElementById('appMenu').style.display='none';} document.addEventListener('click',e=>{if(!e.target.closest('#appMenu')&&!e.target.closest('.icon-btn'))closeAppMenu();});
+    function openMyProfile(){ closeAppMenu(); if(!currentUserData)return; document.getElementById('myProfileName').value=currentUserData.fullName||''; document.getElementById('myProfileId').textContent=currentUserData.userCode||''; document.getElementById('myProfileAvatar').src=currentUserData.avatar||''; document.getElementById('myProfileModal').style.display='flex'; }
     function closeMyProfile(){document.getElementById('myProfileModal').style.display='none';}
-    function saveMyProfile(){
-      const fullName=document.getElementById('myProfileName').value.trim();
-      const avatar=document.getElementById('myProfileAvatar').src||'';
-      socket.emit('update-profile',{fullName,avatar},res=>{
-        if(res?.success){currentUserData=res.user;localStorage.setItem('chatAppUser',JSON.stringify(currentUserData));closeMyProfile();loadContacts();showToast('Profile saved','success');}
-        else showToast(res?.error||'Could not save profile','error');
-      });
-    }
-
-    function openSettings(){ showToast('Settings are available in the current app menu.','info'); }
-    function loadCalls(){ const el=document.getElementById('callsList'); if(el) el.innerHTML='Call history is not available yet.'; }
-
-    function logoutApp(){
-      closeAppMenu();
-      localStorage.removeItem('chatAppUser');
-      localStorage.removeItem('lastChatTarget');
-      currentUserData=null;currentChatTarget=null;uploadToken='';
-      document.getElementById('mainApp').style.display='none';
-      document.getElementById('chatRoom').style.display='none';
-      document.getElementById('screenAuth').style.display='flex';
-      showToast('Logged out','success');
-    }
-
-    function startAudioCall() { showToast('Call connecting...', 'info'); }
-    function acceptCall() { document.getElementById('incomingCallModal').style.display = 'none'; }
-    function rejectCall() { document.getElementById('incomingCallModal').style.display = 'none'; }
+    function saveMyProfile(){ const fullName=document.getElementById('myProfileName').value.trim(); const avatar=document.getElementById('myProfileAvatar').src||''; socket.emit('update-profile',{fullName,avatar},res=>{ if(res?.success){currentUserData=res.user;localStorage.setItem('chatAppUser',JSON.stringify(currentUserData));closeMyProfile();loadContacts();showToast('Profile saved','success');} else showToast(res?.error||'Could not save profile','error'); }); }
+    function openSettings(){ showToast('Settings are available in the current app menu.','info'); } function loadCalls(){ const el=document.getElementById('callsList'); if(el) el.innerHTML='Call history is not available yet.'; }
+    function logoutApp(){ closeAppMenu(); localStorage.removeItem('chatAppUser'); localStorage.removeItem('lastChatTarget'); currentUserData=null;currentChatTarget=null;uploadToken=''; document.getElementById('mainApp').style.display='none'; document.getElementById('chatRoom').style.display='none'; document.getElementById('screenAuth').style.display='flex'; showToast('Logged out','success'); }
+    function startAudioCall() { showToast('Call connecting...', 'info'); } function acceptCall() { document.getElementById('incomingCallModal').style.display = 'none'; } function rejectCall() { document.getElementById('incomingCallModal').style.display = 'none'; }
   </script>
 </body>
 </html>
