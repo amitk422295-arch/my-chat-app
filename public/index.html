@@ -71,7 +71,6 @@
       <h3 style="color:#fff;" id="authTitle">Create Account</h3>
       <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register with Custom User ID</p>
 
-      <!-- Register View -->
       <div id="viewRegister" style="display:flex; flex-direction:column; gap:12px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
@@ -82,7 +81,6 @@
         <button class="btn-gradient" type="button" onclick="handleRegisterCustom()">Register Now ➔</button>
       </div>
 
-      <!-- Login View -->
       <div id="viewLogin" style="display:none; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
         <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
@@ -164,9 +162,12 @@
       </div>
     </div>
     <div id="roomMessages" style="flex:1;overflow-y:auto;padding:14px;"></div>
+    
     <div class="bottom-input-bar">
+      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onchange="sendMediaFile(this)">
+      <button class="icon-btn" style="width:36px;height:36px;font-size:18px;flex:none;" onclick="document.getElementById('chatMediaInput').click()" title="Attach Photo/Video/Document">📎</button>
       <div class="input-wrapper">
-        <input type="text" id="msgInputBox" placeholder="Type a message...">
+        <input type="text" id="msgInputBox" placeholder="Type a message or paste YouTube link...">
       </div>
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
     </div>
@@ -322,6 +323,23 @@
       return String(value ?? '').replace(/[&<>\"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[ch]));
     }
 
+    function formatMessageContent(m) {
+      if (m.messageType === 'image') {
+        return `<img src="${escapeHtml(m.media)}" style="max-width:100%; border-radius:8px; display:block; margin-bottom:4px;">${escapeHtml(m.text)}`;
+      } else if (m.messageType === 'video') {
+        return `<video src="${escapeHtml(m.media)}" controls style="max-width:100%; border-radius:8px; display:block; margin-bottom:4px;"></video>${escapeHtml(m.text)}`;
+      } else if (m.messageType === 'document') {
+        return `<a href="${escapeHtml(m.media)}" target="_blank" style="color:#5ac8fa; text-decoration:underline; display:block; margin-bottom:4px;">📎 ${escapeHtml(m.fileName || 'Download Document')}</a>${escapeHtml(m.text)}`;
+      } else {
+        let txt = escapeHtml(m.text);
+        const ytRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
+        txt = txt.replace(ytRegex, (url, match, vidId) => {
+          return `<div style="margin-top:6px;"><a href="${url}" target="_blank" style="color:#ff3b5c; text-decoration:underline; font-weight:600;">▶ Watch on YouTube</a><br><iframe width="100%" height="160" src="https://www.youtube.com/embed/${vidId}" frameborder="0" allowfullscreen style="border-radius:8px; margin-top:4px;"></iframe></div>`;
+        });
+        return txt;
+      }
+    }
+
     function renderMessages(messages) {
       const rm = document.getElementById('roomMessages');
       if (!messages.length) {
@@ -330,7 +348,7 @@
       }
       rm.innerHTML = messages.map(m => {
         const mine = currentUserData && m.senderCode === currentUserData.userCode;
-        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${escapeHtml(m.text)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`;
+        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${formatMessageContent(m)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`;
       }).join('');
       rm.scrollTop = rm.scrollHeight;
     }
@@ -340,9 +358,39 @@
       const val = box.value.trim();
       if (!val || !currentChatTarget) return;
       box.value = '';
-      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val }, res => {
+      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text' }, res => {
         if (!res?.success) { box.value = val; showToast(res?.error || 'Message failed', 'error'); }
       });
+    }
+
+    function sendMediaFile(inp) {
+      const file = inp.files && inp.files[0];
+      if (!file || !currentChatTarget) return;
+      showToast('Uploading media...', 'info');
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const base64Data = e.target.result;
+        let type = 'document';
+        if (file.type.startsWith('image/')) type = 'image';
+        else if (file.type.startsWith('video/')) type = 'video';
+
+        socket.emit('send-message', {
+          targetCode: currentChatTarget.userCode,
+          text: file.name,
+          media: base64Data,
+          messageType: type,
+          fileName: file.name
+        }, res => {
+          if (res && res.success) {
+            showToast('Sent successfully!', 'success');
+          } else {
+            showToast(res?.error || 'Media upload failed', 'error');
+          }
+          inp.value = '';
+        });
+      };
+      reader.readAsDataURL(file);
     }
 
     document.getElementById('msgInputBox').addEventListener('keydown', e => {
@@ -357,7 +405,8 @@
         const rm = document.getElementById('roomMessages');
         const empty = rm.querySelector('div[style*="text-align:center"]');
         if (empty) rm.innerHTML = '';
-        rm.insertAdjacentHTML('beforeend', `<div class="msg-bubble ${m.senderCode === currentUserData.userCode ? 'mine' : 'theirs'}">${escapeHtml(m.text)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`);
+        const mine = m.senderCode === currentUserData.userCode;
+        rm.insertAdjacentHTML('beforeend', `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}">${formatMessageContent(m)}<span class="msg-time">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>`);
         rm.scrollTop = rm.scrollHeight;
       }
     });
