@@ -67,7 +67,6 @@
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
     .input-wrapper input { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; }
     .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    /* Advanced WhatsApp-style chat */
     #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\"><path fill=\"white\" fill-opacity=\"0.025\" d=\"M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z\"/></svg>'); background-size:54px 54px; }
     .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.25); cursor:pointer; }
     .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
@@ -93,32 +92,63 @@
     <div class="glass-card">
       <div style="font-size:34px;">💖</div>
       <h3 style="color:#fff;" id="authTitle">Create Account</h3>
-      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register first, or switch to login</p>
+      <p style="font-size:12px;color:#8a8a9e;" id="authSub">Register with Email OTP</p>
 
+      <!-- Step 1: Input details & request Email OTP -->
       <div id="viewRegStep1" style="display:flex; flex-direction:column; gap:12px;">
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name *">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number *" maxlength="13">
-        <button class="btn-gradient" type="button" onclick="goRegStep2()">Next ➔</button>
+        <input type="email" id="regEmailInput" class="input-box" placeholder="Email ID (for OTP) *">
+        <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
+        <button class="btn-gradient" type="button" onclick="requestEmailOtp()">Send OTP & Next ➔</button>
       </div>
 
+      <!-- Step 2: Verify OTP & set DP -->
       <div id="viewRegStep2" style="display:none; flex-direction:column; gap:12px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90' fill='%23222'><text x='50%' y='55%' fill='%23888' font-size='11' text-anchor='middle'>Add DP</text></svg>" onclick="document.getElementById('dpFileInput').click()">
-        <input type="text" id="regUserIdInput" class="input-box" placeholder="Unique User ID (@name, min 6 char)">
-        <input type="password" id="regPassInput" class="input-box" placeholder="Compulsory 8-digit Password" maxlength="8">
+        <input type="text" id="regOtpInput" class="input-box" placeholder="Enter 6-digit Email OTP" maxlength="6">
+        <div style="font-size:11px;color:#8a8a9e;text-align:left;">User ID will be auto-generated from your email (first 6 letters + @)</div>
         <div style="display:flex; gap:8px;">
           <button class="btn-gradient" type="button" style="flex:1; background:#333;" onclick="goRegStep1()">Back</button>
-          <button class="btn-gradient" type="button" style="flex:2;" onclick="finalRegister()">Final Submit</button>
+          <button class="btn-gradient" type="button" style="flex:2;" onclick="verifyAndRegister()">Verify & Register</button>
         </div>
       </div>
 
+      <!-- Login View -->
       <div id="viewLogin" style="display:none; flex-direction:column; gap:12px;">
         <input type="text" id="loginIdInput" class="input-box" placeholder="User ID (@user) or Mobile">
         <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
         <button class="btn-gradient" type="button" onclick="handleLogin()">Login</button>
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:4px;">
+          <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal('userid')">Forgot User ID?</span>
+          <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal('password')">Forgot Password?</span>
+        </div>
       </div>
 
       <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
+    </div>
+  </div>
+
+  <!-- FORGOT MODAL -->
+  <div id="forgotModal" class="modal" onclick="if(event.target===this)closeForgotModal()">
+    <div class="modal-card">
+      <h3 id="forgotModalTitle" style="margin-bottom:10px;">Recover</h3>
+      <div id="forgotStep1" style="display:flex; flex-direction:column; gap:12px;">
+        <input type="email" id="forgotEmailInput" class="input-box" placeholder="Enter Registered Email">
+        <button class="btn-gradient" onclick="requestForgotOtp()">Send OTP</button>
+      </div>
+      <div id="forgotStep2" style="display:none; flex-direction:column; gap:12px;">
+        <input type="text" id="forgotOtpInput" class="input-box" placeholder="Enter 6-digit OTP" maxlength="6">
+        <button class="btn-gradient" onclick="verifyForgotOtp()">Verify OTP</button>
+      </div>
+      <div id="forgotStep3" style="display:none; flex-direction:column; gap:12px;">
+        <div id="forgotResultDisplay" style="font-size:14px; color:#00ff88; font-weight:700;"></div>
+        <input type="password" id="newPassInput" class="input-box" placeholder="New 8-digit Password" maxlength="8" style="display:none;">
+        <input type="password" id="confirmPassInput" class="input-box" placeholder="Confirm 8-digit Password" maxlength="8" style="display:none;">
+        <button class="btn-gradient" id="resetPassBtn" onclick="submitNewPassword()" style="display:none;">Update Password</button>
+      </div>
+      <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">×</button>
     </div>
   </div>
 
@@ -163,8 +193,6 @@
       <div class="tab-pane" id="paneCalls">
         <div id="callsList" style="padding:16px;">Loading call history...</div>
       </div>
-
-
     </div>
   </div>
 
@@ -225,8 +253,7 @@
     </div>
   </div>
 
-
-  <!-- CALL OVERLAY: appears only during an active/incoming call; existing UI stays unchanged -->
+  <!-- CALL OVERLAY -->
   <div id="callOverlay" style="position:fixed;inset:0;background:rgba(5,5,10,.97);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px;">
     <div style="width:100%;max-width:380px;text-align:center;">
       <img id="callAvatar" src="" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:2px solid #ff3b5c;background:#222;">
@@ -281,10 +308,32 @@
     </div>
   </div>
 
+  <!-- Firebase SDK Imports -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBR96s32sM1BvzNtJD4KtGk4B6Io9-_dWA",
+      authDomain: "mychat01-aa2e4.firebaseapp.com",
+      projectId: "mychat01-aa2e4",
+      storageBucket: "mychat01-aa2e4.firebasestorage.app",
+      messagingSenderId: "899727602335",
+      appId: "1:899727602335:web:0ca859e6e818adac4ae8aa",
+      measurementId: "G-003L4FE647"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.fbAuth = getAuth(app);
+    window.fbCreateUser = createUserWithEmailAndPassword;
+    window.fbSignInUser = signInWithEmailAndPassword;
+  </script>
+
   <script>
     const socket = io({ transports: ['websocket'] });
     let authMode = 'reg1';
-    let regTempData = { name: '', mobile: '', dp: '' };
+    let regTempData = { name: '', mobile: '', email: '', pass: '', dp: '' };
+    let forgotMode = 'userid';
     let currentChatTarget = null;
     let currentUserData = null;
     let mediaRecorder = null, voiceChunks = [], recordingStartedAt = 0;
@@ -308,7 +357,7 @@
       if (authMode === 'login') {
         authMode = 'reg1';
         title.textContent = 'Create Account';
-        sub.textContent = 'Register first, or switch to login';
+        sub.textContent = 'Register with Email OTP';
         loginView.style.display = 'none'; reg2View.style.display = 'none'; reg1View.style.display = 'flex';
         switchText.textContent = 'Already have an account? Login';
       } else {
@@ -320,19 +369,35 @@
       }
     }
 
-    function goRegStep2() {
+    function requestEmailOtp() {
       const name = document.getElementById('regNameInput').value.trim();
       const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
+      const email = document.getElementById('regEmailInput').value.trim().toLowerCase();
+      const pass = document.getElementById('regPassInput').value.trim();
+      
       if (!name || mobile.length < 10) { showToast('Valid name & 10+ digit mobile required', 'error'); return; }
-      regTempData.name = name; regTempData.mobile = mobile;
-      authMode = 'reg2';
-      document.getElementById('authTitle').textContent = 'Register (Step 2)';
-      document.getElementById('viewRegStep1').style.display = 'none';
-      document.getElementById('viewRegStep2').style.display = 'flex';
+      if (!email || !email.includes('@')) { showToast('Valid email required', 'error'); return; }
+      if (pass.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
+
+      regTempData = { name, mobile, email, pass, dp: regTempData.dp };
+      showToast('Sending OTP...', 'info');
+
+      socket.emit('send-email-otp', { email }, res => {
+        if (res && res.success) {
+          showToast('OTP sent to your email!', 'success');
+          authMode = 'reg2';
+          document.getElementById('authTitle').textContent = 'Verify Email OTP';
+          document.getElementById('viewRegStep1').style.display = 'none';
+          document.getElementById('viewRegStep2').style.display = 'flex';
+        } else {
+          showToast(res?.error || 'Failed to send OTP', 'error');
+        }
+      });
     }
 
     function goRegStep1() {
       authMode = 'reg1';
+      document.getElementById('authTitle').textContent = 'Create Account';
       document.getElementById('viewRegStep2').style.display = 'none';
       document.getElementById('viewRegStep1').style.display = 'flex';
     }
@@ -345,31 +410,132 @@
       reader.readAsDataURL(file);
     }
 
-    function finalRegister() {
-      const uCodeRaw = document.getElementById('regUserIdInput').value.trim().toLowerCase();
-      const uCode = uCodeRaw.startsWith('@') ? uCodeRaw : '@' + uCodeRaw;
-      const pass = document.getElementById('regPassInput').value.trim();
-      if (!/^@[a-z0-9_]{6,}$/.test(uCode)) { showToast('Invalid User ID format', 'error'); return; }
-      if (pass.length !== 8) { showToast('Password must be 8 digits', 'error'); return; }
-      
-      socket.emit('auth-user', { userCode: uCode, password: pass, fullName: regTempData.name, mobile: regTempData.mobile, avatar: regTempData.dp, isRegister: true }, res => {
+    async function verifyAndRegister() {
+      const otp = document.getElementById('regOtpInput').value.trim();
+      if (otp.length !== 6) { showToast('Enter 6-digit OTP', 'error'); return; }
+      showToast('Creating account...', 'info');
+
+      try {
+        // Firebase Authentication link
+        if (window.fbAuth && window.fbCreateUser) {
+          await window.fbCreateUser(window.fbAuth, regTempData.email, regTempData.pass);
+        }
+      } catch(err) {
+        // Continue even if already registered on firebase auth directly
+      }
+
+      socket.emit('verify-otp-and-register', {
+        email: regTempData.email,
+        otp,
+        password: regTempData.pass,
+        fullName: regTempData.name,
+        mobile: regTempData.mobile,
+        avatar: regTempData.dp
+      }, res => {
         if (res && res.success) {
           currentUserData = res.user;
-          showToast('Registration successful!', 'success');
+          showToast('Registration successful! ID: ' + res.user.userCode, 'success');
           launchMainApp();
-        } else { showToast(res?.error || 'Failed', 'error'); }
+        } else { showToast(res?.error || 'Registration failed', 'error'); }
       });
     }
 
-    function handleLogin() {
+    async function handleLogin() {
       const id = document.getElementById('loginIdInput').value.trim();
       const pass = document.getElementById('loginPassInput').value.trim();
-      socket.emit('auth-user', { userCode: id, password: pass, isRegister: false }, res => {
+      if(!id || !pass) { showToast('Enter ID/Mobile and Password', 'error'); return; }
+      showToast('Logging in...', 'info');
+
+      socket.emit('auth-user', { userCode: id, password: pass, isRegister: false }, async res => {
         if (res && res.success) {
           currentUserData = res.user;
+          try {
+            if(res.user.email && window.fbAuth && window.fbSignInUser) {
+              await window.fbSignInUser(window.fbAuth, res.user.email, pass);
+            }
+          } catch(e) {}
           showToast('Welcome back!', 'success');
           launchMainApp();
         } else { showToast(res?.error || 'Invalid credentials', 'error'); }
+      });
+    }
+
+    // Forgot UI controls
+    function openForgotModal(mode) {
+      forgotMode = mode;
+      document.getElementById('forgotModalTitle').textContent = mode === 'userid' ? 'Forgot User ID' : 'Forgot Password';
+      document.getElementById('forgotStep1').style.display = 'flex';
+      document.getElementById('forgotStep2').style.display = 'none';
+      document.getElementById('forgotStep3').style.display = 'none';
+      document.getElementById('forgotEmailInput').value = '';
+      document.getElementById('forgotOtpInput').value = '';
+      document.getElementById('newPassInput').value = '';
+      document.getElementById('confirmPassInput').value = '';
+      document.getElementById('newPassInput').style.display = 'none';
+      document.getElementById('confirmPassInput').style.display = 'none';
+      document.getElementById('resetPassBtn').style.display = 'none';
+      document.getElementById('forgotModal').style.display = 'flex';
+    }
+
+    function closeForgotModal() {
+      document.getElementById('forgotModal').style.display = 'none';
+    }
+
+    let forgotTempEmail = '';
+    function requestForgotOtp() {
+      const email = document.getElementById('forgotEmailInput').value.trim().toLowerCase();
+      if(!email || !email.includes('@')) { showToast('Valid email required', 'error'); return; }
+      forgotTempEmail = email;
+      showToast('Sending OTP...', 'info');
+      socket.emit('send-email-otp', { email }, res => {
+        if(res && res.success) {
+          showToast('OTP sent to email', 'success');
+          document.getElementById('forgotStep1').style.display = 'none';
+          document.getElementById('forgotStep2').style.display = 'flex';
+        } else {
+          showToast(res?.error || 'Email not found', 'error');
+        }
+      });
+    }
+
+    function verifyForgotOtp() {
+      const otp = document.getElementById('forgotOtpInput').value.trim();
+      if(otp.length !== 6) { showToast('Enter 6-digit OTP', 'error'); return; }
+      showToast('Verifying OTP...', 'info');
+
+      socket.emit('verify-forgot-otp', { email: forgotTempEmail, otp, mode: forgotMode }, res => {
+        if(res && res.success) {
+          document.getElementById('forgotStep2').style.display = 'none';
+          document.getElementById('forgotStep3').style.display = 'flex';
+          const resDisp = document.getElementById('forgotResultDisplay');
+          if(forgotMode === 'userid') {
+            resDisp.textContent = 'Your User ID is: ' + res.userCode;
+          } else {
+            resDisp.textContent = 'OTP verified! Enter new 8-digit password.';
+            document.getElementById('newPassInput').style.display = 'block';
+            document.getElementById('confirmPassInput').style.display = 'block';
+            document.getElementById('resetPassBtn').style.display = 'block';
+          }
+        } else {
+          showToast(res?.error || 'Invalid OTP', 'error');
+        }
+      });
+    }
+
+    function submitNewPassword() {
+      const p1 = document.getElementById('newPassInput').value.trim();
+      const p2 = document.getElementById('confirmPassInput').value.trim();
+      if(p1.length !== 8 || p2.length !== 8) { showToast('Password must be strictly 8 digits', 'error'); return; }
+      if(p1 !== p2) { showToast('Passwords do not match', 'error'); return; }
+      showToast('Updating password...', 'info');
+
+      socket.emit('update-forgot-password', { email: forgotTempEmail, newPassword: p1 }, res => {
+        if(res && res.success) {
+          showToast('Password updated successfully! Please login.', 'success');
+          closeForgotModal();
+        } else {
+          showToast(res?.error || 'Update failed', 'error');
+        }
       });
     }
 
@@ -386,9 +552,7 @@
       tabEl.classList.add('active');
     }
 
-    function loadContacts() {
-      socket.emit('get-contacts');
-    }
+    function loadContacts() { socket.emit('get-contacts'); }
 
     socket.on('contact-list-data', ({ contacts }) => {
       const list = document.getElementById('chatsList');
@@ -612,21 +776,6 @@
       `).join('') : '<div style="color:#7e7e92;">No call history.</div>';
     });
 
-    function startAudioCall() {
-      if (!currentChatTarget) return;
-      socket.emit('call-user', { targetCode: currentChatTarget.userCode, signal: 'init', callerData: currentUserData });
-      showToast('Calling ' + currentChatTarget.name + '...', 'info');
-    }
-
-    function updateProfile() {
-      const name = document.getElementById('profNameInput')?.value.trim();
-      if (!name) return;
-      socket.emit('update-profile', { fullName: name }, res => {
-        if (res?.success) { currentUserData = res.user; showToast('Profile updated!', 'success'); }
-        else showToast(res?.error || 'Profile update failed', 'error');
-      });
-    }
-
     function toggleAppMenu(e){ if(e)e.stopPropagation(); const m=document.getElementById('appMenu'); m.style.display=m.style.display==='block'?'none':'block'; }
     function closeAppMenu(){ document.getElementById('appMenu').style.display='none'; }
     document.addEventListener('click', e=>{ if(!e.target.closest('#appMenu') && !e.target.closest('.icon-btn')) closeAppMenu(); });
@@ -659,7 +808,6 @@
         mediaRecorder.start(); showToast('Recording voice… tap 🎤 to send','info');
       }catch(e){ showToast('Microphone permission is required','error'); }
     }
-    function applyVolumeToAudio(audio){ const v=document.getElementById('volumeControl'); if(v) audio.volume=Number(v.value); }
     document.addEventListener('input',e=>{if(e.target.id==='volumeControl')document.querySelectorAll('#roomMessages audio').forEach(a=>a.volume=Number(e.target.value));});
 
     function deleteCurrentStatus() {
@@ -668,15 +816,12 @@
       if (!item?.id) return;
       if (!confirm('Delete this status?')) return;
       socket.emit('delete-status', { statusId: item.id }, res => {
-        if (res?.success) {
-          closeStatusViewer();
-          showToast('Status deleted', 'success');
-          loadStatuses();
-        } else showToast(res?.error || 'Could not delete status', 'error');
+        if (res?.success) { closeStatusViewer(); showToast('Status deleted', 'success'); loadStatuses(); }
+        else showToast(res?.error || 'Could not delete status', 'error');
       });
     }
 
-    // ===== Instagram-style real-time audio calling =====
+    // WebRTC Audio Calls
     let activeCall = { pc:null, stream:null, target:null, incoming:false, pendingOffer:null, candidateQueue:[] };
     const rtcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'}] };
 
@@ -765,7 +910,6 @@
       const a=document.getElementById('remoteAudio'); if(a)a.srcObject=null;
       document.getElementById('callOverlay').style.display='none';
     }
-
   </script>
 </body>
 </html>
