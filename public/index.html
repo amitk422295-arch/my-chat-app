@@ -325,7 +325,7 @@
   </script>
 
   <script>
-    const socket = io({ transports: ['websocket'] });
+    const socket = io();
     let authMode = 'reg1';
     let regTempData = { name: '', mobile: '', email: '', pass: '', dp: '' };
     let forgotMode = 'userid';
