@@ -153,6 +153,17 @@
     </div>
   </div>
 
+  <!-- MESSAGE LONG-PRESS MODAL -->
+  <div id="msgActionModal" class="modal">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
+      <h3 style="margin-bottom:16px; text-align:center; color:#fff;">Message Actions</h3>
+      <button class="btn-gradient" id="btnCopyMsg" style="width:100%; margin-bottom:12px; background:#1c1c26; border:1px solid #ff3b5c;">📋 Copy Text</button>
+      <button class="btn-gradient" id="btnDelMe" style="width:100%; margin-bottom:12px; background:#ff9aae; color:#171720;">🗑️ Delete for me</button>
+      <button class="btn-gradient" id="btnDelEveryone" style="width:100%; margin-bottom:12px; background:#ff3b5c;">🚫 Delete for everyone</button>
+      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMsgActionMenu()">✕</button>
+    </div>
+  </div>
+
   <!-- APP MENU (Edit Profile) -->
   <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
     <button onclick="openMyProfile()">👤 Edit Profile</button>
@@ -250,6 +261,15 @@
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
     let unreadMap = {}; let activeContactMenuTarget = null;
 
+    // Background Anti-Sleep & Sync
+    setInterval(() => { if(socket.connected && currentUserData) socket.emit('ping-server'); }, 30000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && currentUserData && socket.connected) {
+         syncContacts();
+         if (currentChatTarget) syncCurrentChat(true);
+      }
+    });
+
     // DB Boilerplate
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
     let dbPromise = null;
@@ -288,14 +308,13 @@
       return row?.contacts || []; 
     }
 
-    // AUTO RECONNECTION & SLEEP FIX
     socket.on('connect', () => {
       if (currentUserData && currentUserData.userCode) {
         socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
           if (res?.token) uploadToken = res.token;
         });
         syncContacts();
-        if (currentChatTarget) syncCurrentChat(true); // Fetch missed msgs instantly
+        if (currentChatTarget) syncCurrentChat(true); 
       }
     });
 
@@ -318,7 +337,6 @@
       clearTimeout(toastTimeout); if(duration > 0) toastTimeout = setTimeout(()=> { if(t) t.style.display='none'; }, duration);
     }
 
-    // OUTSIDE CLICK LISTENER
     document.addEventListener('click', (e) => {
       document.getElementById('appMenu').style.display = 'none';
       document.getElementById('attachMenu').style.display = 'none';
@@ -327,10 +345,12 @@
       const forgotModal = document.getElementById('forgotModal');
       const profileModal = document.getElementById('myProfileModal');
       const contactModal = document.getElementById('contactMenuModal');
+      const msgActionModal = document.getElementById('msgActionModal');
       
       if (e.target === forgotModal) closeForgotModal();
       if (e.target === profileModal) closeMyProfile();
       if (e.target === contactModal) closeContactMenu();
+      if (e.target === msgActionModal) closeMsgActionMenu();
     });
 
     function toggleAppMenu(e, menuId) { 
@@ -365,7 +385,7 @@
       if (!q1 && !q2) return showToast('Provide at least one security answer', 'error');
 
       showToast('Creating account...', 'info');
-      socket.emit('register-custom', { userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64 || DEFAULT_AVATAR, q1, q2 }, res => {
+      socket.emit('register-custom', { userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64, q1, q2 }, res => {
         if (res?.success) {
           currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
           socket.emit('set-socket-user', { userCode: currentUserData.userCode }, r => { if (r?.token) uploadToken = r.token; });
@@ -433,6 +453,49 @@
       });
     }
 
+    // MSG LONG PRESS HANDLER (Delete / Copy)
+    let msgPressTimer;
+    let activeMsgElement = null;
+    let activeMsgId = null;
+
+    function startMsgPress(e, msgId, isMine) {
+      msgPressTimer = setTimeout(() => {
+        activeMsgId = msgId;
+        activeMsgElement = document.getElementById(msgId);
+        document.getElementById('msgActionModal').style.display = 'flex';
+        document.getElementById('btnDelEveryone').style.display = isMine ? 'block' : 'none';
+        
+        document.getElementById('btnCopyMsg').onclick = () => {
+           const text = activeMsgElement.innerText.replace(/✓|🕒|[\d:]+(AM|PM)?/g, '').trim();
+           navigator.clipboard.writeText(text);
+           showToast('Text copied!', 'success');
+           closeMsgActionMenu();
+        };
+
+        document.getElementById('btnDelMe').onclick = () => execDeleteMsg('me');
+        document.getElementById('btnDelEveryone').onclick = () => execDeleteMsg('everyone');
+      }, 600);
+    }
+    function cancelMsgPress() { clearTimeout(msgPressTimer); }
+    function closeMsgActionMenu() { document.getElementById('msgActionModal').style.display = 'none'; activeMsgId = null; }
+
+    function execDeleteMsg(type) {
+      if(!activeMsgId) return;
+      socket.emit('delete-message', { messageId: activeMsgId, type }, res => {
+         if(res?.success) closeMsgActionMenu();
+      });
+    }
+
+    socket.on('message-deleted-ui', async ({ messageId }) => {
+      const el = document.getElementById(messageId);
+      if (el) el.remove();
+      if (currentChatTarget) {
+        const cached = await getMessagesLocal(currentChatTarget.userCode);
+        const updated = cached.filter(m => m.messageId !== messageId);
+        await saveMessagesLocal(currentChatTarget.userCode, updated);
+      }
+    });
+
     let globalContacts = [];
     function renderContacts(contacts) {
       globalContacts = Array.isArray(contacts) ? contacts : [];
@@ -470,7 +533,6 @@
       });
     }
 
-    // CHECK & DISPLAY USER ONLINE STATUS / LAST SEEN
     function updateRoomStatusUI(isOnline, lastSeen) {
        const statusEl = document.getElementById('roomUserStatus');
        if (isOnline) {
@@ -509,7 +571,7 @@
       document.getElementById('roomUserAvatar').src = currentChatTarget.avatar;
       document.getElementById('chatRoom').style.display = 'flex';
       
-      checkUserStatus(cleanCode); // Fetch Real-Time Status
+      checkUserStatus(cleanCode); 
 
       const cached = await getMessagesLocal(currentChatTarget.userCode);
       if (cached.length) renderMessages(cached, false); 
@@ -569,7 +631,10 @@
       const rm = document.getElementById('roomMessages');
       rm.innerHTML = messages.map(m => {
         const mine = m.mine || (currentUserData && m.senderCode === currentUserData.userCode);
-        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}" id="${m.messageId}">${formatMessageContent(m)}</div>`;
+        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}" id="${m.messageId}" 
+                onmousedown="startMsgPress(event, '${m.messageId}', ${mine})" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" 
+                ontouchstart="startMsgPress(event, '${m.messageId}', ${mine})" ontouchend="cancelMsgPress()">
+                ${formatMessageContent(m)}</div>`;
       }).join('');
       setTimeout(() => { scrollToBottom(smooth); }, 10);
     }
@@ -597,7 +662,6 @@
       });
     }
 
-    // TYPING INDICATOR (1.5 SECONDS)
     let typingTimer;
     let isTyping = false;
     document.getElementById('msgInputBox').addEventListener('input', () => {
@@ -621,7 +685,7 @@
 
     socket.on('stop-typing', ({ senderCode }) => {
       if (currentChatTarget && currentChatTarget.userCode === senderCode) {
-         checkUserStatus(senderCode); // Reverts back to Online/Last Seen
+         checkUserStatus(senderCode);
       }
     });
 
@@ -632,7 +696,7 @@
       const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
       
       const tempMsg = { messageId: clientMessageId, text: val, mine: true, status: 'pending', messageType: 'text', createdAt: Date.now() };
-      document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}">${formatMessageContent(tempMsg)}</div>`);
+      document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}" onmousedown="startMsgPress(event, '${clientMessageId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMessageId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
       scrollToBottom(true);
       
       box.innerText = ''; box.focus(); 
@@ -665,7 +729,7 @@
         const tempUrl = URL.createObjectURL(file);
         
         const tempMsg = { messageId: clientMessageId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
-        document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}">${formatMessageContent(tempMsg)}</div>`);
+        document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}" onmousedown="startMsgPress(event, '${clientMessageId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMessageId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
         scrollToBottom(true);
         promoteChatToTop(currentChatTarget.userCode);
 
@@ -691,14 +755,13 @@
       inp.value = '';
     }
 
-    // LIST UPDATES & SYNC
     socket.on('new-message', async m => {
       if (!currentUserData) return;
       const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
 
       if (currentChatTarget && currentChatTarget.userCode === otherCode) {
         if (!document.getElementById(m.messageId)) {
-          document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble theirs" id="${m.messageId}">${formatMessageContent(m)}</div>`);
+          document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble theirs" id="${m.messageId}" onmousedown="startMsgPress(event, '${m.messageId}', false)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${m.messageId}', false)" ontouchend="cancelMsgPress()">${formatMessageContent(m)}</div>`);
           scrollToBottom(true);
         }
         const cached = await getMessagesLocal(currentChatTarget.userCode);
@@ -754,13 +817,33 @@
 
     function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
     function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
+    
     function submitRecovery() {
       const mobile = document.getElementById('recMobileInput').value.trim();
       const q1 = document.getElementById('recQ1Input').value.trim();
       const q2 = document.getElementById('recQ2Input').value.trim();
       const newPassword = document.getElementById('recNewPassInput').value.trim();
+      
+      if(!mobile || !newPassword) return showToast('Mobile and New Password are required', 'error');
+      if(newPassword.length !== 8) return showToast('Password must be 8 digits', 'error');
+
       socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
-        if (res?.success) { document.getElementById('recoveryResultDisplay').textContent = res.message; showToast('Success', 'success'); }
+        if (res?.success) { 
+          showToast(res.message, 'success', 6000); 
+          closeForgotModal();
+          
+          if (authMode === 'reg') { toggleAuthMode(); }
+          
+          document.getElementById('loginIdInput').value = mobile;
+          document.getElementById('loginPassInput').value = ''; 
+          document.getElementById('loginPassInput').focus();
+          
+          document.getElementById('recMobileInput').value = '';
+          document.getElementById('recQ1Input').value = '';
+          document.getElementById('recQ2Input').value = '';
+          document.getElementById('recNewPassInput').value = '';
+          document.getElementById('recoveryResultDisplay').textContent = '';
+        }
         else showToast(res?.error || 'Failed', 'error');
       });
     }
