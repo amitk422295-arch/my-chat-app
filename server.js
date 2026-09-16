@@ -38,11 +38,11 @@ function validateUploadToken(token, userCode) {
   return true;
 }
 
-// Fixed Video/Media Upload Stream with Chunking
-function uploadBufferToCloudinary(buffer, folder) {
+// Media Upload Stream with Chunking for large videos
+function uploadBufferToCloudinary(buffer, folder, options = {}) {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { resource_type: 'auto', folder, chunk_size: 6000000 }, 
+      { resource_type: 'auto', folder, chunk_size: 6000000, ...options }, 
       (err, result) => {
         if (err) return reject(err);
         resolve(result);
@@ -112,7 +112,7 @@ const messageSchema = new mongoose.Schema({
   media: { type: String, default: '' },
   messageType: { type: String, default: 'text' },
   fileName: { type: String, default: '' },
-  status: { type: String, default: 'sent' }, // Added status field
+  status: { type: String, default: 'sent' },
   createdAt: { type: Date, default: Date.now, index: true },
   deletedFor: { type: [String], default: [] }
 });
@@ -140,9 +140,9 @@ io.on('connection', (socket) => {
       if (passStr.length !== 8) return callback({ success: false, error: 'Password must be strictly 8 digits.' });
 
       let avatarUrl = avatar || DEFAULT_AVATAR;
-      // Bug Fix: Prevent uploading default SVG to Cloudinary
       if (avatar && avatar.startsWith('data:image') && !avatar.includes('<svg')) {
-        const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars' });
+        // High quality auto-compression for DPs
+        const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars', width: 500, crop: "scale", quality: "auto" });
         avatarUrl = uploadRes.secure_url;
       }
 
@@ -177,10 +177,11 @@ io.on('connection', (socket) => {
   socket.on('get-contacts', async () => {
     if (!currentUserCode) return;
     try {
+      // Sorting conceptually handles recently added, but dynamic reordering is handled via frontend updates
       const me = await User.findOne({ userCode: currentUserCode }).lean();
       const ids = Array.isArray(me?.contacts) ? me.contacts : [];
       const allUsers = ids.length ? await User.find({ userCode: { $in: ids } }) : [];
-      socket.emit('contact-list-data', { contacts: allUsers.map(u => ({ userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR })) });
+      socket.emit('contact-list-data', { contacts: allUsers.map(u => ({ userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, mobile: u.mobile })) });
     } catch (e) {}
   });
 
@@ -199,6 +200,27 @@ io.on('connection', (socket) => {
       await User.updateOne({ userCode: targetUser.userCode }, { $addToSet: { contacts: currentUserCode } });
       cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar || DEFAULT_AVATAR } });
     } catch (e) { cb({ success: false, error: 'Error finding user.' }); }
+  });
+
+  // Profile Edit
+  socket.on('update-profile', async ({ fullName, avatar, secQ1, secQ2 }, callback) => {
+    if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
+    try {
+      let avatarUrl = avatar;
+      if (avatar && avatar.startsWith('data:image') && !avatar.includes('<svg')) {
+        // High quality auto-compression when changing DP
+        const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars', width: 500, crop: "scale", quality: "auto" });
+        avatarUrl = uploadRes.secure_url;
+      }
+      const update = {};
+      if (typeof fullName === 'string') update.fullName = fullName.trim() || 'User';
+      if (typeof avatarUrl === 'string') update.avatar = avatarUrl;
+      if (typeof secQ1 === 'string') update.secQ1 = secQ1.trim().toLowerCase();
+      if (typeof secQ2 === 'string') update.secQ2 = secQ2.trim().toLowerCase();
+      
+      const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
+      callback && callback({ success: true, user: user.toObject() });
+    } catch (e) { callback && callback({ success: false, error: 'Update failed.' }); }
   });
 
   socket.on('get-messages', async ({ targetCode, after }, callback) => {
@@ -233,13 +255,11 @@ io.on('connection', (socket) => {
         messageType: type, fileName: String(fileName || ''), status: 'sent'
       });
       
-      // Emit to receiver directly
       io.to(receiverCode).emit('new-message', msg.toObject());
       callback && callback({ success: true, message: msg.toObject() });
     } catch (e) { callback && callback({ success: false, error: 'Message failed: ' + e.message }); }
   });
 
-  // Handle read receipts
   socket.on('mark-message-read', async ({ messageId, senderCode }) => {
     try {
       await Message.updateOne({ messageId }, { status: 'delivered' });
@@ -251,6 +271,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
