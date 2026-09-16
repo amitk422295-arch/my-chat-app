@@ -38,7 +38,7 @@ function validateUploadToken(token, userCode) {
   return true;
 }
 
-// Media Upload Stream with Chunking for large videos (6MB chunks)
+// Media Upload Stream with Chunking for large videos
 function uploadBufferToCloudinary(buffer, folder, options = {}) {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -95,7 +95,7 @@ const userSchema = new mongoose.Schema({
   secQ1: { type: String, default: '' },
   secQ2: { type: String, default: '' },
   contacts: { type: [String], default: [] },
-  blockedUsers: { type: [String], default: [] } // Added blocked users
+  blockedUsers: { type: [String], default: [] }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -109,9 +109,15 @@ const messageSchema = new mongoose.Schema({
   fileName: { type: String, default: '' },
   status: { type: String, default: 'sent' },
   createdAt: { type: Date, default: Date.now, index: true },
-  deletedFor: { type: [String], default: [] } // Used for clear chat
+  deletedFor: { type: [String], default: [] } 
 });
 const Message = mongoose.model('Message', messageSchema);
+
+// Additional schemas for Reels (Status)
+const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
+const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: String, time: String, expiresAt: Date, viewers: [viewerSchema] }, { _id: false });
+const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
+const Status = mongoose.model('Status', statusSchema);
 
 io.on('connection', (socket) => {
   let currentUserCode = null;
@@ -201,7 +207,6 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return callback && callback({ success: false });
     try {
       const clean = String(targetCode || '').toLowerCase();
-      // Only fetch messages NOT deleted for current user
       const base = { $or: [{ senderCode: currentUserCode, receiverCode: clean }, { senderCode: clean, receiverCode: currentUserCode }], deletedFor: { $ne: currentUserCode } };
       const messages = await Message.find(after ? { $and: [base, { createdAt: { $gt: new Date(after) } }] } : base).sort({ createdAt: 1 }).limit(500).lean();
       callback && callback({ success: true, messages, full: !after });
@@ -213,7 +218,6 @@ io.on('connection', (socket) => {
     try {
       const receiver = await User.findOne({ userCode: data.targetCode });
       if (receiver?.blockedUsers?.includes(currentUserCode)) {
-         // Pretend it sent for sender, but don't deliver
          return callback({ success: true, message: { ...data, status: 'sent', senderCode: currentUserCode, receiverCode: data.targetCode } });
       }
 
@@ -230,7 +234,6 @@ io.on('connection', (socket) => {
     } catch (e) { callback && callback({ success: false }); }
   });
 
-  // Real Clear Chat (Server Side)
   socket.on('clear-chat', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
     try {
@@ -242,7 +245,6 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  // Block & Delete
   socket.on('block-user', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
     await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode }, $pull: { contacts: targetCode } });
@@ -264,8 +266,22 @@ io.on('connection', (socket) => {
     io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
   });
 
+  // Simple Self-Ping to prevent Render Sleep (Optional fallback)
+  socket.on('ping-server', () => { /* Keeps socket alive */ });
+
   socket.on('disconnect', () => {});
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// AUTOMATIC SELF-PING TO PREVENT RENDER SLEEP (Every 14 minutes)
+const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+setInterval(() => {
+  const client = APP_URL.startsWith('https') ? https : http;
+  client.get(APP_URL + '/health', (resp) => {
+    console.log('Keep-alive ping sent successfully.');
+  }).on("error", (err) => {
+    console.log("Ping error: " + err.message);
+  });
+}, 14 * 60 * 1000); // 14 minutes
