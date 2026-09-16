@@ -30,10 +30,13 @@
     .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
     .top-actions { display:flex; align-items:center; gap:8px; }
     .icon-btn { width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:#191922;color:#fff;font-size:20px;cursor:pointer; }
-    .menu-panel { position:fixed; top:62px; right:12px; width:250px; z-index:210; display:none; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:8px; box-shadow:0 20px 60px rgba(0,0,0,.75); }
+    
+    .menu-panel { position:fixed; z-index:210; display:none; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:8px; box-shadow:0 20px 60px rgba(0,0,0,.9); }
     .menu-panel button { width:100%; border:0; background:transparent; color:#fff; padding:13px 12px; text-align:left; border-radius:12px; font-size:14px; cursor:pointer; }
+    .menu-panel button:hover { background:rgba(255,255,255,.08); }
     .modal { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); }
     .modal-card { width:100%; max-width:390px; max-height:88vh; overflow:auto; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:22px; box-shadow:0 20px 70px rgba(0,0,0,.85); }
+    
     .panes-wrapper { flex: 1; position: relative; overflow: hidden; }
     .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; background: #0c0c12; }
     .tab-pane.active { display: flex; }
@@ -43,11 +46,11 @@
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
     
     #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; }
-    .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex: none; }
-    .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 24px; padding: 6px 14px; }
+    .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex: none; }
+    .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 26px; padding: 10px 18px; }
     .input-wrapper [contenteditable]:empty::before { content: attr(placeholder); color: #888; pointer-events: none; }
     
-    .btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+    .btn-circle { width: 46px; height: 46px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; font-size: 18px; box-shadow: 0 4px 12px rgba(255,59,92,0.4); }
     #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; flex: 1; overflow-y: auto; scroll-behavior: smooth; }
     
     .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; }
@@ -61,13 +64,12 @@
   </style>
 </head>
 <body>
-
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
   <div id="imageModal" onclick="closeImageModal()">
     <button class="close-btn">✕</button>
-    <img id="fullScreenImage" src="">
+    <img id="fullScreenImage" src="" onclick="event.stopPropagation()">
   </div>
 
   <!-- AUTH SCREEN -->
@@ -83,7 +85,6 @@
         <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID * (e.g. @amit123)">
         <input type="password" id="regPassInput" class="input-box" placeholder="Password * (8 digits)" maxlength="8">
         
-        <!-- Added Security UI Warning -->
         <p style="font-size:11px;color:#ff9aae;margin:2px 0 0 2px;text-align:left;font-weight:600;">* Must provide at least one security answer</p>
         <input type="text" id="regQ1Input" class="input-box" placeholder="1. Pet's name?">
         <input type="text" id="regQ2Input" class="input-box" placeholder="2. Best friend?">
@@ -121,13 +122,12 @@
       <div class="tab-pane active" id="paneChats">
         <div style="padding:12px;display:flex;gap:8px;">
           <input type="text" id="directSearchInput" class="input-box" placeholder="Search @userid or mobile">
-          <!-- Changed Button Text to Add -->
           <button class="btn-gradient" onclick="openDirectChat()">Add</button>
         </div>
         <div id="chatsList"></div>
       </div>
 
-      <!-- Reels & Calls panes are kept exactly the same logic -->
+      <!-- Reels & Calls -->
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
@@ -144,9 +144,9 @@
     </div>
   </div>
 
-  <!-- APP MENU -->
-  <div id="appMenu" class="menu-panel" onclick="event.stopPropagation()">
-    <button onclick="openMyProfile()">👤 My Profile</button>
+  <!-- APP MENU (Edit Profile) -->
+  <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
+    <button onclick="openMyProfile()">👤 Edit Profile</button>
     <button class="danger" onclick="logoutApp()">🚪 Logout</button>
   </div>
 
@@ -154,21 +154,81 @@
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+      <!-- Click Avatar to Open Full Screen -->
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="openFullScreenImage(this.src)">
       <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#00ff88;">Online</div>
       </div>
     </div>
+    
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
     
     <div class="bottom-input-bar">
-      <input type="file" id="chatMediaInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this)">
-      <button class="icon-btn" style="width:38px;height:38px;font-size:20px;flex:none;background:#1c1c26;display:flex;align-items:center;justify-content:center;" onclick="document.getElementById('chatMediaInput').click()">📎</button>
+      <!-- Chat Input Box -->
       <div class="input-wrapper">
         <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto;"></div>
       </div>
+      
+      <!-- New Attachment Setup on the Right -->
+      <div style="position:relative;">
+        <button class="icon-btn" onclick="toggleAttachMenu(event)" style="background:#1c1c26;border:none;">📎</button>
+        <div id="attachMenu" class="menu-panel" style="bottom:55px; right:0; width:160px; top:auto;">
+          <button onclick="document.getElementById('chatMediaImg').click()">🖼️ Photo</button>
+          <button onclick="document.getElementById('chatMediaVid').click()">🎥 Video</button>
+          <button onclick="document.getElementById('chatMediaDoc').click()">📄 File/Doc</button>
+        </div>
+      </div>
+      
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
+
+      <!-- Hidden Specific File Inputs -->
+      <input type="file" id="chatMediaImg" style="display:none" accept="image/*" onchange="sendMediaFile(this, 'image')">
+      <input type="file" id="chatMediaVid" style="display:none" accept="video/*" onchange="sendMediaFile(this, 'video')">
+      <input type="file" id="chatMediaDoc" style="display:none" accept=".pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this, 'document')">
+    </div>
+  </div>
+
+  <!-- MY PROFILE MODAL -->
+  <div id="myProfileModal" class="modal">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <h3 style="text-align:center;margin-bottom:14px;">Edit Profile</h3>
+      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
+      
+      <!-- Camera Overlay for DP -->
+      <div style="position:relative; width:90px; height:90px; margin:0 auto 12px;">
+        <img id="myProfileAvatar" src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid #ff3b5c;cursor:pointer;" onclick="openFullScreenImage(this.src)">
+        <div style="position:absolute; bottom:0; right:-5px; background:#ff3b5c; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:2px solid #171720; box-shadow:0 2px 10px rgba(0,0,0,0.5);" onclick="document.getElementById('profileAvatarInput').click()">📷</div>
+      </div>
+
+      <input id="myProfileName" class="input-box" placeholder="Full Name" style="margin-bottom:8px;">
+      
+      <!-- Readonly ID & Mobile -->
+      <input id="myProfileId" class="input-box" readonly title="Cannot change User ID" style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="User ID">
+      <input id="myProfileMobile" class="input-box" readonly title="Cannot change Mobile" style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="Mobile Number">
+      
+      <!-- Editable Q1 & Q2 -->
+      <input id="myProfileQ1" class="input-box" placeholder="1. Pet's name?" style="margin-bottom:8px;">
+      <input id="myProfileQ2" class="input-box" placeholder="2. Best friend?" style="margin-bottom:12px;">
+
+      <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
+      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMyProfile()">✕</button>
+    </div>
+  </div>
+
+  <!-- FORGOT MODAL -->
+  <div id="forgotModal" class="modal">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <h3 style="margin-bottom:8px;">Recover Account</h3>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input type="tel" id="recMobileInput" class="input-box" placeholder="Registered Mobile *">
+        <input type="text" id="recQ1Input" class="input-box" placeholder="1. Pet's name">
+        <input type="text" id="recQ2Input" class="input-box" placeholder="2. Best friend">
+        <input type="password" id="recNewPassInput" class="input-box" placeholder="New 8-digit Password (Optional)" maxlength="8">
+        <button class="btn-gradient" onclick="submitRecovery()">Recover</button>
+      </div>
+      <div id="recoveryResultDisplay" style="font-size:13px; color:#00ff88; font-weight:700; margin-top:10px; text-align:center;"></div>
+      <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">✕</button>
     </div>
   </div>
 
@@ -179,7 +239,7 @@
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
     let unreadMap = {}; 
 
-    // IndexedDB Boilerplate ... [Kept existing working logic]
+    // DB Boilerplate
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
     let dbPromise = null;
     function openLocalDB() {
@@ -221,6 +281,18 @@
       clearTimeout(toastTimeout); if(duration > 0) toastTimeout = setTimeout(()=> { if(t) t.style.display='none'; }, duration);
     }
 
+    // Global click listener to close menus & modals gracefully
+    document.addEventListener('click', (e) => {
+      document.getElementById('appMenu').style.display = 'none';
+      document.getElementById('attachMenu').style.display = 'none';
+      
+      const forgotModal = document.getElementById('forgotModal');
+      const profileModal = document.getElementById('myProfileModal');
+      
+      if (e.target === forgotModal) closeForgotModal();
+      if (e.target === profileModal) closeMyProfile();
+    });
+
     function toggleAuthMode() {
       authMode = authMode === 'login' ? 'reg' : 'login';
       document.getElementById('viewRegister').style.display = authMode === 'reg' ? 'flex' : 'none';
@@ -230,6 +302,7 @@
     }
 
     function previewDp(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; }; reader.readAsDataURL(file); }
+    function changeMyAvatar(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; }; reader.readAsDataURL(file); }
 
     function handleRegisterCustom() {
       const name = document.getElementById('regNameInput').value.trim();
@@ -242,6 +315,7 @@
       if (mobile.length < 10) return showToast('Valid mobile required', 'error');
       if (!userId.startsWith('@') || userId.length < 5) return showToast('User ID must start with @', 'error');
       if (pass.length !== 8) return showToast('Password must be 8 digits', 'error');
+      if (!q1 && !q2) return showToast('Provide at least one security answer', 'error');
 
       showToast('Creating account...', 'info');
       socket.emit('register-custom', { userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64 || DEFAULT_AVATAR, q1, q2 }, res => {
@@ -286,11 +360,13 @@
       const list = document.getElementById('chatsList');
       list.innerHTML = globalContacts.length ? globalContacts.map(c => {
         const unreadCount = unreadMap[c.userCode] || 0;
-        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;">New ${unreadCount}</div>` : '';
+        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;box-shadow:0 2px 10px rgba(255,59,92,0.4);">${unreadCount} New</div>` : '';
         const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
+        
+        // Fix SVG DP Entry Bug using encodeURIComponent to safely pass string
         return `
-        <div class="chat-row" data-usercode="${escapeAttr(c.userCode)}" data-name="${escapeAttr(c.name)}" onclick="openChatWith('${escapeAttr(c.userCode)}','${escapeAttr(c.name)}','${escapeAttr(userAvatar)}')">
-          <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'">
+        <div class="chat-row" onclick="openChatWith(decodeURIComponent('${encodeURIComponent(c.userCode)}'), decodeURIComponent('${encodeURIComponent(c.name)}'), decodeURIComponent('${encodeURIComponent(userAvatar)}'))">
+          <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'" onclick="event.stopPropagation(); openFullScreenImage(this.src);">
           <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
           <div>${unreadBadge}</div>
         </div>`;
@@ -305,7 +381,7 @@
       const query = document.getElementById('directSearchInput').value.trim(); if (!query) return;
       socket.emit('open-direct-chat', { targetCode: query, query }, res => {
         if (res?.success) {
-          // Direct chat adds and brings it to top logic
+          // Dynamic Reorder: New user added to TOP
           const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar };
           globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
           renderContacts(globalContacts);
@@ -337,7 +413,6 @@
         if (res?.success && res.messages?.length) {
           const merged = res.full ? res.messages : [...cached, ...res.messages];
           await saveMessagesLocal(currentChatTarget.userCode, merged);
-          // Only re-render full DOM if not a silent background sync to prevent UI jumping
           if (!silent) renderMessages(merged, true); 
         }
       });
@@ -354,14 +429,14 @@
       let innerHtml = '';
       if (m.messageType === 'image') innerHtml = `<img src="${escapeAttr(m.media)}" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`;
       else if (m.messageType === 'video') innerHtml = `<video src="${escapeAttr(m.media)}" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
+      else if (m.messageType === 'document') innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`;
       else innerHtml = escapeHtml(m.text);
 
-      // Smooth Tick Logic (🕒 -> ✓ -> ✓✓)
       let statusIcon = '';
       if (m.senderCode === currentUserData?.userCode || m.mine) {
         if (m.status === 'pending') statusIcon = '🕒';
         else if (m.status === 'sent') statusIcon = '✓';
-        else if (m.status === 'delivered') statusIcon = '<span style="color:#5ac8fa">✓✓</span>';
+        else if (m.status === 'delivered') statusIcon = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>';
         else statusIcon = '✓'; 
       }
       return `${innerHtml}<span class="msg-time">${timeStr} <span id="status_${m.messageId}">${statusIcon}</span></span>`;
@@ -376,25 +451,33 @@
       if (scrollToBottom) setTimeout(() => { rm.scrollTop = rm.scrollHeight; }, 10);
     }
 
+    // Dynamic Reordering when sending a message
+    function promoteChatToTop(userCode) {
+        const idx = globalContacts.findIndex(c => c.userCode === userCode);
+        if (idx !== -1) {
+            const c = globalContacts.splice(idx, 1)[0];
+            globalContacts.unshift(c);
+            renderContacts(globalContacts);
+        }
+    }
+
     function sendChatMessage() {
       const box = document.getElementById('msgInputBox'); 
       const val = box.innerText.trim();
       if (!val || !currentChatTarget) return;
       const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
       
-      // Inject Temporary Message for Smooth UI (No jumping/refreshing)
       const tempMsg = { messageId: clientMessageId, text: val, mine: true, status: 'pending', messageType: 'text', createdAt: Date.now() };
       document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}">${formatMessageContent(tempMsg)}</div>`);
-      
-      const rm = document.getElementById('roomMessages');
-      rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); // Smooth scroll drop
+      const rm = document.getElementById('roomMessages'); rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' });
       
       box.innerText = ''; box.focus(); 
+      promoteChatToTop(currentChatTarget.userCode);
 
       socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId }, async res => {
         const el = document.getElementById(clientMessageId);
         if (res?.success && el) {
-          el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'}); // Updates to Single Tick ✓
+          el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
           const cached = await getMessagesLocal(currentChatTarget.userCode);
           await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
         }
@@ -405,18 +488,26 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } 
     });
 
-    async function sendMediaFile(inp) {
+    function toggleAttachMenu(e) { 
+      e.stopPropagation(); 
+      const m = document.getElementById('attachMenu'); 
+      m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
+    }
+
+    async function sendMediaFile(inp, forcedType) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
+      document.getElementById('attachMenu').style.display = 'none'; // Close menu
+      
       try {
-        const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document';
         const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-        
-        // Inject Temp UI for Media
         const tempUrl = URL.createObjectURL(file);
-        const tempMsg = { messageId: clientMessageId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: type, createdAt: Date.now() };
+        const tempMsg = { messageId: clientMessageId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
+        
         document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}">${formatMessageContent(tempMsg)}</div>`);
         const rm = document.getElementById('roomMessages'); rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' });
         
+        promoteChatToTop(currentChatTarget.userCode);
+
         const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
         xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
         const form = new FormData(); form.append('media', file, file.name);
@@ -424,7 +515,7 @@
         xhr.onload = () => {
           const result = JSON.parse(xhr.responseText || '{}');
           if (result.success) {
-            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: type, fileName: file.name, clientMessageId }, async res => {
+            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId }, async res => {
               const el = document.getElementById(clientMessageId);
               if (res?.success && el) {
                 el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
@@ -444,31 +535,72 @@
       const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
 
       if (currentChatTarget && currentChatTarget.userCode === otherCode) {
-        // Smooth drop for receiver without full DOM refresh
         if (!document.getElementById(m.messageId)) {
           document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble theirs" id="${m.messageId}">${formatMessageContent(m)}</div>`);
           const rm = document.getElementById('roomMessages'); rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' });
         }
-        
         const cached = await getMessagesLocal(currentChatTarget.userCode);
         if (!cached.find(x => x.messageId === m.messageId)) await saveMessagesLocal(currentChatTarget.userCode, [...cached, m]);
         
-        // Notify sender that message was seen/delivered
         socket.emit('mark-message-read', { messageId: m.messageId, senderCode: m.senderCode });
       } else {
+        // Increment Unread Badge & Reorder list
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
-        renderContacts(globalContacts); showToast(`New message from ${otherCode}`, 'info', 2000);
+        promoteChatToTop(otherCode); 
+        showToast(`New message from ${otherCode}`, 'info', 2000);
       }
     });
 
     socket.on('message-status-update', ({ messageId, status }) => {
       const statusSpan = document.getElementById(`status_${messageId}`);
       if (statusSpan && status === 'delivered') {
-         statusSpan.innerHTML = '<span style="color:#5ac8fa">✓✓</span>';
+         statusSpan.innerHTML = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>';
       }
     });
     
     function toggleAppMenu(e) { e.stopPropagation(); const m = document.getElementById('appMenu'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+    
+    function openMyProfile() {
+      document.getElementById('myProfileName').value = currentUserData.fullName || '';
+      document.getElementById('myProfileId').value = currentUserData.userCode || '';
+      document.getElementById('myProfileMobile').value = currentUserData.mobile || '';
+      document.getElementById('myProfileQ1').value = currentUserData.secQ1 || '';
+      document.getElementById('myProfileQ2').value = currentUserData.secQ2 || '';
+      document.getElementById('myProfileAvatar').src = currentUserData.avatar || DEFAULT_AVATAR;
+      document.getElementById('myProfileModal').style.display = 'flex';
+      document.getElementById('appMenu').style.display = 'none'; // Close menu
+    }
+    
+    function closeMyProfile() { document.getElementById('myProfileModal').style.display = 'none'; }
+    
+    function saveMyProfile() {
+      const fullName = document.getElementById('myProfileName').value.trim();
+      const avatar = document.getElementById('myProfileAvatar').src;
+      const secQ1 = document.getElementById('myProfileQ1').value.trim();
+      const secQ2 = document.getElementById('myProfileQ2').value.trim();
+      
+      socket.emit('update-profile', { fullName, avatar, secQ1, secQ2 }, res => {
+        if (res?.success) { 
+          currentUserData = res.user; 
+          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
+          closeMyProfile(); showToast('Profile Saved Successfully!', 'success'); 
+        } else { showToast('Update failed', 'error'); }
+      });
+    }
+
+    function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
+    function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
+    function submitRecovery() {
+      const mobile = document.getElementById('recMobileInput').value.trim();
+      const q1 = document.getElementById('recQ1Input').value.trim();
+      const q2 = document.getElementById('recQ2Input').value.trim();
+      const newPassword = document.getElementById('recNewPassInput').value.trim();
+      socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
+        if (res?.success) { document.getElementById('recoveryResultDisplay').textContent = res.message; showToast('Success', 'success'); }
+        else showToast(res?.error || 'Failed', 'error');
+      });
+    }
+
     function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
   </script>
 </body>
