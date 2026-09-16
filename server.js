@@ -37,12 +37,17 @@ function validateUploadToken(token, userCode) {
   if (!row || row.expiresAt < Date.now() || row.userCode !== String(userCode || '').toLowerCase()) return false;
   return true;
 }
+
+// Fixed Video/Media Upload Stream with Chunking
 function uploadBufferToCloudinary(buffer, folder) {
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({ resource_type: 'auto', folder }, (err, result) => {
-      if (err) return reject(err);
-      resolve(result);
-    });
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: 'auto', folder, chunk_size: 6000000 }, 
+      (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
+      }
+    );
     stream.end(buffer);
   });
 }
@@ -77,11 +82,6 @@ mongoose.connect(MONGO_URI, {
   serverSelectionTimeoutMS: 5000
 }).then(async () => {
   console.log('MongoDB connected successfully');
-  try {
-    await mongoose.connection.collection('messages').dropIndex('id_1').catch(() => {});
-    await mongoose.connection.collection('status').dropIndex('id_1').catch(() => {});
-    await mongoose.connection.collection('statuses').dropIndex('id_1').catch(() => {});
-  } catch(e) {}
 }).catch(err => console.error('MongoDB connection error:', err.message));
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
@@ -112,6 +112,7 @@ const messageSchema = new mongoose.Schema({
   media: { type: String, default: '' },
   messageType: { type: String, default: 'text' },
   fileName: { type: String, default: '' },
+  status: { type: String, default: 'sent' }, // Added status field
   createdAt: { type: Date, default: Date.now, index: true },
   deletedFor: { type: [String], default: [] }
 });
@@ -139,7 +140,8 @@ io.on('connection', (socket) => {
       if (passStr.length !== 8) return callback({ success: false, error: 'Password must be strictly 8 digits.' });
 
       let avatarUrl = avatar || DEFAULT_AVATAR;
-      if (avatar && avatar.startsWith('data:image')) {
+      // Bug Fix: Prevent uploading default SVG to Cloudinary
+      if (avatar && avatar.startsWith('data:image') && !avatar.includes('<svg')) {
         const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars' });
         avatarUrl = uploadRes.secure_url;
       }
@@ -172,60 +174,6 @@ io.on('connection', (socket) => {
     } catch (err) { return callback({ success: false, error: 'Auth error: ' + err.message }); }
   });
 
-  socket.on('recover-account', async ({ mobile, q1, q2, newPassword }, callback) => {
-    try {
-      const userObj = await User.findOne({ mobile: String(mobile || '').trim() });
-      if (!userObj) return callback({ success: false, error: 'Mobile not found.' });
-      let match = false;
-      if (q1 && userObj.secQ1 === q1.trim().toLowerCase()) match = true;
-      if (q2 && userObj.secQ2 === q2.trim().toLowerCase()) match = true;
-      if (!match) return callback({ success: false, error: 'Incorrect security answer.' });
-
-      if (newPassword && newPassword.length === 8) {
-        userObj.password = newPassword; await userObj.save();
-        return callback({ success: true, userCode: userObj.userCode, message: 'Password updated successfully!' });
-      }
-      callback({ success: true, userCode: userObj.userCode, message: 'Your User ID is: ' + userObj.userCode });
-    } catch (e) { callback({ success: false, error: 'Recovery failed.' }); }
-  });
-
-  socket.on('get-statuses', async () => {
-    if (!currentUserCode) return;
-    try {
-      const me = await User.findOne({ userCode: currentUserCode });
-      let myStatusDoc = await Status.findOne({ userCode: currentUserCode });
-      const myStatus = myStatusDoc ? myStatusDoc.toObject() : { userCode: currentUserCode, name: me?.fullName, avatar: me?.avatar || DEFAULT_AVATAR, items: [] };
-      const now = new Date();
-      await Status.updateMany({}, { $pull: { items: { expiresAt: { $lte: now } } } });
-      myStatusDoc = await Status.findOne({ userCode: currentUserCode });
-      const refreshedMy = myStatusDoc ? myStatusDoc.toObject() : myStatus;
-      
-      const allOtherStatuses = await Status.find({ userCode: { $ne: currentUserCode } });
-      socket.emit('status-data', { myStatus: refreshedMy, contactStatuses: allOtherStatuses.map(s => s.toObject()) });
-    } catch (e) {}
-  });
-
-  socket.on('post-status', async (statusItem, callback) => {
-    if (!currentUserCode) return;
-    try {
-      let mediaUrl = statusItem.media;
-      if (mediaUrl && mediaUrl.startsWith('data:')) {
-        const uploadRes = await cloudinary.uploader.upload(mediaUrl, { resource_type: 'auto', folder: 'chat_app_statuses' });
-        mediaUrl = uploadRes.secure_url;
-      }
-      const me = await User.findOne({ userCode: currentUserCode });
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const newItem = { ...statusItem, media: mediaUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), expiresAt, viewers: [] };
-      await Status.findOneAndUpdate(
-        { userCode: currentUserCode }, 
-        { $set: { name: me?.fullName || 'User', avatar: me?.avatar || DEFAULT_AVATAR }, $push: { items: newItem } }, 
-        { upsert: true, new: true }
-      );
-      callback && callback({ success: true, expiresAt });
-      io.emit('status-updated');
-    } catch (e) { callback && callback({ success: false, error: e.message }); }
-  });
-
   socket.on('get-contacts', async () => {
     if (!currentUserCode) return;
     try {
@@ -253,22 +201,6 @@ io.on('connection', (socket) => {
     } catch (e) { cb({ success: false, error: 'Error finding user.' }); }
   });
 
-  socket.on('update-profile', async ({ fullName, avatar }, callback) => {
-    if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
-    try {
-      let avatarUrl = avatar;
-      if (avatar && avatar.startsWith('data:image')) {
-        const uploadRes = await cloudinary.uploader.upload(avatar, { folder: 'chat_app_avatars' });
-        avatarUrl = uploadRes.secure_url;
-      }
-      const update = {};
-      if (typeof fullName === 'string') update.fullName = fullName.trim() || 'User';
-      if (typeof avatarUrl === 'string') update.avatar = avatarUrl;
-      const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
-      callback && callback({ success: true, user: user.toObject() });
-    } catch (e) { callback && callback({ success: false, error: 'Update failed.' }); }
-  });
-
   socket.on('get-messages', async ({ targetCode, after }, callback) => {
     if (!currentUserCode) return callback && callback({ success: false, error: 'Not authenticated.' });
     try {
@@ -288,7 +220,7 @@ io.on('connection', (socket) => {
     try {
       let mediaUrl = media;
       if (mediaUrl && mediaUrl.startsWith('data:')) {
-        const uploadRes = await cloudinary.uploader.upload(mediaUrl, { resource_type: 'auto', folder: 'chat_app_media' });
+        const uploadRes = await cloudinary.uploader.upload(mediaUrl, { resource_type: 'auto', folder: 'chat_app_media', chunk_size: 6000000 });
         mediaUrl = uploadRes.secure_url;
       }
       await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: receiverCode } });
@@ -298,11 +230,21 @@ io.on('connection', (socket) => {
       const msg = await Message.create({
         messageId: uniqueMsgId, senderCode: currentUserCode, receiverCode, 
         text: String(text || ''), media: type !== 'text' ? String(mediaUrl) : '', 
-        messageType: type, fileName: String(fileName || '')
+        messageType: type, fileName: String(fileName || ''), status: 'sent'
       });
-      io.to(currentUserCode).to(receiverCode).emit('new-message', msg.toObject());
+      
+      // Emit to receiver directly
+      io.to(receiverCode).emit('new-message', msg.toObject());
       callback && callback({ success: true, message: msg.toObject() });
     } catch (e) { callback && callback({ success: false, error: 'Message failed: ' + e.message }); }
+  });
+
+  // Handle read receipts
+  socket.on('mark-message-read', async ({ messageId, senderCode }) => {
+    try {
+      await Message.updateOne({ messageId }, { status: 'delivered' });
+      io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
+    } catch (e) {}
   });
 
   socket.on('disconnect', () => {});
