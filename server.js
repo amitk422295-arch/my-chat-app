@@ -114,13 +114,11 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', messageSchema);
 
-// Additional schemas for Reels (Status)
 const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
 const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: String, time: String, expiresAt: Date, viewers: [viewerSchema] }, { _id: false });
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
-// Tracking online users
 const userSockets = new Map();
 
 io.on('connection', (socket) => {
@@ -165,7 +163,6 @@ io.on('connection', (socket) => {
       const existingUser = await User.findOne({ userCode: rawId });
       if (existingUser) return callback({ success: false, error: 'User ID already taken.' });
 
-      // Create user immediately (Non-Blocking for UI)
       const newUser = await User.create({
         userCode: rawId, password: data.password.trim(), fullName: data.fullName?.trim() || 'User',
         mobile: data.mobile.trim(), avatar: DEFAULT_AVATAR, secQ1: data.q1?.trim().toLowerCase() || '',
@@ -177,9 +174,8 @@ io.on('connection', (socket) => {
       userSockets.get(currentUserCode).add(socket.id);
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
 
-      callback({ success: true, user: newUser }); // Send success instantly
+      callback({ success: true, user: newUser }); 
 
-      // Process and compress DP in Background (Shrink 70%)
       if (rawAvatarUrl && rawAvatarUrl.startsWith('data:image') && !rawAvatarUrl.includes('<svg')) {
         cloudinary.uploader.upload(rawAvatarUrl, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
           .then(uploadRes => User.updateOne({ userCode: rawId }, { avatar: uploadRes.secure_url }).exec())
@@ -206,7 +202,6 @@ io.on('connection', (socket) => {
     } catch (err) { callback({ success: false, error: 'Auth error.' }); }
   });
 
-  // Updated: Recover Account Logic
   socket.on('recover-account', async ({ mobile, q1, q2, newPassword }, callback) => {
     try {
       const cleanMobile = String(mobile || '').trim();
@@ -230,7 +225,6 @@ io.on('connection', (socket) => {
     } catch (err) { callback({ success: false, error: 'Recovery failed. Please try again.' }); }
   });
 
-  // Updated: Get Contacts (Sorted by latest message)
   socket.on('get-contacts', async () => {
     if (!currentUserCode) return;
     try {
@@ -245,11 +239,16 @@ io.on('connection', (socket) => {
           $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }],
           deletedFor: { $ne: currentUserCode }
         }).sort({ createdAt: -1 }).lean();
-        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
+        
+        const unreadCount = await Message.countDocuments({
+          senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode }
+        });
+
+        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount };
       }));
 
       contactsWithTime.sort((a, b) => b.lastMsgTime - a.lastMsgTime);
-      socket.emit('contact-list-data', { contacts: contactsWithTime.map(c => ({ userCode: c.userCode, name: c.name, avatar: c.avatar })) });
+      socket.emit('contact-list-data', { contacts: contactsWithTime.map(c => ({ userCode: c.userCode, name: c.name, avatar: c.avatar, unreadCount: c.unreadCount })) });
     } catch (e) {}
   });
 
@@ -273,17 +272,19 @@ io.on('connection', (socket) => {
       let avatarUrl = data.avatar;
       const update = { fullName: data.fullName?.trim() || 'User', secQ1: data.secQ1?.trim().toLowerCase(), secQ2: data.secQ2?.trim().toLowerCase() };
       
-      // Update immediately, compress avatar in background
+      const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
+      callback({ success: true, user: user.toObject() });
+
       if (avatarUrl && avatarUrl.startsWith('data:image') && !avatarUrl.includes('<svg')) {
          cloudinary.uploader.upload(avatarUrl, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
           .then(uploadRes => User.updateOne({ userCode: currentUserCode }, { avatar: uploadRes.secure_url }).exec())
-          .catch(e => console.log(e));
+          .catch(e => {
+             console.error('Avatar bg upload error:', e.message);
+             socket.emit('profile-upload-error', { error: 'Your DP could not be uploaded due to a server error.' });
+          });
       } else if (avatarUrl) {
-         update.avatar = avatarUrl;
+         User.updateOne({ userCode: currentUserCode }, { avatar: avatarUrl }).exec();
       }
-
-      const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
-      callback({ success: true, user: user.toObject() });
     } catch (e) { callback({ success: false }); }
   });
 
@@ -329,7 +330,6 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  // Updated: Delete Single Message (For Me / Everyone)
   socket.on('delete-message', async ({ messageId, type }, cb) => {
     if (!currentUserCode) return;
     try {
@@ -369,9 +369,15 @@ io.on('connection', (socket) => {
     io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
   });
 
-  socket.on('ping-server', () => {
-    // Lightweight keep-alive for background anti-sleep
+  socket.on('mark-all-read', async ({ senderCode }) => {
+    if (!currentUserCode) return;
+    await Message.updateMany(
+      { senderCode: senderCode, receiverCode: currentUserCode, status: 'sent' },
+      { status: 'delivered' }
+    );
   });
+
+  socket.on('ping-server', () => {});
 
   socket.on('disconnect', () => {
     if (currentUserCode && userSockets.has(currentUserCode)) {
