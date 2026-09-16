@@ -95,7 +95,8 @@ const userSchema = new mongoose.Schema({
   secQ1: { type: String, default: '' },
   secQ2: { type: String, default: '' },
   contacts: { type: [String], default: [] },
-  blockedUsers: { type: [String], default: [] }
+  blockedUsers: { type: [String], default: [] },
+  lastSeen: { type: Date, default: Date.now } // NEW: For Last Seen Feature
 });
 const User = mongoose.model('User', userSchema);
 
@@ -119,6 +120,9 @@ const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: 
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
+// Tracking online users across multiple tabs
+const userSockets = new Map();
+
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
@@ -126,9 +130,34 @@ io.on('connection', (socket) => {
     if (userCode) {
       currentUserCode = String(userCode).trim().toLowerCase();
       socket.join(currentUserCode);
+      
+      // Real-time Online tracking
+      if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
+      userSockets.get(currentUserCode).add(socket.id);
+      User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
+      io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
       const token = makeUploadToken(currentUserCode);
       if (typeof callback === 'function') callback({ success: true, token });
     }
+  });
+
+  // TYPING FEATURES (1.5 seconds)
+  socket.on('typing', ({ targetCode }) => {
+    if(currentUserCode) io.to(targetCode).emit('typing', { senderCode: currentUserCode });
+  });
+  socket.on('stop-typing', ({ targetCode }) => {
+    if(currentUserCode) io.to(targetCode).emit('stop-typing', { senderCode: currentUserCode });
+  });
+
+  // CHECK USER STATUS
+  socket.on('check-status', async ({ targetCode }, cb) => {
+    const isOnline = userSockets.has(targetCode);
+    if (isOnline) return cb({ isOnline: true });
+    try {
+      const u = await User.findOne({ userCode: targetCode }, 'lastSeen').lean();
+      cb({ isOnline: false, lastSeen: u?.lastSeen });
+    } catch(e) { cb({ isOnline: false }); }
   });
 
   socket.on('register-custom', async (data, callback) => {
@@ -147,7 +176,12 @@ io.on('connection', (socket) => {
         mobile: data.mobile.trim(), avatar: avatarUrl, secQ1: data.q1?.trim().toLowerCase() || '',
         secQ2: data.q2?.trim().toLowerCase() || ''
       });
+      
       currentUserCode = rawId; socket.join(rawId);
+      if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
+      userSockets.get(currentUserCode).add(socket.id);
+      io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
       callback({ success: true, user: newUser });
     } catch (e) { callback({ success: false, error: 'Registration error: ' + e.message }); }
   });
@@ -159,7 +193,13 @@ io.on('connection', (socket) => {
       const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
       const userObj = await User.findOne({ $or: [ ...(normalizedId ? [{ userCode: normalizedId }] : []), ...(isMobileQuery ? [{ mobile: query }] : []) ] });
       if (!userObj || userObj.password !== String(password || '').trim()) return callback({ success: false, error: 'Invalid ID or password.' });
+      
       currentUserCode = userObj.userCode; socket.join(currentUserCode);
+      if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
+      userSockets.get(currentUserCode).add(socket.id);
+      User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
+      io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
       callback({ success: true, user: userObj });
     } catch (err) { callback({ success: false, error: 'Auth error.' }); }
   });
@@ -266,10 +306,19 @@ io.on('connection', (socket) => {
     io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
   });
 
-  // Simple Self-Ping to prevent Render Sleep (Optional fallback)
-  socket.on('ping-server', () => { /* Keeps socket alive */ });
+  socket.on('ping-server', () => {});
 
-  socket.on('disconnect', () => {});
+  socket.on('disconnect', () => {
+    if (currentUserCode && userSockets.has(currentUserCode)) {
+      userSockets.get(currentUserCode).delete(socket.id);
+      if (userSockets.get(currentUserCode).size === 0) {
+        userSockets.delete(currentUserCode);
+        const now = new Date();
+        User.updateOne({ userCode: currentUserCode }, { lastSeen: now }).exec();
+        io.emit('user-status-changed', { userCode: currentUserCode, isOnline: false, lastSeen: now });
+      }
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -284,4 +333,4 @@ setInterval(() => {
   }).on("error", (err) => {
     console.log("Ping error: " + err.message);
   });
-}, 14 * 60 * 1000); // 14 minutes
+}, 14 * 60 * 1000); 
