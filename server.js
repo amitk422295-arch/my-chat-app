@@ -38,11 +38,11 @@ function validateUploadToken(token, userCode) {
   return true;
 }
 
-// Media Upload Stream with Chunking for large videos
+// Media Upload Stream with Chunking & Aggressive Compression for Chat Media
 function uploadBufferToCloudinary(buffer, folder, options = {}) {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { resource_type: 'auto', folder, chunk_size: 6000000, ...options }, 
+      { resource_type: 'auto', folder, chunk_size: 6000000, quality: 'auto:eco', fetch_format: 'auto', ...options }, 
       (err, result) => {
         if (err) return reject(err);
         resolve(result);
@@ -96,7 +96,7 @@ const userSchema = new mongoose.Schema({
   secQ2: { type: String, default: '' },
   contacts: { type: [String], default: [] },
   blockedUsers: { type: [String], default: [] },
-  lastSeen: { type: Date, default: Date.now } // NEW: For Last Seen Feature
+  lastSeen: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -120,7 +120,7 @@ const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: 
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
-// Tracking online users across multiple tabs
+// Tracking online users
 const userSockets = new Map();
 
 io.on('connection', (socket) => {
@@ -131,7 +131,6 @@ io.on('connection', (socket) => {
       currentUserCode = String(userCode).trim().toLowerCase();
       socket.join(currentUserCode);
       
-      // Real-time Online tracking
       if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
       userSockets.get(currentUserCode).add(socket.id);
       User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
@@ -142,7 +141,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // TYPING FEATURES (1.5 seconds)
   socket.on('typing', ({ targetCode }) => {
     if(currentUserCode) io.to(targetCode).emit('typing', { senderCode: currentUserCode });
   });
@@ -150,7 +148,6 @@ io.on('connection', (socket) => {
     if(currentUserCode) io.to(targetCode).emit('stop-typing', { senderCode: currentUserCode });
   });
 
-  // CHECK USER STATUS
   socket.on('check-status', async ({ targetCode }, cb) => {
     const isOnline = userSockets.has(targetCode);
     if (isOnline) return cb({ isOnline: true });
@@ -163,17 +160,15 @@ io.on('connection', (socket) => {
   socket.on('register-custom', async (data, callback) => {
     try {
       const rawId = String(data.userCode || '').trim().toLowerCase();
-      let avatarUrl = data.avatar || DEFAULT_AVATAR;
-      if (avatarUrl.startsWith('data:image') && !avatarUrl.includes('<svg')) {
-        const uploadRes = await cloudinary.uploader.upload(avatarUrl, { folder: 'chat_app_avatars', width: 500, crop: "scale", quality: "auto" });
-        avatarUrl = uploadRes.secure_url;
-      }
+      const rawAvatarUrl = data.avatar;
+      
       const existingUser = await User.findOne({ userCode: rawId });
       if (existingUser) return callback({ success: false, error: 'User ID already taken.' });
 
+      // Create user immediately (Non-Blocking for UI)
       const newUser = await User.create({
         userCode: rawId, password: data.password.trim(), fullName: data.fullName?.trim() || 'User',
-        mobile: data.mobile.trim(), avatar: avatarUrl, secQ1: data.q1?.trim().toLowerCase() || '',
+        mobile: data.mobile.trim(), avatar: DEFAULT_AVATAR, secQ1: data.q1?.trim().toLowerCase() || '',
         secQ2: data.q2?.trim().toLowerCase() || ''
       });
       
@@ -182,7 +177,14 @@ io.on('connection', (socket) => {
       userSockets.get(currentUserCode).add(socket.id);
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
 
-      callback({ success: true, user: newUser });
+      callback({ success: true, user: newUser }); // Send success instantly
+
+      // Process and compress DP in Background (Shrink 70%)
+      if (rawAvatarUrl && rawAvatarUrl.startsWith('data:image') && !rawAvatarUrl.includes('<svg')) {
+        cloudinary.uploader.upload(rawAvatarUrl, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
+          .then(uploadRes => User.updateOne({ userCode: rawId }, { avatar: uploadRes.secure_url }).exec())
+          .catch(e => console.error('Avatar bg upload error:', e.message));
+      }
     } catch (e) { callback({ success: false, error: 'Registration error: ' + e.message }); }
   });
 
@@ -204,13 +206,50 @@ io.on('connection', (socket) => {
     } catch (err) { callback({ success: false, error: 'Auth error.' }); }
   });
 
+  // Updated: Recover Account Logic
+  socket.on('recover-account', async ({ mobile, q1, q2, newPassword }, callback) => {
+    try {
+      const cleanMobile = String(mobile || '').trim();
+      const cleanQ1 = String(q1 || '').trim().toLowerCase();
+      const cleanQ2 = String(q2 || '').trim().toLowerCase();
+      const cleanPass = String(newPassword || '').trim();
+
+      if (!cleanMobile || !cleanPass) return callback({ success: false, error: 'Mobile and new password are required.' });
+      if (cleanPass.length !== 8) return callback({ success: false, error: 'Password must be exactly 8 digits.' });
+
+      const user = await User.findOne({ mobile: cleanMobile });
+      if (!user) return callback({ success: false, error: 'User not found with this mobile number.' });
+
+      const q1Match = cleanQ1 && user.secQ1 === cleanQ1;
+      const q2Match = cleanQ2 && user.secQ2 === cleanQ2;
+
+      if (!q1Match && !q2Match) return callback({ success: false, error: 'Security answers do not match.' });
+
+      await User.updateOne({ _id: user._id }, { password: cleanPass });
+      callback({ success: true, message: `Success! Your User ID is ${user.userCode}` });
+    } catch (err) { callback({ success: false, error: 'Recovery failed. Please try again.' }); }
+  });
+
+  // Updated: Get Contacts (Sorted by latest message)
   socket.on('get-contacts', async () => {
     if (!currentUserCode) return;
     try {
       const me = await User.findOne({ userCode: currentUserCode }).lean();
       const ids = Array.isArray(me?.contacts) ? me.contacts : [];
-      const allUsers = ids.length ? await User.find({ userCode: { $in: ids } }) : [];
-      socket.emit('contact-list-data', { contacts: allUsers.map(u => ({ userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR })) });
+      if (!ids.length) return socket.emit('contact-list-data', { contacts: [] });
+
+      const allUsers = await User.find({ userCode: { $in: ids } }).lean();
+      
+      const contactsWithTime = await Promise.all(allUsers.map(async u => {
+        const lastMsg = await Message.findOne({
+          $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }],
+          deletedFor: { $ne: currentUserCode }
+        }).sort({ createdAt: -1 }).lean();
+        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0 };
+      }));
+
+      contactsWithTime.sort((a, b) => b.lastMsgTime - a.lastMsgTime);
+      socket.emit('contact-list-data', { contacts: contactsWithTime.map(c => ({ userCode: c.userCode, name: c.name, avatar: c.avatar })) });
     } catch (e) {}
   });
 
@@ -232,12 +271,17 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return callback({ success: false });
     try {
       let avatarUrl = data.avatar;
-      if (avatarUrl && avatarUrl.startsWith('data:image') && !avatarUrl.includes('<svg')) {
-        const uploadRes = await cloudinary.uploader.upload(avatarUrl, { folder: 'chat_app_avatars', width: 500, crop: "scale", quality: "auto" });
-        avatarUrl = uploadRes.secure_url;
-      }
       const update = { fullName: data.fullName?.trim() || 'User', secQ1: data.secQ1?.trim().toLowerCase(), secQ2: data.secQ2?.trim().toLowerCase() };
-      if (avatarUrl) update.avatar = avatarUrl;
+      
+      // Update immediately, compress avatar in background
+      if (avatarUrl && avatarUrl.startsWith('data:image') && !avatarUrl.includes('<svg')) {
+         cloudinary.uploader.upload(avatarUrl, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
+          .then(uploadRes => User.updateOne({ userCode: currentUserCode }, { avatar: uploadRes.secure_url }).exec())
+          .catch(e => console.log(e));
+      } else if (avatarUrl) {
+         update.avatar = avatarUrl;
+      }
+
       const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
       callback({ success: true, user: user.toObject() });
     } catch (e) { callback({ success: false }); }
@@ -285,6 +329,25 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
+  // Updated: Delete Single Message (For Me / Everyone)
+  socket.on('delete-message', async ({ messageId, type }, cb) => {
+    if (!currentUserCode) return;
+    try {
+      const msg = await Message.findOne({ messageId });
+      if (!msg) return cb({ success: false });
+
+      if (type === 'everyone' && msg.senderCode === currentUserCode) {
+        await Message.deleteOne({ messageId }); 
+        io.to(msg.senderCode).emit('message-deleted-ui', { messageId });
+        io.to(msg.receiverCode).emit('message-deleted-ui', { messageId });
+      } else {
+        await Message.updateOne({ messageId }, { $addToSet: { deletedFor: currentUserCode } });
+        socket.emit('message-deleted-ui', { messageId });
+      }
+      cb({ success: true });
+    } catch(e) { cb({ success: false }); }
+  });
+
   socket.on('block-user', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
     await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode }, $pull: { contacts: targetCode } });
@@ -306,7 +369,9 @@ io.on('connection', (socket) => {
     io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
   });
 
-  socket.on('ping-server', () => {});
+  socket.on('ping-server', () => {
+    // Lightweight keep-alive for background anti-sleep
+  });
 
   socket.on('disconnect', () => {
     if (currentUserCode && userSockets.has(currentUserCode)) {
