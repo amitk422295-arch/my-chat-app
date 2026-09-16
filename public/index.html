@@ -84,7 +84,6 @@
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number * (Compulsory)" maxlength="13">
         <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID * (e.g. @amit123)">
         <input type="password" id="regPassInput" class="input-box" placeholder="Password * (8 digits)" maxlength="8">
-        
         <p style="font-size:11px;color:#ff9aae;margin:2px 0 0 2px;text-align:left;font-weight:600;">* Must provide at least one security answer</p>
         <input type="text" id="regQ1Input" class="input-box" placeholder="1. Pet's name?">
         <input type="text" id="regQ2Input" class="input-box" placeholder="2. Best friend?">
@@ -290,6 +289,15 @@
       return row?.contacts || []; 
     }
 
+    // FIX 1: AUTO RECONNECTION FIX - Fixes 'Not Authenticated' bug perfectly
+    socket.on('connect', () => {
+      if (currentUserData && currentUserData.userCode) {
+        socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
+          if (res?.token) uploadToken = res.token;
+        });
+      }
+    });
+
     window.addEventListener('DOMContentLoaded', async () => {
       const savedUser = localStorage.getItem('chatAppUser');
       if (savedUser) {
@@ -309,7 +317,7 @@
       clearTimeout(toastTimeout); if(duration > 0) toastTimeout = setTimeout(()=> { if(t) t.style.display='none'; }, duration);
     }
 
-    // OUTSIDE CLICK LISTENER - Closes pop-ups properly
+    // OUTSIDE CLICK LISTENER
     document.addEventListener('click', (e) => {
       document.getElementById('appMenu').style.display = 'none';
       document.getElementById('attachMenu').style.display = 'none';
@@ -403,7 +411,6 @@
       }, 600);
     }
     function cancelPress() { clearTimeout(pressTimer); }
-
     function closeContactMenu() { document.getElementById('contactMenuModal').style.display = 'none'; activeContactMenuTarget = null; }
     
     function blockContactAction() {
@@ -473,7 +480,6 @@
       document.getElementById('chatRoom').style.display = 'flex';
       const cached = await getMessagesLocal(currentChatTarget.userCode);
       
-      // INSTANT SCROLL: First pass load instantly to bottom without jumping
       if (cached.length) renderMessages(cached, false); 
       
       syncCurrentChat(false);
@@ -488,7 +494,7 @@
         if (res?.success && res.messages?.length) {
           const merged = res.full ? res.messages : [...cached, ...res.messages];
           await saveMessagesLocal(currentChatTarget.userCode, merged);
-          if (!silent) renderMessages(merged, false); // False for Instant initial load
+          if (!silent) renderMessages(merged, false);
         }
       });
     }
@@ -499,7 +505,6 @@
     function openFullScreenImage(src) { document.getElementById('fullScreenImage').src = src; document.getElementById('imageModal').style.display = 'flex'; }
     function closeImageModal() { document.getElementById('imageModal').style.display = 'none'; }
 
-    // SCROLL TO BOTTOM (Smooth or Instant)
     function scrollToBottom(smooth = false) {
       const rm = document.getElementById('roomMessages');
       if (smooth) {
@@ -513,7 +518,6 @@
       const timeStr = new Date(m.createdAt || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       let innerHtml = '';
       
-      // Load listeners added to images/videos to prevent height jump causing scroll issues
       if (m.messageType === 'image') innerHtml = `<img src="${escapeAttr(m.media)}" onload="scrollToBottom()" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`;
       else if (m.messageType === 'video') innerHtml = `<video src="${escapeAttr(m.media)}" onloadeddata="scrollToBottom()" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
       else if (m.messageType === 'document') innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`;
@@ -535,7 +539,6 @@
         const mine = m.mine || (currentUserData && m.senderCode === currentUserData.userCode);
         return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}" id="${m.messageId}">${formatMessageContent(m)}</div>`;
       }).join('');
-      // Always call scroll immediately after putting HTML
       setTimeout(() => { scrollToBottom(smooth); }, 10);
     }
 
@@ -548,7 +551,6 @@
         }
     }
 
-    // SERVER-SIDE CLEAR CHAT
     async function clearCurrentChat() {
       if (!currentChatTarget) return;
       document.getElementById('chatRoomMenu').style.display = 'none';
@@ -569,7 +571,6 @@
       if (!val || !currentChatTarget) return;
       const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
       
-      // OPTIMISTIC UI: Shows immediately
       const tempMsg = { messageId: clientMessageId, text: val, mine: true, status: 'pending', messageType: 'text', createdAt: Date.now() };
       document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}">${formatMessageContent(tempMsg)}</div>`);
       scrollToBottom(true);
@@ -599,13 +600,11 @@
         const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
         const tempUrl = URL.createObjectURL(file);
         
-        // OPTIMISTIC MEDIA LOAD - Shows Video/Image instantly via Temp URL
         const tempMsg = { messageId: clientMessageId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
         document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}">${formatMessageContent(tempMsg)}</div>`);
         scrollToBottom(true);
         promoteChatToTop(currentChatTarget.userCode);
 
-        // Upload in Background
         const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
         xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
         const form = new FormData(); form.append('media', file, file.name);
@@ -616,7 +615,7 @@
             socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId }, async res => {
               const el = document.getElementById(clientMessageId);
               if (res?.success && el) {
-                el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'}); // Updates to Tick
+                el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
                 const cached = await getMessagesLocal(currentChatTarget.userCode);
                 await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
               }
@@ -628,6 +627,7 @@
       inp.value = '';
     }
 
+    // FIX 2: NEW USER CHAT LIST BUG - Instantly updates list if unknown user messages you
     socket.on('new-message', async m => {
       if (!currentUserData) return;
       const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
@@ -643,7 +643,12 @@
         socket.emit('mark-message-read', { messageId: m.messageId, senderCode: m.senderCode });
       } else {
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
-        promoteChatToTop(otherCode); 
+        let exists = globalContacts.find(c => c.userCode === otherCode);
+        if (!exists) {
+           socket.emit('get-contacts'); 
+        } else {
+           promoteChatToTop(otherCode); 
+        }
         showToast(`New message from ${otherCode}`, 'info', 2000);
       }
     });
