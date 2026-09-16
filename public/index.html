@@ -194,7 +194,7 @@
     <div class="bottom-input-bar">
       <!-- Chat Input Box -->
       <div class="input-wrapper">
-        <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto;"></div>
+        <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto; word-break: break-word; white-space: pre-wrap;"></div>
       </div>
       
       <!-- Attachment Setup -->
@@ -261,14 +261,24 @@
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
     let unreadMap = {}; let activeContactMenuTarget = null;
 
-    // Background Anti-Sleep & Sync
-    setInterval(() => { if(socket.connected && currentUserData) socket.emit('ping-server'); }, 30000);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && currentUserData && socket.connected) {
-         syncContacts();
-         if (currentChatTarget) syncCurrentChat(true);
+    // Smart Background Anti-Sleep & Sync
+    function keepAlivePing() {
+       if (socket.connected && currentUserData) { socket.emit('ping-server'); }
+       setTimeout(keepAlivePing, 20000); 
+    }
+    keepAlivePing(); 
+
+    function forceSilentSync() {
+      if (currentUserData) {
+         if (!socket.connected) socket.connect();
+         syncContacts(); 
+         if (currentChatTarget) syncCurrentChat(true); 
       }
-    });
+    }
+
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") forceSilentSync(); });
+    window.addEventListener("focus", forceSilentSync);
+    window.addEventListener("online", forceSilentSync);
 
     // DB Boilerplate
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
@@ -502,7 +512,12 @@
       const list = document.getElementById('chatsList');
       list.innerHTML = globalContacts.length ? globalContacts.map(c => {
         const unreadCount = unreadMap[c.userCode] || 0;
-        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;box-shadow:0 2px 10px rgba(255,59,92,0.4);">${unreadCount} New</div>` : '';
+        
+        let badgeText = '';
+        if(unreadCount === 1) badgeText = '1 Message';
+        else if(unreadCount > 1) badgeText = `${unreadCount} Messages`;
+
+        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;box-shadow:0 2px 10px rgba(255,59,92,0.4);">${badgeText}</div>` : '';
         const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
         
         return `
@@ -519,13 +534,18 @@
 
     function loadContacts() { getContactsLocal().then(l => { if(l.length) renderContacts(l); }); syncContacts(); }
     function syncContacts() { if (currentUserData?.userCode && socket.connected) socket.emit('get-contacts'); }
-    socket.on('contact-list-data', async ({ contacts }) => { await saveContactsLocal(contacts); renderContacts(contacts); });
+    
+    socket.on('contact-list-data', async ({ contacts }) => { 
+      contacts.forEach(c => { unreadMap[c.userCode] = c.unreadCount || 0; });
+      await saveContactsLocal(contacts); 
+      renderContacts(contacts); 
+    });
 
     function openDirectChat() {
       const query = document.getElementById('directSearchInput').value.trim(); if (!query) return;
       socket.emit('open-direct-chat', { targetCode: query, query }, res => {
         if (res?.success) {
-          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar };
+          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0 };
           globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
           renderContacts(globalContacts);
           openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
@@ -565,7 +585,10 @@
     async function openChatWith(uCode, name, avatar) {
       const cleanCode = String(uCode).toLowerCase();
       currentChatTarget = { userCode: cleanCode, name: name || 'User', avatar: avatar || DEFAULT_AVATAR };
-      unreadMap[cleanCode] = 0; renderContacts(globalContacts);
+      
+      unreadMap[cleanCode] = 0; 
+      renderContacts(globalContacts); 
+      socket.emit('mark-all-read', { senderCode: cleanCode }); 
 
       document.getElementById('roomUserName').textContent = currentChatTarget.name;
       document.getElementById('roomUserAvatar').src = currentChatTarget.avatar;
@@ -612,10 +635,22 @@
       const timeStr = new Date(m.createdAt || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       let innerHtml = '';
       
-      if (m.messageType === 'image') innerHtml = `<img src="${escapeAttr(m.media)}" onload="scrollToBottom()" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`;
-      else if (m.messageType === 'video') innerHtml = `<video src="${escapeAttr(m.media)}" onloadeddata="scrollToBottom()" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
-      else if (m.messageType === 'document') innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`;
-      else innerHtml = escapeHtml(m.text);
+      if (m.messageType === 'image') {
+        innerHtml = `<img src="${escapeAttr(m.media)}" onload="scrollToBottom()" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`;
+      }
+      else if (m.messageType === 'video') {
+        innerHtml = `<video src="${escapeAttr(m.media)}" onloadeddata="scrollToBottom()" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
+      }
+      else if (m.messageType === 'document') {
+        innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`;
+      }
+      else {
+        let escapedText = escapeHtml(m.text);
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        innerHtml = escapedText.replace(urlRegex, function(url) {
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:underline;" onclick="event.stopPropagation()">${url}</a>`;
+        });
+      }
 
       let statusIcon = '';
       if (m.senderCode === currentUserData?.userCode || m.mine) {
@@ -645,6 +680,8 @@
             const c = globalContacts.splice(idx, 1)[0];
             globalContacts.unshift(c);
             renderContacts(globalContacts);
+        } else {
+            socket.emit('get-contacts');
         }
     }
 
@@ -806,14 +843,28 @@
       const secQ1 = document.getElementById('myProfileQ1').value.trim();
       const secQ2 = document.getElementById('myProfileQ2').value.trim();
       
+      closeMyProfile(); 
+      showToast('Profile Saved Successfully!', 'success'); 
+
+      if (currentUserData) {
+        currentUserData.fullName = fullName;
+        currentUserData.secQ1 = secQ1;
+        currentUserData.secQ2 = secQ2;
+        if (avatar) currentUserData.avatar = avatar;
+        localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
+      }
+      
       socket.emit('update-profile', { fullName, avatar, secQ1, secQ2 }, res => {
         if (res?.success) { 
           currentUserData = res.user; 
           localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
-          closeMyProfile(); showToast('Profile Saved Successfully!', 'success'); 
-        } else { showToast('Update failed', 'error'); }
+        }
       });
     }
+
+    socket.on('profile-upload-error', (data) => {
+       showToast(data.error || 'Background DP upload failed. Please try again later.', 'error');
+    });
 
     function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
     function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
