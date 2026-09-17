@@ -66,20 +66,19 @@
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
 
     /* Progress Ring for Status */
-    .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; }
+    .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; cursor:pointer;}
     .progress-ring::before { content:''; position:absolute; inset:0; border-radius:50%; padding:3px; background: conic-gradient(#ff3b5c var(--progress, 0%), transparent 0); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
-    .glow-complete { animation: glowPulse 1.5s infinite; }
+    .glow-complete { animation: glowPulse 1.5s infinite; box-shadow: 0 0 10px #ff3b5c; border-radius:50%; }
     @keyframes glowPulse { 0% { box-shadow: 0 0 5px #ff3b5c; } 50% { box-shadow: 0 0 20px #ff3b5c; } 100% { box-shadow: 0 0 5px #ff3b5c; } }
 
     /* Calling UI overlay */
     #callScreen { position: fixed; inset: 0; background: rgba(12,12,18,0.95); backdrop-filter: blur(20px); z-index: 900; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 20px; text-align: center; }
     .call-avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); margin-bottom: 20px; animation: pulseCall 2s infinite; }
     @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
-    .swipe-area { margin-top: auto; display: flex; justify-content: space-around; width: 100%; max-width: 300px; margin-bottom: 40px; }
-    .swipe-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; flex-direction: column; cursor: pointer; transition: transform 0.2s; position:relative; }
-    .swipe-btn::after { content: '⇧ Swipe'; position: absolute; top: -25px; font-size: 11px; opacity: 0.7; font-weight:bold; }
     .btn-green { background: #00ff88; box-shadow: 0 10px 25px rgba(0,255,136,0.4); }
     .btn-red { background: #ff3b5c; box-shadow: 0 10px 25px rgba(255,59,92,0.4); }
+    .tap-btn { width: 70px; height: 70px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 30px; color: white; cursor: pointer; transition: transform 0.2s; }
+    .tap-btn:active { transform: scale(0.9); }
     #localVideo, #remoteVideo { display: none; width: 100px; height: 150px; border-radius: 12px; object-fit: cover; position: absolute; }
     #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; z-index: -1; opacity: 0.3; }
   </style>
@@ -134,7 +133,7 @@
       <div class="nav-tabs">
         <div class="nav-tab active" onclick="switchTab('paneChats', this)">CHATS</div>
         <div class="nav-tab" onclick="switchTab('paneStatus', this)">REELS</div>
-        <div class="nav-tab" onclick="switchTab('paneCalls', this)">CALLS</div>
+        <div class="nav-tab" onclick="switchTab('paneCalls', this); loadCalls();">CALLS</div>
       </div>
     </div>
 
@@ -151,18 +150,28 @@
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
+          
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <div style="display:flex; align-items:center; gap:14px; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
-              <div id="myStatusRing" class="progress-ring">+</div>
-              <div><div style="font-weight:700; font-size:15px; color:#fff;">My Reel</div><div id="myStatusArea" style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to post a reel (Max 30s)</div></div>
+            <!-- Split Click Zones for Status -->
+            <div style="display:flex; align-items:center; gap:14px; width:100%;">
+              <div id="myStatusRing" class="progress-ring" onclick="handleRingClick(event)">+</div>
+              <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
+                <div style="font-weight:700; font-size:15px; color:#fff;">My Reel</div>
+                <div style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to post a reel (Max 30s)</div>
+              </div>
             </div>
           </div>
+
           <div id="contactStatusesArea">
             <p style="text-align:center;color:#7e7e92;font-size:13px;margin-top:20px;">Tap green rings on chat avatars to view reels!</p>
           </div>
         </div>
       </div>
-      <div class="tab-pane" id="paneCalls"><div id="callsList" style="padding:16px;color:#7e7e92;text-align:center;">Call history empty.</div></div>
+      <div class="tab-pane" id="paneCalls">
+        <div id="callsList" style="padding:16px; display:flex; flex-direction:column; gap:8px;">
+          <div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -216,12 +225,10 @@
     <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
     
     <div class="bottom-input-bar">
-      <!-- Chat Input Box -->
       <div class="input-wrapper">
         <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto; word-break: break-word; white-space: pre-wrap;"></div>
       </div>
       
-      <!-- Attachment Setup -->
       <div style="position:relative;">
         <button class="icon-btn" onclick="toggleAppMenu(event, 'attachMenu')" style="background:#1c1c26;border:none;">📎</button>
         <div id="attachMenu" class="menu-panel" style="bottom:55px; right:0; width:160px; top:auto;">
@@ -247,14 +254,17 @@
     <p id="callStatusText" style="margin-bottom: 30px; color: #00ff88; font-weight: 600; font-size: 14px;">Calling...</p>
     <img id="callAvatar" class="call-avatar" src="">
     
-    <!-- Receiver Swipe UI -->
-    <div id="callReceiverUI" class="swipe-area" style="display: none;">
-       <div class="swipe-btn btn-green" id="btnAcceptCall">📞</div>
-       <div class="swipe-btn btn-red" id="btnRejectCall">✖</div>
+    <div id="callTimeDisplay" style="margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #fff; display: none;">00:00</div>
+    
+    <!-- Receiver Tap UI (Left Red, Right Green) -->
+    <div id="callReceiverUI" style="display: none; width:100%; max-width:250px; justify-content: space-between; margin-top: auto; margin-bottom: 40px;">
+       <button class="tap-btn btn-red" id="btnRejectCall">✖</button>
+       <button class="tap-btn btn-green" id="btnAcceptCall">📞</button>
     </div>
-    <!-- Caller Tap UI -->
+
+    <!-- Caller Tap UI (Center Red) -->
     <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px;">
-       <button class="swipe-btn btn-red" onclick="endCall()" style="margin: 0 auto; width: 70px; height: 70px; font-size: 28px;">✖</button>
+       <button class="tap-btn btn-red" onclick="endCall()" style="margin: 0 auto;">✖</button>
        <div style="margin-top:10px; font-size:12px; opacity:0.6;">Tap to End</div>
     </div>
   </div>
@@ -303,6 +313,7 @@
 
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
     let unreadMap = {}; let activeContactMenuTarget = null;
+    let hasMyActiveStatus = false;
 
     // Smart Background Anti-Sleep & Sync
     function keepAlivePing() {
@@ -558,27 +569,30 @@
          openFullScreenImage(src);
       }, 600);
     }
-    function cancelDpPress() { 
-      clearTimeout(dpPressTimer); 
-    }
+    function cancelDpPress() { clearTimeout(dpPressTimer); }
+    
     function handleDpClick(e, src, userCode, hasActiveStatus) {
       e.stopPropagation();
-      if(isLongPress) return; // Prevent click action if it was a long press
-      if (hasActiveStatus) {
-         playUserStatus(userCode);
+      if(isLongPress) return; 
+      if (hasActiveStatus) { playUserStatus(userCode); } 
+      else { openFullScreenImage(src); }
+    }
+
+    function handleRingClick(e) {
+      e.stopPropagation();
+      if (hasMyActiveStatus && currentUserData) {
+         playUserStatus(currentUserData.userCode);
       } else {
-         openFullScreenImage(src);
+         document.getElementById('statusMediaInput').click();
       }
     }
 
     function playUserStatus(userCode) {
       socket.emit('get-user-status', { targetCode: userCode }, res => {
         if(res?.success && res.items.length > 0) {
-           const latestStatus = res.items[res.items.length - 1]; // Play most recent for now
+           const latestStatus = res.items[res.items.length - 1]; 
            openFullScreenMedia(latestStatus.media, latestStatus.type);
-        } else {
-           showToast('Status expired.', 'info');
-        }
+        } else { showToast('Status expired.', 'info'); }
       });
     }
 
@@ -588,7 +602,6 @@
       const list = document.getElementById('chatsList');
       list.innerHTML = globalContacts.length ? globalContacts.map(c => {
         const unreadCount = unreadMap[c.userCode] || 0;
-        
         let badgeText = '';
         if(unreadCount === 1) badgeText = '1 Message';
         else if(unreadCount > 1) badgeText = `${unreadCount} Messages`;
@@ -597,6 +610,13 @@
         const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
         const statusClass = c.hasActiveStatus ? 'status-active' : '';
         
+        if (c.userCode === currentUserData?.userCode) {
+            hasMyActiveStatus = c.hasActiveStatus;
+            const ring = document.getElementById('myStatusRing');
+            if(hasMyActiveStatus) { ring.classList.add('glow-complete'); ring.innerHTML = '✓'; }
+            else { ring.classList.remove('glow-complete'); ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); }
+        }
+
         return `
         <div class="chat-row" data-usercode="${escapeAttr(c.userCode)}" data-name="${escapeAttr(c.name)}" data-avatar="${escapeAttr(userAvatar)}" 
              onclick="openChatWith(this.dataset.usercode, this.dataset.name, this.dataset.avatar)"
@@ -656,9 +676,7 @@
     }
 
     socket.on('user-status-changed', ({ userCode, isOnline, lastSeen }) => {
-       if (currentChatTarget && currentChatTarget.userCode === userCode) {
-          updateRoomStatusUI(isOnline, lastSeen);
-       }
+       if (currentChatTarget && currentChatTarget.userCode === userCode) { updateRoomStatusUI(isOnline, lastSeen); }
     });
 
     async function openChatWith(uCode, name, avatar) {
@@ -705,18 +723,37 @@
       document.getElementById('imageModal').style.display = 'flex'; 
     }
     
+    // Status 3-Second Buffering Logic
     function openFullScreenMedia(url, type) {
       const container = document.getElementById('mediaContainer');
       if (type && type.includes('video')) {
-         container.innerHTML = `<video src="${url}" controls autoplay playsinline onclick="event.stopPropagation()"></video>`;
+         container.innerHTML = `
+           <div id="vidLoader" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#ff3b5c; font-weight:bold; font-size:18px; z-index:1002;">Loading...</div>
+           <video id="fsVideo" src="${url}" playsinline autoplay style="opacity:0; max-width:100%; max-height:100vh; border-radius:4px;" onclick="event.stopPropagation()"></video>
+         `;
+         const vid = document.getElementById('fsVideo');
+         const loader = document.getElementById('vidLoader');
+         
+         let isPlaying = false;
+         vid.addEventListener('canplay', () => {
+             if(vid.readyState >= 3) {
+                 loader.style.display = 'none'; vid.style.opacity = '1'; vid.play(); isPlaying = true;
+             }
+         });
+         vid.addEventListener('waiting', () => { loader.style.display = 'block'; });
+         vid.addEventListener('playing', () => { loader.style.display = 'none'; });
+
+         setTimeout(() => {
+            if(!isPlaying) { loader.style.display = 'none'; vid.style.opacity = '1'; vid.play().catch(e=>{}); }
+         }, 3000);
       } else {
-         container.innerHTML = `<img src="${url}" onclick="event.stopPropagation()">`;
+         container.innerHTML = `<img src="${url}" onclick="event.stopPropagation()" style="max-width:100%; max-height:100vh; object-fit:contain; border-radius:4px;">`;
       }
       document.getElementById('imageModal').style.display = 'flex'; 
     }
 
     function closeImageModal() { 
-      document.getElementById('mediaContainer').innerHTML = ''; // Clear to stop videos
+      document.getElementById('mediaContainer').innerHTML = ''; 
       document.getElementById('imageModal').style.display = 'none'; 
     }
 
@@ -796,16 +833,11 @@
 
     // --- KEYBOARD POP-UP FIX (Scroll to bottom) ---
     const chatInputBox = document.getElementById('msgInputBox');
-    
     chatInputBox.addEventListener('focus', () => { setTimeout(() => scrollToBottom(false), 300); });
     chatInputBox.addEventListener('click', () => { setTimeout(() => scrollToBottom(false), 300); });
-
-    const handleKeyboardResize = () => {
-      if (document.getElementById('chatRoom').style.display === 'flex') { scrollToBottom(false); }
-    };
+    const handleKeyboardResize = () => { if (document.getElementById('chatRoom').style.display === 'flex') scrollToBottom(false); };
     if (window.visualViewport) { window.visualViewport.addEventListener('resize', handleKeyboardResize); } 
     else { window.addEventListener('resize', handleKeyboardResize); }
-
 
     let typingTimer;
     let isTyping = false;
@@ -823,9 +855,7 @@
     });
 
     socket.on('typing', ({ senderCode }) => {
-      if (currentChatTarget && currentChatTarget.userCode === senderCode) {
-        document.getElementById('roomUserStatus').innerHTML = '<span style="color:#00ff88;font-style:italic;">typing...</span>';
-      }
+      if (currentChatTarget && currentChatTarget.userCode === senderCode) { document.getElementById('roomUserStatus').innerHTML = '<span style="color:#00ff88;font-style:italic;">typing...</span>'; }
     });
 
     socket.on('stop-typing', ({ senderCode }) => {
@@ -898,7 +928,7 @@
       inp.value = '';
     }
 
-    // --- STATUS (REELS) BACKGROUND UPLOAD WITH GLOW ---
+    // --- STATUS UPLOAD ---
     function uploadStatusMedia(inp) {
       const file = inp.files?.[0]; if (!file) return;
       const ring = document.getElementById('myStatusRing');
@@ -924,8 +954,9 @@
           ring.style.setProperty('--progress', '100%');
           ring.classList.add('glow-complete');
           ring.innerHTML = '✓';
+          hasMyActiveStatus = true;
           showToast('Status Uploaded Successfully!', 'success');
-          socket.emit('get-contacts'); // Refresh to show our own active ring
+          socket.emit('get-contacts'); 
         } else {
           ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%');
           showToast('Upload failed', 'error');
@@ -1018,39 +1049,64 @@
         if (res?.success) { 
           showToast(res.message, 'success', 6000); 
           closeForgotModal();
-          
           if (authMode === 'reg') { toggleAuthMode(); }
-          
           document.getElementById('loginIdInput').value = mobile;
           document.getElementById('loginPassInput').value = ''; 
           document.getElementById('loginPassInput').focus();
-          
           document.getElementById('recMobileInput').value = '';
           document.getElementById('recQ1Input').value = '';
           document.getElementById('recQ2Input').value = '';
           document.getElementById('recNewPassInput').value = '';
           document.getElementById('recoveryResultDisplay').textContent = '';
-        }
-        else showToast(res?.error || 'Failed', 'error');
+        } else showToast(res?.error || 'Failed', 'error');
       });
     }
 
     function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
 
-    // --- WebRTC CALLING LOGIC (Swipe Up to Answer/Decline) ---
-    let localStream, peerConnection;
-    let callTargetCode = null;
+    // --- WebRTC CALLING LOGIC (Tap to Answer/Decline + History) ---
+    let localStream, peerConnection, callInterval;
+    let callTargetCode = null, callTargetName = null;
     let callRole = null; 
+    let callStartTime = 0;
 
     const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+    function loadCalls() {
+      socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); });
+    }
+    
+    function renderCalls(calls) {
+       const list = document.getElementById('callsList');
+       if(!calls || calls.length===0) { list.innerHTML = '<div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>'; return; }
+       
+       list.innerHTML = calls.map(c => {
+          const isCaller = c.callerCode === currentUserData.userCode;
+          const otherName = isCaller ? c.receiverName : c.callerName;
+          const statusColor = c.status === 'missed' || c.status === 'declined' ? '#ff3b5c' : '#00ff88';
+          const icon = isCaller ? '↗' : '↙';
+          const timeStr = new Date(c.timestamp).toLocaleString([], {hour:'2-digit', minute:'2-digit', month:'short', day:'numeric'});
+          return `
+             <div class="chat-row">
+                <div style="flex:1;">
+                   <div style="font-weight:700;">${escapeHtml(otherName)}</div>
+                   <div style="font-size:12px;color:#7e7e92;"><span style="color:${statusColor};font-weight:bold;font-size:16px;">${icon}</span> ${c.status} • ${timeStr}</div>
+                </div>
+                <div style="font-size:12px;color:#fff;background:rgba(255,255,255,0.08);padding:6px 10px;border-radius:12px;font-weight:bold;">${c.duration || '--'}</div>
+             </div>
+          `;
+       }).join('');
+    }
 
     function startCall() {
       if(!currentChatTarget) return;
       callTargetCode = currentChatTarget.userCode;
+      callTargetName = currentChatTarget.name;
       callRole = 'caller';
       document.getElementById('callName').textContent = currentChatTarget.name;
       document.getElementById('callAvatar').src = currentChatTarget.avatar;
       document.getElementById('callStatusText').textContent = "Connecting...";
+      document.getElementById('callTimeDisplay').style.display = 'none';
       document.getElementById('callScreen').style.display = 'flex';
       document.getElementById('callReceiverUI').style.display = 'none';
       document.getElementById('callCallerUI').style.display = 'flex';
@@ -1068,17 +1124,19 @@
           peerConnection.setLocalDescription(offer);
           socket.emit('call-user', { targetCode: callTargetCode, offer: offer });
         });
-      }).catch(err => { showToast('Camera/Mic permission denied', 'error'); endCall(); });
+      }).catch(err => { showToast('Camera/Mic permission denied', 'error'); cleanupCall(false); });
     }
 
-    socket.on('call-status', data => { if(callRole === 'caller') document.getElementById('callStatusText').textContent = data.status; });
+    socket.on('call-status', data => { if(callRole === 'caller' && !callStartTime) document.getElementById('callStatusText').textContent = data.status; });
 
     socket.on('incoming-call', async (data) => {
       callTargetCode = data.callerCode;
+      callTargetName = data.callerName;
       callRole = 'receiver';
       document.getElementById('callName').textContent = data.callerName;
       document.getElementById('callAvatar').src = data.callerAvatar || DEFAULT_AVATAR;
       document.getElementById('callStatusText').textContent = "Incoming Call...";
+      document.getElementById('callTimeDisplay').style.display = 'none';
       document.getElementById('callScreen').style.display = 'flex';
       document.getElementById('callReceiverUI').style.display = 'flex';
       document.getElementById('callCallerUI').style.display = 'none';
@@ -1096,48 +1154,81 @@
       });
     });
 
-    // Swipe Up Logic for calls
-    function setupSwipeBtn(btnId, callback) {
-      const el = document.getElementById(btnId);
-      let startY = 0;
-      el.addEventListener('touchstart', e => { startY = e.touches[0].clientY; el.style.transform = "scale(0.9)"; });
-      el.addEventListener('touchmove', e => { 
-         let diff = startY - e.touches[0].clientY;
-         if(diff > 0) el.style.transform = `translateY(-${diff}px)`; 
-      });
-      el.addEventListener('touchend', e => {
-        el.style.transform = "translateY(0) scale(1)";
-        if(startY - e.changedTouches[0].clientY > 40) callback(); 
-      });
-    }
-
-    setupSwipeBtn('btnAcceptCall', () => {
+    document.getElementById('btnAcceptCall').onclick = () => {
       if(!peerConnection) return;
-      document.getElementById('callStatusText').textContent = "Connected";
+      startCallTimer();
       document.getElementById('callReceiverUI').style.display = 'none';
       document.getElementById('callCallerUI').style.display = 'flex'; 
       peerConnection.createAnswer().then(answer => {
         peerConnection.setLocalDescription(answer);
         socket.emit('answer-call', { callerCode: callTargetCode, answer });
       });
+    };
+
+    document.getElementById('btnRejectCall').onclick = () => { 
+      socket.emit('reject-call', { callerCode: callTargetCode }); 
+      cleanupCall(false); 
+    };
+
+    socket.on('call-rejected', () => { 
+      showToast('Call Declined', 'error'); 
+      saveCallLog('declined', '0s');
+      cleanupCall(false); 
     });
 
-    setupSwipeBtn('btnRejectCall', () => { socket.emit('reject-call', { callerCode: callTargetCode }); cleanupCall(); });
-    socket.on('call-rejected', () => { showToast('Call Declined', 'info'); cleanupCall(); });
     socket.on('call-answered', data => {
-      document.getElementById('callStatusText').textContent = "Connected";
+      startCallTimer();
       peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
     });
+
     socket.on('ice-candidate', data => { if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)); });
     
-    function endCall() { if(callTargetCode) socket.emit('end-call', { targetCode: callTargetCode }); cleanupCall(); }
-    socket.on('call-ended', () => { showToast('Call Ended', 'info'); cleanupCall(); });
+    function endCall() { 
+      if(callTargetCode) socket.emit('end-call', { targetCode: callTargetCode }); 
+      
+      let finalStatus = callStartTime ? 'completed' : 'missed';
+      let durationStr = '0s';
+      if(callStartTime) {
+         const diff = Math.floor((Date.now() - callStartTime)/1000);
+         const m = Math.floor(diff/60); const s = diff%60;
+         durationStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+      }
+      if(callRole === 'caller') saveCallLog(finalStatus, durationStr);
+      cleanupCall(true); 
+    }
 
-    function cleanupCall() {
+    socket.on('call-ended', () => { showToast('Call Ended', 'info'); cleanupCall(false); });
+
+    function startCallTimer() {
+      callStartTime = Date.now();
+      document.getElementById('callStatusText').style.display = 'none';
+      const timeDisplay = document.getElementById('callTimeDisplay');
+      timeDisplay.style.display = 'block';
+      callInterval = setInterval(() => {
+         const diff = Math.floor((Date.now() - callStartTime)/1000);
+         const m = String(Math.floor(diff/60)).padStart(2,'0');
+         const s = String(diff%60).padStart(2,'0');
+         timeDisplay.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function saveCallLog(status, duration) {
+       if(!currentUserData || !callTargetCode) return;
+       socket.emit('save-call-log', {
+          callerCode: currentUserCode, callerName: currentUserData.fullName,
+          receiverCode: callTargetCode, receiverName: callTargetName,
+          status, duration
+       });
+    }
+
+    function cleanupCall(isSelf) {
       document.getElementById('callScreen').style.display = 'none';
+      document.getElementById('callStatusText').style.display = 'block';
+      clearInterval(callInterval);
       if(localStream) localStream.getTracks().forEach(track => track.stop());
       if(peerConnection) peerConnection.close();
-      localStream = null; peerConnection = null; callTargetCode = null; callRole = null;
+      localStream = null; peerConnection = null; callTargetCode = null; callRole = null; callStartTime = 0; callTargetName = null;
+      loadCalls(); // Refresh history
     }
   </script>
 </body>
