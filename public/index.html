@@ -44,6 +44,7 @@
     .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
     .chat-row:hover { background: rgba(255,255,255,0.02); }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+    .chat-row img.status-active { border: 3px solid #00ff88; padding: 2px; } 
     
     #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; }
     .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex: none; }
@@ -58,9 +59,29 @@
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
     
-    #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
+    /* Media/Status Viewers */
+    #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
     #imageModal img { max-width: 100%; max-height: 100vh; object-fit: contain; border-radius: 4px; }
-    #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; }
+    #imageModal video { max-width: 100%; max-height: 100vh; border-radius: 4px; }
+    #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
+
+    /* Progress Ring for Status */
+    .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; }
+    .progress-ring::before { content:''; position:absolute; inset:0; border-radius:50%; padding:3px; background: conic-gradient(#ff3b5c var(--progress, 0%), transparent 0); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+    .glow-complete { animation: glowPulse 1.5s infinite; }
+    @keyframes glowPulse { 0% { box-shadow: 0 0 5px #ff3b5c; } 50% { box-shadow: 0 0 20px #ff3b5c; } 100% { box-shadow: 0 0 5px #ff3b5c; } }
+
+    /* Calling UI overlay */
+    #callScreen { position: fixed; inset: 0; background: rgba(12,12,18,0.95); backdrop-filter: blur(20px); z-index: 900; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 20px; text-align: center; }
+    .call-avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); margin-bottom: 20px; animation: pulseCall 2s infinite; }
+    @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
+    .swipe-area { margin-top: auto; display: flex; justify-content: space-around; width: 100%; max-width: 300px; margin-bottom: 40px; }
+    .swipe-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; flex-direction: column; cursor: pointer; transition: transform 0.2s; position:relative; }
+    .swipe-btn::after { content: '⇧ Swipe'; position: absolute; top: -25px; font-size: 11px; opacity: 0.7; font-weight:bold; }
+    .btn-green { background: #00ff88; box-shadow: 0 10px 25px rgba(0,255,136,0.4); }
+    .btn-red { background: #ff3b5c; box-shadow: 0 10px 25px rgba(255,59,92,0.4); }
+    #localVideo, #remoteVideo { display: none; width: 100px; height: 150px; border-radius: 12px; object-fit: cover; position: absolute; }
+    #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; z-index: -1; opacity: 0.3; }
   </style>
 </head>
 <body>
@@ -69,7 +90,7 @@
 
   <div id="imageModal" onclick="closeImageModal()">
     <button class="close-btn">✕</button>
-    <img id="fullScreenImage" src="" onclick="event.stopPropagation()">
+    <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"></div>
   </div>
 
   <!-- AUTH SCREEN -->
@@ -112,8 +133,8 @@
       </div>
       <div class="nav-tabs">
         <div class="nav-tab active" onclick="switchTab('paneChats', this)">CHATS</div>
-        <div class="nav-tab" onclick="switchTab('paneStatus', this); loadStatuses();">REELS</div>
-        <div class="nav-tab" onclick="switchTab('paneCalls', this); loadCalls();">CALLS</div>
+        <div class="nav-tab" onclick="switchTab('paneStatus', this)">REELS</div>
+        <div class="nav-tab" onclick="switchTab('paneCalls', this)">CALLS</div>
       </div>
     </div>
 
@@ -131,19 +152,21 @@
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <div style="display:flex; align-items:center; gap:14px; cursor:pointer;" onclick="handleMyStatusClick()">
-              <div id="myStatusRing" style="width:56px; height:56px; border-radius:50%; background:#1c1c26; border:2px dashed #ff3b5c; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px;">+</div>
-              <div><div style="font-weight:700; font-size:15px; color:#fff;">My Reel</div><div id="myStatusArea" style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to post a reel</div></div>
+            <div style="display:flex; align-items:center; gap:14px; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
+              <div id="myStatusRing" class="progress-ring">+</div>
+              <div><div style="font-weight:700; font-size:15px; color:#fff;">My Reel</div><div id="myStatusArea" style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to post a reel (Max 30s)</div></div>
             </div>
           </div>
-          <div id="contactStatusesArea"></div>
+          <div id="contactStatusesArea">
+            <p style="text-align:center;color:#7e7e92;font-size:13px;margin-top:20px;">Tap green rings on chat avatars to view reels!</p>
+          </div>
         </div>
       </div>
-      <div class="tab-pane" id="paneCalls"><div id="callsList" style="padding:16px;">Call history empty.</div></div>
+      <div class="tab-pane" id="paneCalls"><div id="callsList" style="padding:16px;color:#7e7e92;text-align:center;">Call history empty.</div></div>
     </div>
   </div>
 
-  <!-- CONTACT LONG-PRESS MODAL (Delete / Block) -->
+  <!-- CONTACT LONG-PRESS MODAL -->
   <div id="contactMenuModal" class="modal">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 id="cmName" style="margin-bottom:16px; text-align:center; color:#fff;"></h3>
@@ -164,7 +187,7 @@
     </div>
   </div>
 
-  <!-- APP MENU (Edit Profile) -->
+  <!-- APP MENU -->
   <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
     <button onclick="openMyProfile()">👤 Edit Profile</button>
     <button class="danger" onclick="logoutApp()" style="color:#ff6b8b;">🚪 Logout</button>
@@ -174,13 +197,14 @@
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onclick="openFullScreenImage(this.src)">
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onmousedown="startDpPress(event, this.src, currentChatTarget.userCode)" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, currentChatTarget.userCode)" ontouchend="cancelDpPress()">
       <div style="flex:1;">
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#7e7e92;">Connecting...</div>
       </div>
       
-      <!-- Real Clear Chat Menu -->
+      <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-right:8px;" onclick="startCall()">📞</button>
+
       <div style="position:relative;">
         <button class="icon-btn" onclick="toggleAppMenu(event, 'chatRoomMenu')" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
         <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0; width:160px;">
@@ -209,10 +233,29 @@
       
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
 
-      <!-- Hidden File Inputs -->
       <input type="file" id="chatMediaImg" style="display:none" accept="image/*" onchange="sendMediaFile(this, 'image')">
       <input type="file" id="chatMediaVid" style="display:none" accept="video/*" onchange="sendMediaFile(this, 'video')">
       <input type="file" id="chatMediaDoc" style="display:none" accept=".pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this, 'document')">
+    </div>
+  </div>
+
+  <!-- CALL SCREEN OVERLAY -->
+  <div id="callScreen">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <h2 id="callName" style="margin-bottom: 5px; font-weight: 800; font-size: 24px;">Name</h2>
+    <p id="callStatusText" style="margin-bottom: 30px; color: #00ff88; font-weight: 600; font-size: 14px;">Calling...</p>
+    <img id="callAvatar" class="call-avatar" src="">
+    
+    <!-- Receiver Swipe UI -->
+    <div id="callReceiverUI" class="swipe-area" style="display: none;">
+       <div class="swipe-btn btn-green" id="btnAcceptCall">📞</div>
+       <div class="swipe-btn btn-red" id="btnRejectCall">✖</div>
+    </div>
+    <!-- Caller Tap UI -->
+    <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px;">
+       <button class="swipe-btn btn-red" onclick="endCall()" style="margin: 0 auto; width: 70px; height: 70px; font-size: 28px;">✖</button>
+       <div style="margin-top:10px; font-size:12px; opacity:0.6;">Tap to End</div>
     </div>
   </div>
 
@@ -280,7 +323,6 @@
     window.addEventListener("focus", forceSilentSync);
     window.addEventListener("online", forceSilentSync);
 
-    // DB Boilerplate
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
     let dbPromise = null;
     function openLocalDB() {
@@ -356,11 +398,13 @@
       const profileModal = document.getElementById('myProfileModal');
       const contactModal = document.getElementById('contactMenuModal');
       const msgActionModal = document.getElementById('msgActionModal');
+      const imageModal = document.getElementById('imageModal');
       
       if (e.target === forgotModal) closeForgotModal();
       if (e.target === profileModal) closeMyProfile();
       if (e.target === contactModal) closeContactMenu();
       if (e.target === msgActionModal) closeMsgActionMenu();
+      if (e.target === imageModal) closeImageModal();
     });
 
     function toggleAppMenu(e, menuId) { 
@@ -431,7 +475,6 @@
       document.getElementById(paneId).classList.add('active'); tabEl.classList.add('active');
     }
 
-    // CONTACT LONG PRESS HANDLER
     let pressTimer;
     function startContactPress(e, userCode, name) {
       pressTimer = setTimeout(() => {
@@ -463,7 +506,6 @@
       });
     }
 
-    // MSG LONG PRESS HANDLER (Delete / Copy)
     let msgPressTimer;
     let activeMsgElement = null;
     let activeMsgId = null;
@@ -506,6 +548,40 @@
       }
     });
 
+    // Avatar Tap (Status Play) & Long Press (Full Screen DP)
+    let dpPressTimer;
+    let isLongPress = false;
+    function startDpPress(e, src, userCode) {
+      isLongPress = false;
+      dpPressTimer = setTimeout(() => {
+         isLongPress = true;
+         openFullScreenImage(src);
+      }, 600);
+    }
+    function cancelDpPress() { 
+      clearTimeout(dpPressTimer); 
+    }
+    function handleDpClick(e, src, userCode, hasActiveStatus) {
+      e.stopPropagation();
+      if(isLongPress) return; // Prevent click action if it was a long press
+      if (hasActiveStatus) {
+         playUserStatus(userCode);
+      } else {
+         openFullScreenImage(src);
+      }
+    }
+
+    function playUserStatus(userCode) {
+      socket.emit('get-user-status', { targetCode: userCode }, res => {
+        if(res?.success && res.items.length > 0) {
+           const latestStatus = res.items[res.items.length - 1]; // Play most recent for now
+           openFullScreenMedia(latestStatus.media, latestStatus.type);
+        } else {
+           showToast('Status expired.', 'info');
+        }
+      });
+    }
+
     let globalContacts = [];
     function renderContacts(contacts) {
       globalContacts = Array.isArray(contacts) ? contacts : [];
@@ -519,13 +595,16 @@
 
         const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;box-shadow:0 2px 10px rgba(255,59,92,0.4);">${badgeText}</div>` : '';
         const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
+        const statusClass = c.hasActiveStatus ? 'status-active' : '';
         
         return `
         <div class="chat-row" data-usercode="${escapeAttr(c.userCode)}" data-name="${escapeAttr(c.name)}" data-avatar="${escapeAttr(userAvatar)}" 
              onclick="openChatWith(this.dataset.usercode, this.dataset.name, this.dataset.avatar)"
              onmousedown="startContactPress(event, this.dataset.usercode, this.dataset.name)" onmouseup="cancelPress()" onmouseleave="cancelPress()" 
              ontouchstart="startContactPress(event, this.dataset.usercode, this.dataset.name)" ontouchend="cancelPress()">
-          <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'" onclick="event.stopPropagation(); openFullScreenImage(this.src);">
+          <img src="${escapeAttr(userAvatar)}" class="${statusClass}" onerror="this.src='${DEFAULT_AVATAR}'" 
+               onmousedown="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" ontouchend="cancelDpPress()"
+               onclick="handleDpClick(event, this.src, '${escapeAttr(c.userCode)}', ${c.hasActiveStatus})">
           <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
           <div>${unreadBadge}</div>
         </div>`;
@@ -545,7 +624,7 @@
       const query = document.getElementById('directSearchInput').value.trim(); if (!query) return;
       socket.emit('open-direct-chat', { targetCode: query, query }, res => {
         if (res?.success) {
-          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0 };
+          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0, hasActiveStatus: false };
           globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
           renderContacts(globalContacts);
           openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
@@ -619,16 +698,32 @@
     function closeChatRoom() { document.getElementById('chatRoom').style.display = 'none'; currentChatTarget = null; loadContacts(); }
     function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function escapeAttr(v) { return escapeHtml(v).replace(/`/g,'&#96;'); }
-    function openFullScreenImage(src) { document.getElementById('fullScreenImage').src = src; document.getElementById('imageModal').style.display = 'flex'; }
-    function closeImageModal() { document.getElementById('imageModal').style.display = 'none'; }
+    
+    function openFullScreenImage(src) { 
+      const container = document.getElementById('mediaContainer');
+      container.innerHTML = `<img src="${src}" onclick="event.stopPropagation()">`;
+      document.getElementById('imageModal').style.display = 'flex'; 
+    }
+    
+    function openFullScreenMedia(url, type) {
+      const container = document.getElementById('mediaContainer');
+      if (type && type.includes('video')) {
+         container.innerHTML = `<video src="${url}" controls autoplay playsinline onclick="event.stopPropagation()"></video>`;
+      } else {
+         container.innerHTML = `<img src="${url}" onclick="event.stopPropagation()">`;
+      }
+      document.getElementById('imageModal').style.display = 'flex'; 
+    }
+
+    function closeImageModal() { 
+      document.getElementById('mediaContainer').innerHTML = ''; // Clear to stop videos
+      document.getElementById('imageModal').style.display = 'none'; 
+    }
 
     function scrollToBottom(smooth = false) {
       const rm = document.getElementById('roomMessages');
-      if (smooth) {
-         rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' });
-      } else {
-         rm.scrollTop = rm.scrollHeight;
-      }
+      if (smooth) { rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); } 
+      else { rm.scrollTop = rm.scrollHeight; }
     }
 
     function formatMessageContent(m) {
@@ -699,9 +794,22 @@
       });
     }
 
+    // --- KEYBOARD POP-UP FIX (Scroll to bottom) ---
+    const chatInputBox = document.getElementById('msgInputBox');
+    
+    chatInputBox.addEventListener('focus', () => { setTimeout(() => scrollToBottom(false), 300); });
+    chatInputBox.addEventListener('click', () => { setTimeout(() => scrollToBottom(false), 300); });
+
+    const handleKeyboardResize = () => {
+      if (document.getElementById('chatRoom').style.display === 'flex') { scrollToBottom(false); }
+    };
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', handleKeyboardResize); } 
+    else { window.addEventListener('resize', handleKeyboardResize); }
+
+
     let typingTimer;
     let isTyping = false;
-    document.getElementById('msgInputBox').addEventListener('input', () => {
+    chatInputBox.addEventListener('input', () => {
       if (!currentChatTarget) return;
       if (!isTyping) {
         isTyping = true;
@@ -721,13 +829,11 @@
     });
 
     socket.on('stop-typing', ({ senderCode }) => {
-      if (currentChatTarget && currentChatTarget.userCode === senderCode) {
-         checkUserStatus(senderCode);
-      }
+      if (currentChatTarget && currentChatTarget.userCode === senderCode) checkUserStatus(senderCode);
     });
 
     function sendChatMessage() {
-      const box = document.getElementById('msgInputBox'); 
+      const box = chatInputBox; 
       const val = box.innerText.trim();
       if (!val || !currentChatTarget) return;
       const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
@@ -753,7 +859,7 @@
       });
     }
 
-    document.getElementById('msgInputBox').addEventListener('keydown', e => { 
+    chatInputBox.addEventListener('keydown', e => { 
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } 
     });
 
@@ -792,6 +898,43 @@
       inp.value = '';
     }
 
+    // --- STATUS (REELS) BACKGROUND UPLOAD WITH GLOW ---
+    function uploadStatusMedia(inp) {
+      const file = inp.files?.[0]; if (!file) return;
+      const ring = document.getElementById('myStatusRing');
+      ring.innerHTML = ''; ring.classList.remove('glow-complete'); 
+      ring.style.setProperty('--progress', '5%');
+      showToast('Uploading Status... You can chat while it uploads.', 'info');
+
+      const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
+      xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
+      xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
+      xhr.setRequestHeader('X-Is-Status', 'true');
+      
+      xhr.upload.onprogress = (e) => {
+         if(e.lengthComputable) {
+            const pct = Math.floor((e.loaded / e.total) * 90) + 5; 
+            ring.style.setProperty('--progress', pct + '%');
+         }
+      };
+
+      const form = new FormData(); form.append('media', file, file.name);
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          ring.style.setProperty('--progress', '100%');
+          ring.classList.add('glow-complete');
+          ring.innerHTML = '✓';
+          showToast('Status Uploaded Successfully!', 'success');
+          socket.emit('get-contacts'); // Refresh to show our own active ring
+        } else {
+          ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%');
+          showToast('Upload failed', 'error');
+        }
+      };
+      xhr.send(form);
+      inp.value = '';
+    }
+
     socket.on('new-message', async m => {
       if (!currentUserData) return;
       const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
@@ -808,20 +951,15 @@
       } else {
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
         let exists = globalContacts.find(c => c.userCode === otherCode);
-        if (!exists) {
-           socket.emit('get-contacts'); 
-        } else {
-           promoteChatToTop(otherCode); 
-        }
+        if (!exists) { socket.emit('get-contacts'); } 
+        else { promoteChatToTop(otherCode); }
         showToast(`New message from ${otherCode}`, 'info', 2000);
       }
     });
 
     socket.on('message-status-update', ({ messageId, status }) => {
       const statusSpan = document.getElementById(`status_${messageId}`);
-      if (statusSpan && status === 'delivered') {
-         statusSpan.innerHTML = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>';
-      }
+      if (statusSpan && status === 'delivered') { statusSpan.innerHTML = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>'; }
     });
     
     function openMyProfile() {
@@ -862,9 +1000,7 @@
       });
     }
 
-    socket.on('profile-upload-error', (data) => {
-       showToast(data.error || 'Background DP upload failed. Please try again later.', 'error');
-    });
+    socket.on('profile-upload-error', (data) => { showToast(data.error || 'Background DP upload failed. Please try again later.', 'error'); });
 
     function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
     function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
@@ -900,6 +1036,109 @@
     }
 
     function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
+
+    // --- WebRTC CALLING LOGIC (Swipe Up to Answer/Decline) ---
+    let localStream, peerConnection;
+    let callTargetCode = null;
+    let callRole = null; 
+
+    const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+    function startCall() {
+      if(!currentChatTarget) return;
+      callTargetCode = currentChatTarget.userCode;
+      callRole = 'caller';
+      document.getElementById('callName').textContent = currentChatTarget.name;
+      document.getElementById('callAvatar').src = currentChatTarget.avatar;
+      document.getElementById('callStatusText').textContent = "Connecting...";
+      document.getElementById('callScreen').style.display = 'flex';
+      document.getElementById('callReceiverUI').style.display = 'none';
+      document.getElementById('callCallerUI').style.display = 'flex';
+
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+        localStream = stream;
+        document.getElementById('localVideo').srcObject = stream;
+        
+        peerConnection = new RTCPeerConnection(servers);
+        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+        peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
+        peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
+
+        peerConnection.createOffer().then(offer => {
+          peerConnection.setLocalDescription(offer);
+          socket.emit('call-user', { targetCode: callTargetCode, offer: offer });
+        });
+      }).catch(err => { showToast('Camera/Mic permission denied', 'error'); endCall(); });
+    }
+
+    socket.on('call-status', data => { if(callRole === 'caller') document.getElementById('callStatusText').textContent = data.status; });
+
+    socket.on('incoming-call', async (data) => {
+      callTargetCode = data.callerCode;
+      callRole = 'receiver';
+      document.getElementById('callName').textContent = data.callerName;
+      document.getElementById('callAvatar').src = data.callerAvatar || DEFAULT_AVATAR;
+      document.getElementById('callStatusText').textContent = "Incoming Call...";
+      document.getElementById('callScreen').style.display = 'flex';
+      document.getElementById('callReceiverUI').style.display = 'flex';
+      document.getElementById('callCallerUI').style.display = 'none';
+
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+        localStream = stream;
+        document.getElementById('localVideo').srcObject = stream;
+        
+        peerConnection = new RTCPeerConnection(servers);
+        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+        peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
+        peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
+
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+      });
+    });
+
+    // Swipe Up Logic for calls
+    function setupSwipeBtn(btnId, callback) {
+      const el = document.getElementById(btnId);
+      let startY = 0;
+      el.addEventListener('touchstart', e => { startY = e.touches[0].clientY; el.style.transform = "scale(0.9)"; });
+      el.addEventListener('touchmove', e => { 
+         let diff = startY - e.touches[0].clientY;
+         if(diff > 0) el.style.transform = `translateY(-${diff}px)`; 
+      });
+      el.addEventListener('touchend', e => {
+        el.style.transform = "translateY(0) scale(1)";
+        if(startY - e.changedTouches[0].clientY > 40) callback(); 
+      });
+    }
+
+    setupSwipeBtn('btnAcceptCall', () => {
+      if(!peerConnection) return;
+      document.getElementById('callStatusText').textContent = "Connected";
+      document.getElementById('callReceiverUI').style.display = 'none';
+      document.getElementById('callCallerUI').style.display = 'flex'; 
+      peerConnection.createAnswer().then(answer => {
+        peerConnection.setLocalDescription(answer);
+        socket.emit('answer-call', { callerCode: callTargetCode, answer });
+      });
+    });
+
+    setupSwipeBtn('btnRejectCall', () => { socket.emit('reject-call', { callerCode: callTargetCode }); cleanupCall(); });
+    socket.on('call-rejected', () => { showToast('Call Declined', 'info'); cleanupCall(); });
+    socket.on('call-answered', data => {
+      document.getElementById('callStatusText').textContent = "Connected";
+      peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+    });
+    socket.on('ice-candidate', data => { if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)); });
+    
+    function endCall() { if(callTargetCode) socket.emit('end-call', { targetCode: callTargetCode }); cleanupCall(); }
+    socket.on('call-ended', () => { showToast('Call Ended', 'info'); cleanupCall(); });
+
+    function cleanupCall() {
+      document.getElementById('callScreen').style.display = 'none';
+      if(localStream) localStream.getTracks().forEach(track => track.stop());
+      if(peerConnection) peerConnection.close();
+      localStream = null; peerConnection = null; callTargetCode = null; callRole = null;
+    }
   </script>
 </body>
 </html>
