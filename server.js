@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const https = require('https');
@@ -422,7 +421,7 @@ io.on('connection', (socket) => {
 
   socket.on('delete-contact', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
-    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode, blockedUsers: targetCode } }); // Auto-unblock on delete
+    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode, blockedUsers: targetCode } }); 
     await Message.updateMany(
         { $or: [{senderCode: currentUserCode, receiverCode: targetCode}, {senderCode: targetCode, receiverCode: currentUserCode}] },
         { $addToSet: { deletedFor: currentUserCode } }
@@ -509,7 +508,8 @@ io.on('connection', (socket) => {
 
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
-      const apiKey = "AQ.Ab8RN6IJIgzg7LZevXANzYLk5Z4mUY8F8ZDAQ_78Fii8s-Kgsw"; 
+      const apiKey = "AQ.Ab8RN6JGarhUT4UnDEiMZIIYifH91dSOovQfKzqOGC1sVRFzSw"; 
+      
       let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
       if(context === 'register') systemInstruction = "Only help the user with creating a new account (like 8-digit password, security questions). Keep it very short.";
       if(context === 'login') systemInstruction = "Only help the user with logging into their account. Keep it short.";
@@ -538,6 +538,9 @@ io.on('connection', (socket) => {
         resAPI.on('end', () => {
            try {
               const data = JSON.parse(body);
+              if(data.error) {
+                 return cb({ success: false, error: "Google API Error: " + data.error.message });
+              }
               if(data.candidates && data.candidates.length > 0) {
                  cb({ success: true, text: data.candidates[0].content.parts[0].text });
               } else {
@@ -546,9 +549,11 @@ io.on('connection', (socket) => {
            } catch(err) { cb({ success: false, error: 'JSON Parse error' }); }
         });
       });
-      req.on('error', (e) => cb({ success: false, error: 'Connection Error' }));
+      
+      req.on('error', (e) => cb({ success: false, error: 'Connection Error: ' + e.message }));
       req.write(postData);
       req.end();
+      
     } catch (e) {
       cb({ success: false, error: 'Internal AI Error' });
     }
