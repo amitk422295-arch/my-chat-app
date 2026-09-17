@@ -508,7 +508,6 @@ io.on('connection', (socket) => {
 
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
-      // NEW API KEY 
       const apiKey = "AQ.Ab8RN6JGarhUT4UnDEiMZIIYifH91dSOovQfKzqOGC1sVRFzSw"; 
       
       let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
@@ -522,7 +521,6 @@ io.on('connection', (socket) => {
         systemInstruction: { parts: [{ text: systemInstruction }] }
       });
 
-      // Headers update logic
       const options = {
         hostname: 'generativelanguage.googleapis.com',
         port: 443,
