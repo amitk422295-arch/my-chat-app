@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,10 +12,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
     html, body { width: 100%; height: 100%; height: 100dvh; background: #08080c; color: #f0f2f5; overflow: hidden; position: fixed; inset: 0; }
     .bg-heart-pattern { position: fixed; inset: 0; pointer-events: none; opacity: 0.06; z-index: 0; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'); background-size: 54px 54px; }
-    #toastBox { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1e1e2c; border: 1px solid rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; display: none; align-items: center; gap: 8px; z-index: 999; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-    #toastBox.error { border-color: #ff3b5c; color: #ff6b8b; }
-    #toastBox.success { border-color: #00c853; color: #00ff88; }
-    #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
     
     .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
     .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 22px; display: flex; flex-direction: column; gap: 10px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); max-height: 92vh; overflow-y: auto; position: relative; }
@@ -34,7 +31,7 @@
     .menu-panel { position:fixed; z-index:210; display:none; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:8px; box-shadow:0 20px 60px rgba(0,0,0,.9); }
     .menu-panel button { width:100%; border:0; background:transparent; color:#fff; padding:13px 12px; text-align:left; border-radius:12px; font-size:14px; cursor:pointer; font-weight:600; }
     .menu-panel button:hover { background:rgba(255,255,255,.08); }
-    .modal { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); }
+    .modal { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); backdrop-filter: blur(4px); }
     .modal-card { width:100%; max-width:390px; max-height:88vh; overflow:auto; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:22px; box-shadow:0 20px 70px rgba(0,0,0,.85); }
     
     .panes-wrapper { flex: 1; position: relative; overflow: hidden; }
@@ -72,29 +69,44 @@
     @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
     .btn-green { background: #00ff88; box-shadow: 0 10px 25px rgba(0,255,136,0.4); }
     .btn-red { background: #ff3b5c; box-shadow: 0 10px 25px rgba(255,59,92,0.4); }
-    .tap-btn { width: 70px; height: 70px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 30px; color: white; cursor: pointer; transition: transform 0.2s; }
+    .tap-btn { width: 70px; height: 70px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: transform 0.2s; }
     .tap-btn:active { transform: scale(0.9); }
     #localVideo, #remoteVideo { display: none; width: 100px; height: 150px; border-radius: 12px; object-fit: cover; position: absolute; }
     #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; z-index: -1; opacity: 0.3; }
 
-    /* MC AI Button CSS */
     .mc-ai-btn { position: fixed; bottom: 85px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, #5ac8fa, #007aff); box-shadow: 0 4px 20px rgba(90,200,250,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 18px; cursor: pointer; z-index: 100; border: 2px solid rgba(255,255,255,0.2); transition: transform 0.3s; }
     .mc-ai-btn:active { transform: scale(0.9); }
   </style>
 </head>
 <body>
   <div class="bg-heart-pattern"></div>
-  <div id="toastBox"></div>
 
-  <!-- MEDIA MODAL UPDATE: Delete Button & Swiping Container -->
+  <!-- CENTERED ALERT MODAL -->
+  <div id="alertModal" class="modal" onclick="closeAlert()">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; text-align:center;">
+       <p id="alertText" style="margin-bottom:20px; color:#fff; font-size:15px; font-weight:600;"></p>
+       <button class="btn-gradient" style="width:100%; background: #5ac8fa; color:#000;" onclick="closeAlert()">OK</button>
+    </div>
+  </div>
+
+  <!-- CENTERED CONFIRM MODAL -->
+  <div id="confirmModal" class="modal" onclick="closeConfirm()">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; text-align:center;">
+       <p id="confirmText" style="margin-bottom:20px; color:#fff; font-size:15px; font-weight:600;"></p>
+       <div style="display:flex; gap:10px;">
+          <button class="btn-gradient" style="flex:1; background:#333; box-shadow:none;" onclick="closeConfirm()">Cancel</button>
+          <button class="btn-gradient" style="flex:1; background:#ff3b5c;" id="confirmBtn">Delete</button>
+       </div>
+    </div>
+  </div>
+
   <div id="imageModal">
     <button class="close-btn" onclick="closeImageModal()">✕</button>
     <button id="deleteMediaBtn" class="close-btn" style="right: 60px; color:#ff3b5c; display:none;" onclick="deleteCurrentMedia()">🗑️</button>
     <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%; transition: all 0.3s ease;"></div>
   </div>
 
-  <!-- AI HELP MODAL -->
-  <div id="aiModal" class="modal">
+  <div id="aiModal" class="modal" onclick="closeAiModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="display:flex; flex-direction:column; height: 60vh;">
       <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
         <h3 id="aiModalTitle" style="color:#5ac8fa;">🤖 MC AI Help</h3>
@@ -108,7 +120,6 @@
     </div>
   </div>
 
-  <!-- AUTH SCREEN -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
       <div style="display:flex; justify-content:space-between; width: 100%; align-items:center;">
@@ -140,7 +151,6 @@
     </div>
   </div>
 
-  <!-- MAIN APP -->
   <div id="mainApp">
     <div class="top-navbar">
       <div style="font-size:20px;font-weight:800;display:flex;justify-content:space-between;align-items:center;">
@@ -189,11 +199,10 @@
       </div>
     </div>
     
-    <!-- MC AI FLOATING BUTTON -->
     <div class="mc-ai-btn" onclick="openAiHelp('general')">MC</div>
   </div>
 
-  <div id="contactMenuModal" class="modal">
+  <div id="contactMenuModal" class="modal" onclick="closeContactMenu()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 id="cmName" style="margin-bottom:16px; text-align:center; color:#fff;"></h3>
       <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff9aae; color:#171720;" onclick="deleteContactAction()">🗑️ Delete Chat</button>
@@ -202,7 +211,7 @@
     </div>
   </div>
 
-  <div id="msgActionModal" class="modal">
+  <div id="msgActionModal" class="modal" onclick="closeMsgActionMenu()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 style="margin-bottom:16px; text-align:center; color:#fff;">Message Actions</h3>
       <button class="btn-gradient" id="btnCopyMsg" style="width:100%; margin-bottom:12px; background:#1c1c26; border:1px solid #ff3b5c;">📋 Copy Text</button>
@@ -214,7 +223,16 @@
 
   <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
     <button onclick="openMyProfile()">👤 Edit Profile</button>
+    <button onclick="openBlockedModal()">🚫 Blocked Users</button>
     <button class="danger" onclick="logoutApp()" style="color:#ff6b8b;">🚪 Logout</button>
+  </div>
+
+  <div id="blockedModal" class="modal" onclick="closeBlockedModal()">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:350px;">
+       <h3 style="text-align:center;margin-bottom:14px;">Blocked Users</h3>
+       <div id="blockedListArea" style="display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow-y:auto;"></div>
+       <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeBlockedModal()">✕</button>
+    </div>
   </div>
 
   <div id="chatRoom">
@@ -270,17 +288,17 @@
     <div id="callTimeDisplay" style="margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #fff; display: none;">00:00</div>
     
     <div id="callReceiverUI" style="display: none; width:100%; max-width:250px; justify-content: space-between; margin-top: auto; margin-bottom: 40px;">
-       <button class="tap-btn btn-red" id="btnRejectCall">✖</button>
-       <button class="tap-btn btn-green" id="btnAcceptCall">📞</button>
+       <button class="tap-btn btn-red" id="btnRejectCall" style="font-size:35px; transform: rotate(135deg);">📞</button>
+       <button class="tap-btn btn-green" id="btnAcceptCall" style="font-size:35px;">📞</button>
     </div>
 
-    <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px;">
-       <button class="tap-btn btn-red" onclick="endCall()" style="margin: 0 auto;">✖</button>
-       <div style="margin-top:10px; font-size:12px; opacity:0.6;">Tap to End</div>
+    <!-- CENTERED RED BUTTON UPDATE -->
+    <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px; display:flex; justify-content:center; width:100%;">
+       <button class="tap-btn btn-red" onclick="endCall()" style="font-size:35px; transform: rotate(135deg);">📞</button>
     </div>
   </div>
 
-  <div id="myProfileModal" class="modal">
+  <div id="myProfileModal" class="modal" onclick="closeMyProfile()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <h3 style="text-align:center;margin-bottom:14px;">Edit Profile</h3>
       <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
@@ -301,8 +319,7 @@
     </div>
   </div>
 
-  <!-- FORGOT MODAL UPDATE -->
-  <div id="forgotModal" class="modal">
+  <div id="forgotModal" class="modal" onclick="closeForgotModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
          <h3>Recover Account</h3>
@@ -328,6 +345,22 @@
     let unreadMap = {}; let activeContactMenuTarget = null;
     let hasMyActiveStatus = false;
 
+    // --- ALERT & CONFIRM MODALS ---
+    function showToast(msg) { 
+       document.getElementById('alertText').textContent = msg;
+       document.getElementById('alertModal').style.display = 'flex';
+    }
+    function closeAlert() { document.getElementById('alertModal').style.display = 'none'; }
+
+    let confirmAction = null;
+    function showConfirm(msg, callback) {
+       document.getElementById('confirmText').textContent = msg;
+       document.getElementById('confirmModal').style.display = 'flex';
+       confirmAction = callback;
+    }
+    function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; confirmAction = null; }
+    document.getElementById('confirmBtn').onclick = () => { if(confirmAction) confirmAction(); closeConfirm(); };
+
     // --- AI HELP BOT LOGIC ---
     let currentAiContext = 'general';
     function openAiHelp(context) {
@@ -352,7 +385,7 @@
              windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:#20202a; border:1px solid rgba(255,255,255,0.1); padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px; max-width:85%; font-size:14px;">${escapeHtml(res.text).replace(/\n/g,'<br>')}</div>`);
              windowEl.scrollTo(0, windowEl.scrollHeight);
           } else {
-             windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; color:#ff3b5c; font-size:12px;">Failed to connect to AI.</div>`);
+             windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; color:#ff3b5c; font-size:12px;">${res.error || 'Failed to connect to AI.'}</div>`);
           }
        });
     }
@@ -435,30 +468,6 @@
       }
     });
 
-    let toastTimeout;
-    function showToast(msg, type='info', duration=3500) {
-      const t = document.getElementById('toastBox'); t.className = type; t.textContent = msg; t.style.display = 'flex';
-      clearTimeout(toastTimeout); if(duration > 0) toastTimeout = setTimeout(()=> { if(t) t.style.display='none'; }, duration);
-    }
-
-    document.addEventListener('click', (e) => {
-      document.getElementById('appMenu').style.display = 'none';
-      document.getElementById('attachMenu').style.display = 'none';
-      document.getElementById('chatRoomMenu').style.display = 'none';
-      
-      const forgotModal = document.getElementById('forgotModal');
-      const profileModal = document.getElementById('myProfileModal');
-      const contactModal = document.getElementById('contactMenuModal');
-      const msgActionModal = document.getElementById('msgActionModal');
-      const aiModal = document.getElementById('aiModal');
-      
-      if (e.target === forgotModal) closeForgotModal();
-      if (e.target === profileModal) closeMyProfile();
-      if (e.target === contactModal) closeContactMenu();
-      if (e.target === msgActionModal) closeMsgActionMenu();
-      if (e.target === aiModal) closeAiModal();
-    });
-
     function toggleAppMenu(e, menuId) { 
       e.stopPropagation(); 
       document.querySelectorAll('.menu-panel').forEach(m => { if (m.id !== menuId) m.style.display = 'none'; });
@@ -485,39 +494,41 @@
       const q1 = document.getElementById('regQ1Input').value.trim();
       const q2 = document.getElementById('regQ2Input').value.trim();
 
-      if (mobile.length < 10) return showToast('Valid mobile required', 'error');
-      if (!userId.startsWith('@') || userId.length < 5) return showToast('User ID must start with @', 'error');
-      if (pass.length !== 8) return showToast('Password must be 8 digits', 'error');
-      if (!q1 && !q2) return showToast('Provide at least one security answer', 'error');
+      if (mobile.length < 10) return showToast('Valid mobile required');
+      if (!userId.startsWith('@') || userId.length < 5) return showToast('User ID must start with @');
+      if (pass.length !== 8) return showToast('Password must be 8 digits');
+      if (!q1 && !q2) return showToast('Provide at least one security answer');
 
-      showToast('Creating account...', 'info');
+      showToast('Creating account...');
       socket.emit('register-custom', { userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64, q1, q2 }, res => {
+        closeAlert();
         if (res?.success) {
           currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
           socket.emit('set-socket-user', { userCode: currentUserData.userCode }, r => { if (r?.token) uploadToken = r.token; });
           launchMainApp(true);
-        } else showToast(res?.error || 'Failed', 'error');
+        } else showToast(res?.error || 'Failed');
       });
     }
 
     function handleLogin() {
       const id = document.getElementById('loginIdInput').value.trim();
       const pass = document.getElementById('loginPassInput').value.trim();
-      if (!id || !pass) return showToast('Enter ID and password', 'error');
-      showToast('Logging in...', 'info');
+      if (!id || !pass) return showToast('Enter ID and password');
+      showToast('Logging in...');
       socket.emit('auth-user', { userCode: id, password: pass }, res => {
+        closeAlert();
         if (res?.success) {
           currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
           socket.emit('set-socket-user', { userCode: currentUserData.userCode }, r => { if (r?.token) uploadToken = r.token; });
           launchMainApp(true);
-        } else showToast(res?.error || 'Invalid credentials', 'error');
+        } else showToast(res?.error || 'Invalid credentials');
       });
     }
 
     function launchMainApp(showWelcome) { 
       document.getElementById('screenAuth').style.display = 'none'; 
       document.getElementById('mainApp').style.display = 'flex'; 
-      if (showWelcome) showToast('Welcome to My Chat 💖', 'success');
+      if (showWelcome) showToast('Welcome to My Chat 💖');
       loadContacts(); 
     }
     
@@ -543,19 +554,45 @@
       socket.emit('block-user', { targetCode: activeContactMenuTarget }, res => {
         if(res?.success) {
            globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
-           renderContacts(globalContacts); showToast('User Blocked', 'success'); closeContactMenu();
+           renderContacts(globalContacts); showToast('User Blocked'); closeContactMenu();
         }
       });
     }
     function deleteContactAction() {
       if(!activeContactMenuTarget) return;
-      socket.emit('delete-contact', { targetCode: activeContactMenuTarget }, async res => {
-        if(res?.success) {
-           await saveMessagesLocal(activeContactMenuTarget, []); 
-           globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
-           renderContacts(globalContacts); showToast('Chat Deleted', 'success'); closeContactMenu();
-        }
+      showConfirm("Delete this chat permanently?", () => {
+         socket.emit('delete-contact', { targetCode: activeContactMenuTarget }, async res => {
+           if(res?.success) {
+              await saveMessagesLocal(activeContactMenuTarget, []); 
+              globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
+              renderContacts(globalContacts); showToast('Chat Deleted'); closeContactMenu();
+           }
+         });
       });
+    }
+
+    // --- BLOCKED USERS LOGIC ---
+    function openBlockedModal() {
+       document.getElementById('appMenu').style.display = 'none';
+       socket.emit('get-blocked-users', {}, res => {
+          if(res?.success) {
+             const area = document.getElementById('blockedListArea');
+             area.innerHTML = res.users.map(u => `
+                <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px;">
+                   <img src="${escapeAttr(u.avatar)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                   <div style="flex:1;font-weight:bold;">${escapeHtml(u.name)}</div>
+                   <button style="background:#5ac8fa; color:#000; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="unblockUser('${u.userCode}')">Unblock</button>
+                </div>
+             `).join('') || '<p style="text-align:center;color:#888;">No blocked users.</p>';
+             document.getElementById('blockedModal').style.display = 'flex';
+          }
+       });
+    }
+    function closeBlockedModal() { document.getElementById('blockedModal').style.display = 'none'; }
+    function unblockUser(code) {
+       socket.emit('unblock-user', {targetCode: code}, res => {
+          if(res?.success) { showToast('User Unblocked'); openBlockedModal(); syncContacts(); }
+       });
     }
 
     let msgPressTimer;
@@ -572,7 +609,7 @@
         document.getElementById('btnCopyMsg').onclick = () => {
            const text = activeMsgElement.innerText.replace(/✓|🕒|[\d:]+(AM|PM)?/g, '').trim();
            navigator.clipboard.writeText(text);
-           showToast('Text copied!', 'success');
+           showToast('Text copied!');
            closeMsgActionMenu();
         };
 
@@ -585,8 +622,10 @@
 
     function execDeleteMsg(type) {
       if(!activeMsgId) return;
-      socket.emit('delete-message', { messageId: activeMsgId, type }, res => {
-         if(res?.success) closeMsgActionMenu();
+      showConfirm("Delete this message?", () => {
+         socket.emit('delete-message', { messageId: activeMsgId, type }, res => {
+            if(res?.success) closeMsgActionMenu();
+         });
       });
     }
 
@@ -627,7 +666,6 @@
       }
     }
 
-    // --- REEL SWIPING LOGIC & MEDIA VIEWER ---
     let activeReels = [];
     let currentReelIndex = -1;
     let currentMediaType = ''; 
@@ -657,7 +695,7 @@
             currentReelIndex = activeReels.findIndex(r => r.userCode === userCode);
             if(currentReelIndex === -1) currentReelIndex = 0;
             showReel(currentReelIndex);
-         } else { showToast('Status expired.', 'info'); }
+         } else { showToast('Status expired.'); }
       });
     }
 
@@ -675,19 +713,18 @@
           html = `<img src="${status.media}" onclick="event.stopPropagation()" style="max-width:100%; max-height:100vh; object-fit:contain; border-radius:4px;">`;
        }
        
-       container.innerHTML = `<div style="position:absolute; top:20px; left:20px; z-index:1002; display:flex; align-items:center; gap:10px;"><img src="${status.avatar}" style="width:40px;height:40px;border-radius:50\%;border:2px solid #ff3b5c;"><span style="color:#fff;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.8);">${status.name}</span></div>` + html;
+       container.innerHTML = `<div style="position:absolute; top:20px; left:20px; z-index:1002; display:flex; align-items:center; gap:10px;"><img src="${status.avatar}" style="width:40px;height:40px;border-radius:50\%;border:2px solid #ff3b5c;object-fit:cover;"><span style="color:#fff;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.8);">${status.name}</span></div>` + html;
        document.getElementById('imageModal').style.display = 'flex';
        checkDeleteButton();
     }
 
-    // Touch Swipe Listeners for Reels
     let touchStartY = 0;
     document.getElementById('imageModal').addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; });
     document.getElementById('imageModal').addEventListener('touchend', e => {
        if(currentMediaType !== 'reel') return;
        const touchEndY = e.changedTouches[0].screenY;
-       if(touchStartY - touchEndY > 50) showReel(currentReelIndex + 1); // Swipe Up
-       if(touchEndY - touchStartY > 50) showReel(currentReelIndex - 1); // Swipe Down
+       if(touchStartY - touchEndY > 50) showReel(currentReelIndex + 1); 
+       if(touchEndY - touchStartY > 50) showReel(currentReelIndex - 1); 
     });
 
     function checkDeleteButton() {
@@ -701,17 +738,18 @@
     }
 
     function deleteCurrentMedia() {
-       if(!confirm('Delete this media?')) return;
-       socket.emit('delete-my-media', { type: currentMediaType, url: currentMediaUrl }, res => {
-          if(res?.success) {
-             showToast('Deleted successfully', 'success');
-             if(currentMediaType === 'dp') { 
-                currentUserData.avatar = res.avatar; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
-                document.getElementById('myProfileAvatar').src = res.avatar; 
+       showConfirm("Permanently delete this media?", () => {
+          socket.emit('delete-my-media', { type: currentMediaType, url: currentMediaUrl }, res => {
+             if(res?.success) {
+                showToast('Deleted successfully');
+                if(currentMediaType === 'dp') { 
+                   currentUserData.avatar = res.avatar; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
+                   document.getElementById('myProfileAvatar').src = res.avatar; 
+                }
+                closeImageModal();
+                socket.emit('get-contacts');
              }
-             closeImageModal();
-             socket.emit('get-contacts');
-          }
+          });
        });
     }
 
@@ -757,7 +795,7 @@
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet.</div>';
 
-      if(list.innerHTML !== newHtml) { list.innerHTML = newHtml; } // Smooth Update No-Refresh Logic
+      if(list.innerHTML !== newHtml) { list.innerHTML = newHtml; } 
     }
 
     function loadContacts() { getContactsLocal().then(l => { if(l.length) renderContacts(l); }); syncContacts(); }
@@ -777,7 +815,7 @@
           globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
           renderContacts(globalContacts);
           openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
-        } else showToast(res?.error || 'User not found', 'error');
+        } else showToast(res?.error || 'User not found');
       });
     }
 
@@ -909,14 +947,14 @@
     async function clearCurrentChat() {
       if (!currentChatTarget) return;
       document.getElementById('chatRoomMenu').style.display = 'none';
-      socket.emit('clear-chat', { targetCode: currentChatTarget.userCode }, async res => {
-         if(res?.success) {
-            await saveMessagesLocal(currentChatTarget.userCode, []);
-            renderMessages([]);
-            showToast('Chat cleared entirely!', 'success');
-         } else {
-            showToast('Failed to clear chat', 'error');
-         }
+      showConfirm("Clear entire chat history?", () => {
+         socket.emit('clear-chat', { targetCode: currentChatTarget.userCode }, async res => {
+            if(res?.success) {
+               await saveMessagesLocal(currentChatTarget.userCode, []);
+               renderMessages([]);
+               showToast('Chat cleared entirely!');
+            }
+         });
       });
     }
 
@@ -1012,7 +1050,7 @@
           }
         };
         xhr.send(form);
-      } catch (e) { showToast('Upload failed', 'error'); }
+      } catch (e) { showToast('Upload failed'); }
       inp.value = '';
     }
 
@@ -1021,7 +1059,7 @@
       const ring = document.getElementById('myStatusRing');
       ring.innerHTML = ''; ring.classList.remove('glow-complete'); 
       ring.style.setProperty('--progress', '5%');
-      showToast('Uploading Status... You can chat while it uploads.', 'info');
+      showToast('Uploading Status... You can chat while it uploads.');
 
       const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
       xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
@@ -1042,11 +1080,11 @@
           ring.classList.add('glow-complete');
           ring.innerHTML = '✓';
           hasMyActiveStatus = true;
-          showToast('Status Uploaded Successfully!', 'success');
+          showToast('Status Uploaded Successfully!');
           socket.emit('get-contacts'); 
         } else {
           ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%');
-          showToast('Upload failed', 'error');
+          showToast('Upload failed');
         }
       };
       xhr.send(form);
@@ -1071,7 +1109,7 @@
         let exists = globalContacts.find(c => c.userCode === otherCode);
         if (!exists) { socket.emit('get-contacts'); } 
         else { promoteChatToTop(otherCode); }
-        showToast(`New message from ${otherCode}`, 'info', 2000);
+        showToast(`New message from ${otherCode}`);
       }
     });
 
@@ -1100,7 +1138,7 @@
       const secQ2 = document.getElementById('myProfileQ2').value.trim();
       
       closeMyProfile(); 
-      showToast('Profile Saved Successfully!', 'success'); 
+      showToast('Profile Saved Successfully!'); 
 
       if (currentUserData) {
         currentUserData.fullName = fullName;
@@ -1118,12 +1156,11 @@
       });
     }
 
-    socket.on('profile-upload-error', (data) => { showToast(data.error || 'DP upload failed.', 'error'); });
+    socket.on('profile-upload-error', (data) => { showToast(data.error || 'DP upload failed.'); });
 
     function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
     function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
     
-    // FEATURE UPDATE: Recovery Login Auto-fill & Dual Password
     function submitRecovery() {
       const mobile = document.getElementById('recMobileInput').value.trim();
       const q1 = document.getElementById('recQ1Input').value.trim();
@@ -1131,13 +1168,13 @@
       const newPassword = document.getElementById('recNewPassInput').value.trim();
       const confirmPassword = document.getElementById('recConfirmPassInput').value.trim();
       
-      if(!mobile || !newPassword) return showToast('Mobile and New Password are required', 'error');
-      if(newPassword.length !== 8) return showToast('Password must be 8 digits', 'error');
-      if(newPassword !== confirmPassword) return showToast('Passwords do not match!', 'error');
+      if(!mobile || !newPassword) return showToast('Mobile and New Password are required');
+      if(newPassword.length !== 8) return showToast('Password must be 8 digits');
+      if(newPassword !== confirmPassword) return showToast('Passwords do not match!');
 
       socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
         if (res?.success) { 
-          showToast("Recovery successful! Logging in...", 'success', 2000); 
+          showToast("Recovery successful! Logging in..."); 
           closeForgotModal();
           if (authMode === 'reg') { toggleAuthMode(); }
           
@@ -1150,14 +1187,13 @@
           document.getElementById('recNewPassInput').value = '';
           document.getElementById('recConfirmPassInput').value = '';
           
-          setTimeout(() => { handleLogin(); }, 1500); // Auto redirect login
-        } else showToast(res?.error || 'Failed', 'error');
+          setTimeout(() => { handleLogin(); }, 1500); 
+        } else showToast(res?.error || 'Failed');
       });
     }
 
     function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
 
-    // --- WebRTC CALLING LOGIC ---
     let localStream, peerConnection, callInterval;
     let callTargetCode = null, callTargetName = null;
     let callRole = null; 
@@ -1169,7 +1205,6 @@
       socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); });
     }
     
-    // FEATURE UPDATE: Callback Button
     function renderCalls(calls) {
        const list = document.getElementById('callsList');
        if(!calls || calls.length===0) { list.innerHTML = '<div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>'; return; }
@@ -1220,7 +1255,7 @@
           peerConnection.setLocalDescription(offer);
           socket.emit('call-user', { targetCode: callTargetCode, offer: offer });
         });
-      }).catch(err => { showToast('Camera/Mic permission denied', 'error'); cleanupCall(false); });
+      }).catch(err => { showToast('Camera/Mic permission denied'); cleanupCall(false); });
     }
 
     socket.on('call-status', data => { if(callRole === 'caller' && !callStartTime) document.getElementById('callStatusText').textContent = data.status; });
@@ -1267,7 +1302,7 @@
     };
 
     socket.on('call-rejected', () => { 
-      showToast('Call Declined', 'error'); 
+      showToast('Call Declined'); 
       saveCallLog('declined', '0s');
       cleanupCall(false); 
     });
@@ -1293,7 +1328,7 @@
       cleanupCall(true); 
     }
 
-    socket.on('call-ended', () => { showToast('Call Ended', 'info'); cleanupCall(false); });
+    socket.on('call-ended', () => { showToast('Call Ended'); cleanupCall(false); });
 
     function startCallTimer() {
       callStartTime = Date.now();
@@ -1308,7 +1343,6 @@
       }, 1000);
     }
 
-    // FEATURE UPDATE: Fix Red Button Crash
     function saveCallLog(status, duration) {
        if(!currentUserData || !callTargetCode) return;
        socket.emit('save-call-log', {
