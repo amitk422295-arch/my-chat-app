@@ -95,6 +95,7 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
        return res.status(401).json({ success:false, error:'User not found.' });
     }
 
+    // 30-Second Trim for Status Videos
     const uploadOptions = isStatus && req.file.mimetype.startsWith('video/') ? { duration: 30 } : {};
 
     const result = await queuedCloudinaryUpload(req.file, isStatus ? 'chat_app_status' : 'chat_app_media', uploadOptions);
@@ -161,12 +162,24 @@ const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: 
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
+const callLogSchema = new mongoose.Schema({
+  callerCode: { type: String, required: true, lowercase: true },
+  callerName: String,
+  receiverCode: { type: String, required: true, lowercase: true },
+  receiverName: String,
+  status: String, 
+  duration: String, 
+  timestamp: { type: Date, default: Date.now }
+});
+const CallLog = mongoose.model('CallLog', callLogSchema);
+
 const userSockets = new Map();
+const pendingCalls = new Map(); // For offline-to-online call catching
 
 io.on('connection', (socket) => {
   let currentUserCode = null;
 
-  socket.on('set-socket-user', ({ userCode }, callback) => {
+  socket.on('set-socket-user', async ({ userCode }, callback) => {
     if (userCode) {
       currentUserCode = String(userCode).trim().toLowerCase();
       socket.join(currentUserCode);
@@ -175,6 +188,17 @@ io.on('connection', (socket) => {
       userSockets.get(currentUserCode).add(socket.id);
       User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
+      // Catch pending call if they just came online
+      const pending = pendingCalls.get(currentUserCode);
+      if(pending && pending.expiry > Date.now()) {
+          const caller = await User.findOne({ userCode: pending.callerCode }).lean();
+          if(caller) {
+              io.to(currentUserCode).emit('incoming-call', { callerCode: pending.callerCode, callerName: caller.fullName, callerAvatar: caller.avatar, offer: pending.offer });
+              io.to(pending.callerCode).emit('call-status', { status: 'Ringing...', targetCode: currentUserCode });
+          }
+          pendingCalls.delete(currentUserCode);
+      }
 
       const token = makeUploadToken(currentUserCode);
       if (typeof callback === 'function') callback({ success: true, token });
@@ -268,7 +292,6 @@ io.on('connection', (socket) => {
         
         const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode } });
         
-        // Active Status Check
         const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
 
         return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
@@ -397,11 +420,12 @@ io.on('connection', (socket) => {
     if(!currentUserCode) return;
     const isOnline = userSockets.has(data.targetCode);
     socket.emit('call-status', { status: isOnline ? 'Ringing...' : 'Calling...', targetCode: data.targetCode });
+    
     if(isOnline) {
       const caller = await User.findOne({ userCode: currentUserCode }).lean();
-      io.to(data.targetCode).emit('incoming-call', { 
-        callerCode: currentUserCode, callerName: caller.fullName, callerAvatar: caller.avatar, offer: data.offer 
-      });
+      io.to(data.targetCode).emit('incoming-call', { callerCode: currentUserCode, callerName: caller.fullName, callerAvatar: caller.avatar, offer: data.offer });
+    } else {
+      pendingCalls.set(data.targetCode, { callerCode: currentUserCode, offer: data.offer, expiry: Date.now() + 30000 });
     }
   });
 
@@ -410,7 +434,25 @@ io.on('connection', (socket) => {
   socket.on('end-call', (data) => { io.to(data.targetCode).emit('call-ended'); });
   socket.on('ice-candidate', (data) => { io.to(data.targetCode).emit('ice-candidate', { candidate: data.candidate }); });
 
-  // Get active status logic for playback
+  socket.on('save-call-log', async (data) => {
+    try {
+      await CallLog.create({
+        callerCode: data.callerCode, callerName: data.callerName,
+        receiverCode: data.receiverCode, receiverName: data.receiverName,
+        status: data.status, duration: data.duration
+      });
+    } catch(e) {}
+  });
+
+  socket.on('get-calls', async (data, cb) => {
+    if(!currentUserCode) return;
+    try {
+       const calls = await CallLog.find({ $or: [{callerCode: currentUserCode}, {receiverCode: currentUserCode}] })
+                                  .sort({ timestamp: -1 }).limit(50).lean();
+       cb({ success: true, calls });
+    } catch(e) { cb({ success: false }); }
+  });
+
   socket.on('get-user-status', async ({ targetCode }, cb) => {
     try {
       const statusData = await Status.findOne({ userCode: targetCode, 'items.expiresAt': { $gt: new Date() } }).lean();
