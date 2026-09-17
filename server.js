@@ -22,7 +22,7 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. Disk Storage Queue System (400MB Safe Upload)
+// 1. Disk Storage Queue System
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
@@ -95,9 +95,7 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
        return res.status(401).json({ success:false, error:'User not found.' });
     }
 
-    // 30-Second Trim for Status Videos
     const uploadOptions = isStatus && req.file.mimetype.startsWith('video/') ? { duration: 30 } : {};
-
     const result = await queuedCloudinaryUpload(req.file, isStatus ? 'chat_app_status' : 'chat_app_media', uploadOptions);
     
     if (isStatus) {
@@ -115,7 +113,6 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
   }
 });
 
-// CLOUDINARY CREDENTIALS
 cloudinary.config({
   cloud_name: 'gr8tp1tg',
   api_key: '668573837891895',
@@ -174,7 +171,7 @@ const callLogSchema = new mongoose.Schema({
 const CallLog = mongoose.model('CallLog', callLogSchema);
 
 const userSockets = new Map();
-const pendingCalls = new Map(); // For offline-to-online call catching
+const pendingCalls = new Map(); 
 
 io.on('connection', (socket) => {
   let currentUserCode = null;
@@ -189,7 +186,6 @@ io.on('connection', (socket) => {
       User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
 
-      // Catch pending call if they just came online
       const pending = pendingCalls.get(currentUserCode);
       if(pending && pending.expiry > Date.now()) {
           const caller = await User.findOne({ userCode: pending.callerCode }).lean();
@@ -218,8 +214,9 @@ io.on('connection', (socket) => {
   socket.on('register-custom', async (data, callback) => {
     try {
       const rawId = String(data.userCode || '').trim().toLowerCase();
-      const existingUser = await User.findOne({ userCode: rawId });
-      if (existingUser) return callback({ success: false, error: 'User ID already taken.' });
+      // FEATURE UPDATE: Unique Mobile Validation
+      const existingUser = await User.findOne({ $or: [{ userCode: rawId }, { mobile: data.mobile.trim() }] });
+      if (existingUser) return callback({ success: false, error: 'User ID or Mobile is already registered.' });
 
       const newUser = await User.create({
         userCode: rawId, password: data.password.trim(), fullName: data.fullName?.trim() || 'User',
@@ -453,11 +450,62 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  socket.on('get-user-status', async ({ targetCode }, cb) => {
+  // FEATURE UPDATE: Fetch All Active Reels for Swiping
+  socket.on('get-all-active-reels', async (data, cb) => {
     try {
-      const statusData = await Status.findOne({ userCode: targetCode, 'items.expiresAt': { $gt: new Date() } }).lean();
-      cb({ success: true, items: statusData?.items || [] });
+      const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
+      let reels = [];
+      allStatuses.forEach(s => {
+         const latest = s.items[s.items.length-1];
+         if(latest && latest.expiresAt > new Date()) {
+            reels.push({ userCode: s.userCode, name: s.name, avatar: s.avatar, media: latest.media, type: latest.type });
+         }
+      });
+      cb({ success: true, reels });
     } catch (e) { cb({ success: false }); }
+  });
+
+  // FEATURE UPDATE: Delete DP or Reel
+  socket.on('delete-my-media', async ({ type, url }, cb) => {
+    if(!currentUserCode) return cb({success:false});
+    try {
+       if(type === 'dp') {
+          await User.updateOne({ userCode: currentUserCode }, { avatar: DEFAULT_AVATAR });
+          cb({success:true, avatar: DEFAULT_AVATAR});
+       } else if(type === 'reel') {
+          await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { media: url } } });
+          cb({success:true});
+       }
+    } catch(e) { cb({success:false}); }
+  });
+
+  // FEATURE UPDATE: Gemini AI Chatbot Integration
+  socket.on('ask-mc-ai', async ({ prompt, context }, cb) => {
+    try {
+      const apiKey = "AQ.Ab8RN6ILcDLABY-Hf8g1kZd2PYSdpf4ooROitvocEydLN5E31Q"; 
+      let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
+      if(context === 'register') systemInstruction = "Only help the user with creating a new account (like 8-digit password, security questions). Keep it very short.";
+      if(context === 'login') systemInstruction = "Only help the user with logging into their account. Keep it short.";
+      if(context === 'forgot') systemInstruction = "Only help the user with recovering their password using security questions. Keep it short.";
+      if(context === 'general') systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Be polite and helpful. Answer clearly in Hindi/English.";
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: systemInstruction }] }
+        })
+      });
+      const data = await response.json();
+      if(data.candidates && data.candidates.length > 0) {
+         cb({ success: true, text: data.candidates[0].content.parts[0].text });
+      } else {
+         cb({ success: false, error: 'No response from AI' });
+      }
+    } catch (e) {
+      cb({ success: false, error: 'AI Connection Error' });
+    }
   });
 
   socket.on('ping-server', () => {});
