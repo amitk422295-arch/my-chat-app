@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const https = require('https');
@@ -22,7 +23,6 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. Disk Storage Queue System
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
@@ -75,6 +75,15 @@ function validateUploadToken(token, userCode) {
   const row = uploadTokens.get(String(token || ''));
   if (!row || row.expiresAt < Date.now() || row.userCode !== String(userCode || '').toLowerCase()) return false;
   return true;
+}
+
+function getCloudinaryPublicId(url) {
+   try {
+      const parts = url.split('/');
+      const file = parts.pop();
+      const folder = parts.pop();
+      return folder + '/' + file.split('.')[0];
+   } catch(e) { return null; }
 }
 
 app.post('/api/upload-media', upload.single('media'), async (req, res) => {
@@ -214,7 +223,6 @@ io.on('connection', (socket) => {
   socket.on('register-custom', async (data, callback) => {
     try {
       const rawId = String(data.userCode || '').trim().toLowerCase();
-      // FEATURE UPDATE: Unique Mobile Validation
       const existingUser = await User.findOne({ $or: [{ userCode: rawId }, { mobile: data.mobile.trim() }] });
       if (existingUser) return callback({ success: false, error: 'User ID or Mobile is already registered.' });
 
@@ -284,7 +292,7 @@ io.on('connection', (socket) => {
       
       const contactsWithTime = await Promise.all(allUsers.map(async u => {
         const lastMsg = await Message.findOne({
-          $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }], deletedFor: { $ne: currentUserCode }
+          $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode }
         }).sort({ createdAt: -1 }).lean();
         
         const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode } });
@@ -332,8 +340,8 @@ io.on('connection', (socket) => {
     if (!currentUserCode) return;
     try {
       const clean = String(targetCode || '').toLowerCase();
-      const base = { $or: [{ senderCode: currentUserCode, receiverCode: clean }, { senderCode: clean, receiverCode: currentUserCode }], deletedFor: { $ne: currentUserCode } };
-      const messages = await Message.find(after ? { $and: [base, { createdAt: { $gt: new Date(after) } }] } : base).sort({ createdAt: 1 }).limit(500).lean();
+      const base = { $or: [{ senderCode: currentUserCode, receiverCode: clean }, { senderCode: clean, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode } };
+      const messages = await Message.find(after ? { $and: [base, { createdAt: {$gt: new Date(after) } }] } : base).sort({ createdAt: 1 }).limit(500).lean();
       callback({ success: true, messages, full: !after });
     } catch (e) { callback({ success: false }); }
   });
@@ -375,7 +383,11 @@ io.on('connection', (socket) => {
       if (!msg) return cb({ success: false });
 
       if (type === 'everyone' && msg.senderCode === currentUserCode) {
-        await Message.deleteOne({ messageId }); 
+        await Message.deleteOne({ messageId });
+        if(msg.media) {
+           const publicId = getCloudinaryPublicId(msg.media);
+           if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
+        }
         io.to(msg.senderCode).emit('message-deleted-ui', { messageId });
         io.to(msg.receiverCode).emit('message-deleted-ui', { messageId });
       } else {
@@ -386,15 +398,31 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
+  socket.on('get-blocked-users', async (data, cb) => {
+    if(!currentUserCode) return;
+    try {
+      const me = await User.findOne({ userCode: currentUserCode }).lean();
+      if(!me.blockedUsers || me.blockedUsers.length === 0) return cb({success:true, users:[]});
+      const blocked = await User.find({ userCode: { $in: me.blockedUsers } }).lean();
+      cb({success:true, users: blocked.map(u => ({userCode: u.userCode, name: u.fullName, avatar: u.avatar}))});
+    } catch(e) { cb({success:false}); }
+  });
+
+  socket.on('unblock-user', async ({ targetCode }, cb) => {
+    if(!currentUserCode) return;
+    await User.updateOne({ userCode: currentUserCode }, { $pull: { blockedUsers: targetCode } });
+    cb({ success: true });
+  });
+
   socket.on('block-user', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
-    await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode }, $pull: { contacts: targetCode } });
+    await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode },$pull: { contacts: targetCode } });
     cb({ success: true });
   });
 
   socket.on('delete-contact', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
-    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode } });
+    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode, blockedUsers: targetCode } }); // Auto-unblock on delete
     await Message.updateMany(
         { $or: [{senderCode: currentUserCode, receiverCode: targetCode}, {senderCode: targetCode, receiverCode: currentUserCode}] },
         { $addToSet: { deletedFor: currentUserCode } }
@@ -412,7 +440,6 @@ io.on('connection', (socket) => {
     await Message.updateMany({ senderCode: senderCode, receiverCode: currentUserCode, status: 'sent' }, { status: 'delivered' });
   });
 
-  // --- CALLING FEATURE EVENTS ---
   socket.on('call-user', async (data) => {
     if(!currentUserCode) return;
     const isOnline = userSockets.has(data.targetCode);
@@ -450,7 +477,6 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  // FEATURE UPDATE: Fetch All Active Reels for Swiping
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
@@ -465,10 +491,12 @@ io.on('connection', (socket) => {
     } catch (e) { cb({ success: false }); }
   });
 
-  // FEATURE UPDATE: Delete DP or Reel
   socket.on('delete-my-media', async ({ type, url }, cb) => {
     if(!currentUserCode) return cb({success:false});
     try {
+       const publicId = getCloudinaryPublicId(url);
+       if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
+
        if(type === 'dp') {
           await User.updateOne({ userCode: currentUserCode }, { avatar: DEFAULT_AVATAR });
           cb({success:true, avatar: DEFAULT_AVATAR});
@@ -479,32 +507,50 @@ io.on('connection', (socket) => {
     } catch(e) { cb({success:false}); }
   });
 
-  // FEATURE UPDATE: Gemini AI Chatbot Integration
-  socket.on('ask-mc-ai', async ({ prompt, context }, cb) => {
+  socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
-      const apiKey = "AQ.Ab8RN6ILcDLABY-Hf8g1kZd2PYSdpf4ooROitvocEydLN5E31Q"; 
+      const apiKey = "AQ.Ab8RN6IJIgzg7LZevXANzYLk5Z4mUY8F8ZDAQ_78Fii8s-Kgsw"; 
       let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
       if(context === 'register') systemInstruction = "Only help the user with creating a new account (like 8-digit password, security questions). Keep it very short.";
       if(context === 'login') systemInstruction = "Only help the user with logging into their account. Keep it short.";
       if(context === 'forgot') systemInstruction = "Only help the user with recovering their password using security questions. Keep it short.";
       if(context === 'general') systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Be polite and helpful. Answer clearly in Hindi/English.";
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: { parts: [{ text: systemInstruction }] }
-        })
+      const postData = JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        systemInstruction: { parts: [{ text: systemInstruction }] }
       });
-      const data = await response.json();
-      if(data.candidates && data.candidates.length > 0) {
-         cb({ success: true, text: data.candidates[0].content.parts[0].text });
-      } else {
-         cb({ success: false, error: 'No response from AI' });
-      }
+
+      const options = {
+        hostname: 'generativelanguage.googleapis.com',
+        port: 443,
+        path: '/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
+
+      const req = https.request(options, (resAPI) => {
+        let body = '';
+        resAPI.on('data', (chunk) => body += chunk);
+        resAPI.on('end', () => {
+           try {
+              const data = JSON.parse(body);
+              if(data.candidates && data.candidates.length > 0) {
+                 cb({ success: true, text: data.candidates[0].content.parts[0].text });
+              } else {
+                 cb({ success: false, error: 'AI gave no response' });
+              }
+           } catch(err) { cb({ success: false, error: 'JSON Parse error' }); }
+        });
+      });
+      req.on('error', (e) => cb({ success: false, error: 'Connection Error' }));
+      req.write(postData);
+      req.end();
     } catch (e) {
-      cb({ success: false, error: 'AI Connection Error' });
+      cb({ success: false, error: 'Internal AI Error' });
     }
   });
 
