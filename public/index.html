@@ -17,7 +17,7 @@
     #toastBox.info { border-color: #5ac8fa; color: #5ac8fa; }
     
     .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
-    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 22px; display: flex; flex-direction: column; gap: 10px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); max-height: 92vh; overflow-y: auto; }
+    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 22px; display: flex; flex-direction: column; gap: 10px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); max-height: 92vh; overflow-y: auto; position: relative; }
     .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; }
     .input-box:focus { border-color: #ff3b5c; background: rgba(255,255,255,0.12); }
     .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255,59,92,0.4); }
@@ -59,19 +59,14 @@
     .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
     .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
     
-    /* Media/Status Viewers */
     #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
-    #imageModal img { max-width: 100%; max-height: 100vh; object-fit: contain; border-radius: 4px; }
-    #imageModal video { max-width: 100%; max-height: 100vh; border-radius: 4px; }
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
 
-    /* Progress Ring for Status */
     .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; cursor:pointer;}
     .progress-ring::before { content:''; position:absolute; inset:0; border-radius:50%; padding:3px; background: conic-gradient(#ff3b5c var(--progress, 0%), transparent 0); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
     .glow-complete { animation: glowPulse 1.5s infinite; box-shadow: 0 0 10px #ff3b5c; border-radius:50%; }
     @keyframes glowPulse { 0% { box-shadow: 0 0 5px #ff3b5c; } 50% { box-shadow: 0 0 20px #ff3b5c; } 100% { box-shadow: 0 0 5px #ff3b5c; } }
 
-    /* Calling UI overlay */
     #callScreen { position: fixed; inset: 0; background: rgba(12,12,18,0.95); backdrop-filter: blur(20px); z-index: 900; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 20px; text-align: center; }
     .call-avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); margin-bottom: 20px; animation: pulseCall 2s infinite; }
     @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
@@ -81,22 +76,46 @@
     .tap-btn:active { transform: scale(0.9); }
     #localVideo, #remoteVideo { display: none; width: 100px; height: 150px; border-radius: 12px; object-fit: cover; position: absolute; }
     #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; z-index: -1; opacity: 0.3; }
+
+    /* MC AI Button CSS */
+    .mc-ai-btn { position: fixed; bottom: 85px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, #5ac8fa, #007aff); box-shadow: 0 4px 20px rgba(90,200,250,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 18px; cursor: pointer; z-index: 100; border: 2px solid rgba(255,255,255,0.2); transition: transform 0.3s; }
+    .mc-ai-btn:active { transform: scale(0.9); }
   </style>
 </head>
 <body>
   <div class="bg-heart-pattern"></div>
   <div id="toastBox"></div>
 
-  <div id="imageModal" onclick="closeImageModal()">
-    <button class="close-btn">✕</button>
-    <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"></div>
+  <!-- MEDIA MODAL UPDATE: Delete Button & Swiping Container -->
+  <div id="imageModal">
+    <button class="close-btn" onclick="closeImageModal()">✕</button>
+    <button id="deleteMediaBtn" class="close-btn" style="right: 60px; color:#ff3b5c; display:none;" onclick="deleteCurrentMedia()">🗑️</button>
+    <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%; transition: all 0.3s ease;"></div>
+  </div>
+
+  <!-- AI HELP MODAL -->
+  <div id="aiModal" class="modal">
+    <div class="modal-card" onclick="event.stopPropagation()" style="display:flex; flex-direction:column; height: 60vh;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
+        <h3 id="aiModalTitle" style="color:#5ac8fa;">🤖 MC AI Help</h3>
+        <button class="icon-btn" onclick="closeAiModal()" style="width:30px;height:30px;font-size:14px;background:transparent;border:none;color:#fff;">✕</button>
+      </div>
+      <div id="aiChatWindow" style="flex:1; overflow-y:auto; background:rgba(255,255,255,0.05); border-radius:12px; padding:10px; margin-bottom:10px; display:flex; flex-direction:column; gap:8px;"></div>
+      <div style="display:flex; gap:8px;">
+         <input type="text" id="aiInput" class="input-box" placeholder="Ask AI..." onkeypress="if(event.key==='Enter') sendAiMessage()">
+         <button class="btn-gradient" style="background: linear-gradient(135deg, #5ac8fa, #007aff);" onclick="sendAiMessage()">➤</button>
+      </div>
+    </div>
   </div>
 
   <!-- AUTH SCREEN -->
   <div id="screenAuth" class="screen-flow">
     <div class="glass-card">
-      <div style="font-size:34px;">💖</div>
-      <h3 style="color:#fff;" id="authTitle">Create Account</h3>
+      <div style="display:flex; justify-content:space-between; width: 100%; align-items:center;">
+         <div style="font-size:34px;">💖</div>
+         <button style="color:#5ac8fa; background:rgba(90,200,250,0.1); border:1px solid #5ac8fa; padding:6px 12px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:13px;" onclick="openAiHelp(authMode)">ℹ️ Help</button>
+      </div>
+      <h3 style="color:#fff; text-align:left;" id="authTitle">Create Account</h3>
       <div id="viewRegister" style="display:flex; flex-direction:column; gap:10px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>" onclick="document.getElementById('dpFileInput').click()">
@@ -146,13 +165,11 @@
         <div id="chatsList"></div>
       </div>
 
-      <!-- Reels & Calls -->
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
           
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <!-- Split Click Zones for Status -->
             <div style="display:flex; align-items:center; gap:14px; width:100%;">
               <div id="myStatusRing" class="progress-ring" onclick="handleRingClick(event)">+</div>
               <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
@@ -168,14 +185,14 @@
         </div>
       </div>
       <div class="tab-pane" id="paneCalls">
-        <div id="callsList" style="padding:16px; display:flex; flex-direction:column; gap:8px;">
-          <div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>
-        </div>
+        <div id="callsList" style="padding:16px; display:flex; flex-direction:column; gap:8px;"></div>
       </div>
     </div>
+    
+    <!-- MC AI FLOATING BUTTON -->
+    <div class="mc-ai-btn" onclick="openAiHelp('general')">MC</div>
   </div>
 
-  <!-- CONTACT LONG-PRESS MODAL -->
   <div id="contactMenuModal" class="modal">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 id="cmName" style="margin-bottom:16px; text-align:center; color:#fff;"></h3>
@@ -185,7 +202,6 @@
     </div>
   </div>
 
-  <!-- MESSAGE LONG-PRESS MODAL -->
   <div id="msgActionModal" class="modal">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 style="margin-bottom:16px; text-align:center; color:#fff;">Message Actions</h3>
@@ -196,13 +212,11 @@
     </div>
   </div>
 
-  <!-- APP MENU -->
   <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
     <button onclick="openMyProfile()">👤 Edit Profile</button>
     <button class="danger" onclick="logoutApp()" style="color:#ff6b8b;">🚪 Logout</button>
   </div>
 
-  <!-- CHAT ROOM -->
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
@@ -246,7 +260,6 @@
     </div>
   </div>
 
-  <!-- CALL SCREEN OVERLAY -->
   <div id="callScreen">
     <video id="remoteVideo" autoplay playsinline></video>
     <video id="localVideo" autoplay playsinline muted></video>
@@ -256,20 +269,17 @@
     
     <div id="callTimeDisplay" style="margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #fff; display: none;">00:00</div>
     
-    <!-- Receiver Tap UI (Left Red, Right Green) -->
     <div id="callReceiverUI" style="display: none; width:100%; max-width:250px; justify-content: space-between; margin-top: auto; margin-bottom: 40px;">
        <button class="tap-btn btn-red" id="btnRejectCall">✖</button>
        <button class="tap-btn btn-green" id="btnAcceptCall">📞</button>
     </div>
 
-    <!-- Caller Tap UI (Center Red) -->
     <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px;">
        <button class="tap-btn btn-red" onclick="endCall()" style="margin: 0 auto;">✖</button>
        <div style="margin-top:10px; font-size:12px; opacity:0.6;">Tap to End</div>
     </div>
   </div>
 
-  <!-- MY PROFILE MODAL -->
   <div id="myProfileModal" class="modal">
     <div class="modal-card" onclick="event.stopPropagation()">
       <h3 style="text-align:center;margin-bottom:14px;">Edit Profile</h3>
@@ -291,18 +301,21 @@
     </div>
   </div>
 
-  <!-- FORGOT MODAL -->
+  <!-- FORGOT MODAL UPDATE -->
   <div id="forgotModal" class="modal">
     <div class="modal-card" onclick="event.stopPropagation()">
-      <h3 style="margin-bottom:8px;">Recover Account</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+         <h3>Recover Account</h3>
+         <button style="color:#5ac8fa; background:rgba(90,200,250,0.1); border:1px solid #5ac8fa; padding:4px 10px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:12px;" onclick="openAiHelp('forgot')">ℹ️ Help</button>
+      </div>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <input type="tel" id="recMobileInput" class="input-box" placeholder="Registered Mobile *">
         <input type="text" id="recQ1Input" class="input-box" placeholder="1. Pet's name">
         <input type="text" id="recQ2Input" class="input-box" placeholder="2. Best friend">
-        <input type="password" id="recNewPassInput" class="input-box" placeholder="New 8-digit Password (Optional)" maxlength="8">
-        <button class="btn-gradient" onclick="submitRecovery()">Recover</button>
+        <input type="password" id="recNewPassInput" class="input-box" placeholder="New 8-digit Password" maxlength="8">
+        <input type="password" id="recConfirmPassInput" class="input-box" placeholder="Confirm New Password" maxlength="8">
+        <button class="btn-gradient" onclick="submitRecovery()">Reset & Login</button>
       </div>
-      <div id="recoveryResultDisplay" style="font-size:13px; color:#00ff88; font-weight:700; margin-top:10px; text-align:center;"></div>
       <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">✕</button>
     </div>
   </div>
@@ -315,7 +328,35 @@
     let unreadMap = {}; let activeContactMenuTarget = null;
     let hasMyActiveStatus = false;
 
-    // Smart Background Anti-Sleep & Sync
+    // --- AI HELP BOT LOGIC ---
+    let currentAiContext = 'general';
+    function openAiHelp(context) {
+       currentAiContext = context;
+       document.getElementById('aiModal').style.display = 'flex';
+       const titles = { 'reg': 'Registration Help', 'login': 'Login Help', 'forgot': 'Recovery Help', 'general': 'My Chat AI' };
+       document.getElementById('aiModalTitle').textContent = '🤖 ' + (titles[context] || 'Help');
+       document.getElementById('aiChatWindow').innerHTML = '<div style="color:#00ff88; font-size:13px; text-align:center;">Ask your question below! I am here to help.</div>';
+    }
+    function closeAiModal() { document.getElementById('aiModal').style.display = 'none'; }
+    function sendAiMessage() {
+       const input = document.getElementById('aiInput');
+       const text = input.value.trim();
+       if(!text) return;
+       const windowEl = document.getElementById('aiChatWindow');
+       windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 14px; border-radius:16px; border-bottom-right-radius:4px; max-width:85%; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.3);">${escapeHtml(text)}</div>`);
+       input.value = '';
+       windowEl.scrollTo(0, windowEl.scrollHeight);
+       
+       socket.emit('ask-mc-ai', { prompt: text, context: currentAiContext }, res => {
+          if(res?.success) {
+             windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:#20202a; border:1px solid rgba(255,255,255,0.1); padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px; max-width:85%; font-size:14px;">${escapeHtml(res.text).replace(/\n/g,'<br>')}</div>`);
+             windowEl.scrollTo(0, windowEl.scrollHeight);
+          } else {
+             windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; color:#ff3b5c; font-size:12px;">Failed to connect to AI.</div>`);
+          }
+       });
+    }
+
     function keepAlivePing() {
        if (socket.connected && currentUserData) { socket.emit('ping-server'); }
        setTimeout(keepAlivePing, 20000); 
@@ -409,13 +450,13 @@
       const profileModal = document.getElementById('myProfileModal');
       const contactModal = document.getElementById('contactMenuModal');
       const msgActionModal = document.getElementById('msgActionModal');
-      const imageModal = document.getElementById('imageModal');
+      const aiModal = document.getElementById('aiModal');
       
       if (e.target === forgotModal) closeForgotModal();
       if (e.target === profileModal) closeMyProfile();
       if (e.target === contactModal) closeContactMenu();
       if (e.target === msgActionModal) closeMsgActionMenu();
-      if (e.target === imageModal) closeImageModal();
+      if (e.target === aiModal) closeAiModal();
     });
 
     function toggleAppMenu(e, menuId) { 
@@ -559,7 +600,6 @@
       }
     });
 
-    // Avatar Tap (Status Play) & Long Press (Full Screen DP)
     let dpPressTimer;
     let isLongPress = false;
     function startDpPress(e, src, userCode) {
@@ -587,20 +627,107 @@
       }
     }
 
+    // --- REEL SWIPING LOGIC & MEDIA VIEWER ---
+    let activeReels = [];
+    let currentReelIndex = -1;
+    let currentMediaType = ''; 
+    let currentMediaUrl = '';
+
+    function openFullScreenImage(src) { 
+      currentMediaType = 'dp'; currentMediaUrl = src;
+      const container = document.getElementById('mediaContainer');
+      container.innerHTML = `<img src="${src}" onclick="toggleDpSize(this, event)" style="max-width:180px; max-height:180px; object-fit:cover; border-radius:50%; transition: all 0.3s; cursor:pointer; box-shadow:0 10px 40px rgba(0,0,0,0.9); border: 2px solid rgba(255,255,255,0.2);">`;
+      document.getElementById('imageModal').style.display = 'flex'; 
+      checkDeleteButton();
+    }
+
+    function toggleDpSize(imgEl, e) {
+       e.stopPropagation();
+       if(imgEl.style.maxWidth === '180px') {
+          imgEl.style.maxWidth = '100%'; imgEl.style.maxHeight = '100vh'; imgEl.style.borderRadius = '4px'; imgEl.style.objectFit = 'contain'; imgEl.style.border = 'none';
+       } else {
+          imgEl.style.maxWidth = '180px'; imgEl.style.maxHeight = '180px'; imgEl.style.borderRadius = '50%'; imgEl.style.objectFit = 'cover'; imgEl.style.border = '2px solid rgba(255,255,255,0.2)';
+       }
+    }
+
     function playUserStatus(userCode) {
-      socket.emit('get-user-status', { targetCode: userCode }, res => {
-        if(res?.success && res.items.length > 0) {
-           const latestStatus = res.items[res.items.length - 1]; 
-           openFullScreenMedia(latestStatus.media, latestStatus.type);
-        } else { showToast('Status expired.', 'info'); }
+      socket.emit('get-all-active-reels', {}, res => {
+         if(res?.success && res.reels.length > 0) {
+            activeReels = res.reels;
+            currentReelIndex = activeReels.findIndex(r => r.userCode === userCode);
+            if(currentReelIndex === -1) currentReelIndex = 0;
+            showReel(currentReelIndex);
+         } else { showToast('Status expired.', 'info'); }
       });
+    }
+
+    function showReel(index) {
+       if(index < 0 || index >= activeReels.length) { closeImageModal(); return; }
+       currentReelIndex = index;
+       const status = activeReels[index];
+       currentMediaType = 'reel'; currentMediaUrl = status.media;
+       const container = document.getElementById('mediaContainer');
+       
+       let html = '';
+       if (status.type && status.type.includes('video')) {
+          html = `<video src="${status.media}" playsinline autoplay style="max-width:100%; max-height:100vh; border-radius:4px;" onclick="event.stopPropagation()"></video>`;
+       } else {
+          html = `<img src="${status.media}" onclick="event.stopPropagation()" style="max-width:100%; max-height:100vh; object-fit:contain; border-radius:4px;">`;
+       }
+       
+       container.innerHTML = `<div style="position:absolute; top:20px; left:20px; z-index:1002; display:flex; align-items:center; gap:10px;"><img src="${status.avatar}" style="width:40px;height:40px;border-radius:50\%;border:2px solid #ff3b5c;"><span style="color:#fff;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.8);">${status.name}</span></div>` + html;
+       document.getElementById('imageModal').style.display = 'flex';
+       checkDeleteButton();
+    }
+
+    // Touch Swipe Listeners for Reels
+    let touchStartY = 0;
+    document.getElementById('imageModal').addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; });
+    document.getElementById('imageModal').addEventListener('touchend', e => {
+       if(currentMediaType !== 'reel') return;
+       const touchEndY = e.changedTouches[0].screenY;
+       if(touchStartY - touchEndY > 50) showReel(currentReelIndex + 1); // Swipe Up
+       if(touchEndY - touchStartY > 50) showReel(currentReelIndex - 1); // Swipe Down
+    });
+
+    function checkDeleteButton() {
+       const btn = document.getElementById('deleteMediaBtn');
+       if((currentMediaType === 'dp' && currentMediaUrl === currentUserData?.avatar) || 
+          (currentMediaType === 'reel' && activeReels[currentReelIndex]?.userCode === currentUserData?.userCode)) {
+          btn.style.display = 'block';
+       } else {
+          btn.style.display = 'none';
+       }
+    }
+
+    function deleteCurrentMedia() {
+       if(!confirm('Delete this media?')) return;
+       socket.emit('delete-my-media', { type: currentMediaType, url: currentMediaUrl }, res => {
+          if(res?.success) {
+             showToast('Deleted successfully', 'success');
+             if(currentMediaType === 'dp') { 
+                currentUserData.avatar = res.avatar; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
+                document.getElementById('myProfileAvatar').src = res.avatar; 
+             }
+             closeImageModal();
+             socket.emit('get-contacts');
+          }
+       });
+    }
+
+    function closeImageModal() { 
+      document.getElementById('mediaContainer').innerHTML = ''; 
+      document.getElementById('imageModal').style.display = 'none'; 
+      document.getElementById('deleteMediaBtn').style.display = 'none';
+      currentMediaType = ''; currentMediaUrl = ''; activeReels = []; currentReelIndex = -1;
     }
 
     let globalContacts = [];
     function renderContacts(contacts) {
       globalContacts = Array.isArray(contacts) ? contacts : [];
       const list = document.getElementById('chatsList');
-      list.innerHTML = globalContacts.length ? globalContacts.map(c => {
+      
+      const newHtml = globalContacts.length ? globalContacts.map(c => {
         const unreadCount = unreadMap[c.userCode] || 0;
         let badgeText = '';
         if(unreadCount === 1) badgeText = '1 Message';
@@ -624,11 +751,13 @@
              ontouchstart="startContactPress(event, this.dataset.usercode, this.dataset.name)" ontouchend="cancelPress()">
           <img src="${escapeAttr(userAvatar)}" class="${statusClass}" onerror="this.src='${DEFAULT_AVATAR}'" 
                onmousedown="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" ontouchend="cancelDpPress()"
-               onclick="handleDpClick(event, this.src, '${escapeAttr(c.userCode)}', ${c.hasActiveStatus})">
+               onclick="handleDpClick(event, this.src, '${escapeAttr(c.userCode)}',${c.hasActiveStatus})">
           <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
           <div>${unreadBadge}</div>
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet.</div>';
+
+      if(list.innerHTML !== newHtml) { list.innerHTML = newHtml; } // Smooth Update No-Refresh Logic
     }
 
     function loadContacts() { getContactsLocal().then(l => { if(l.length) renderContacts(l); }); syncContacts(); }
@@ -717,46 +846,6 @@
     function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function escapeAttr(v) { return escapeHtml(v).replace(/`/g,'&#96;'); }
     
-    function openFullScreenImage(src) { 
-      const container = document.getElementById('mediaContainer');
-      container.innerHTML = `<img src="${src}" onclick="event.stopPropagation()">`;
-      document.getElementById('imageModal').style.display = 'flex'; 
-    }
-    
-    // Status 3-Second Buffering Logic
-    function openFullScreenMedia(url, type) {
-      const container = document.getElementById('mediaContainer');
-      if (type && type.includes('video')) {
-         container.innerHTML = `
-           <div id="vidLoader" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#ff3b5c; font-weight:bold; font-size:18px; z-index:1002;">Loading...</div>
-           <video id="fsVideo" src="${url}" playsinline autoplay style="opacity:0; max-width:100%; max-height:100vh; border-radius:4px;" onclick="event.stopPropagation()"></video>
-         `;
-         const vid = document.getElementById('fsVideo');
-         const loader = document.getElementById('vidLoader');
-         
-         let isPlaying = false;
-         vid.addEventListener('canplay', () => {
-             if(vid.readyState >= 3) {
-                 loader.style.display = 'none'; vid.style.opacity = '1'; vid.play(); isPlaying = true;
-             }
-         });
-         vid.addEventListener('waiting', () => { loader.style.display = 'block'; });
-         vid.addEventListener('playing', () => { loader.style.display = 'none'; });
-
-         setTimeout(() => {
-            if(!isPlaying) { loader.style.display = 'none'; vid.style.opacity = '1'; vid.play().catch(e=>{}); }
-         }, 3000);
-      } else {
-         container.innerHTML = `<img src="${url}" onclick="event.stopPropagation()" style="max-width:100%; max-height:100vh; object-fit:contain; border-radius:4px;">`;
-      }
-      document.getElementById('imageModal').style.display = 'flex'; 
-    }
-
-    function closeImageModal() { 
-      document.getElementById('mediaContainer').innerHTML = ''; 
-      document.getElementById('imageModal').style.display = 'none'; 
-    }
-
     function scrollToBottom(smooth = false) {
       const rm = document.getElementById('roomMessages');
       if (smooth) { rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); } 
@@ -831,7 +920,6 @@
       });
     }
 
-    // --- KEYBOARD POP-UP FIX (Scroll to bottom) ---
     const chatInputBox = document.getElementById('msgInputBox');
     chatInputBox.addEventListener('focus', () => { setTimeout(() => scrollToBottom(false), 300); });
     chatInputBox.addEventListener('click', () => { setTimeout(() => scrollToBottom(false), 300); });
@@ -928,7 +1016,6 @@
       inp.value = '';
     }
 
-    // --- STATUS UPLOAD ---
     function uploadStatusMedia(inp) {
       const file = inp.files?.[0]; if (!file) return;
       const ring = document.getElementById('myStatusRing');
@@ -1031,40 +1118,46 @@
       });
     }
 
-    socket.on('profile-upload-error', (data) => { showToast(data.error || 'Background DP upload failed. Please try again later.', 'error'); });
+    socket.on('profile-upload-error', (data) => { showToast(data.error || 'DP upload failed.', 'error'); });
 
     function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
     function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
     
+    // FEATURE UPDATE: Recovery Login Auto-fill & Dual Password
     function submitRecovery() {
       const mobile = document.getElementById('recMobileInput').value.trim();
       const q1 = document.getElementById('recQ1Input').value.trim();
       const q2 = document.getElementById('recQ2Input').value.trim();
       const newPassword = document.getElementById('recNewPassInput').value.trim();
+      const confirmPassword = document.getElementById('recConfirmPassInput').value.trim();
       
       if(!mobile || !newPassword) return showToast('Mobile and New Password are required', 'error');
       if(newPassword.length !== 8) return showToast('Password must be 8 digits', 'error');
+      if(newPassword !== confirmPassword) return showToast('Passwords do not match!', 'error');
 
       socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
         if (res?.success) { 
-          showToast(res.message, 'success', 6000); 
+          showToast("Recovery successful! Logging in...", 'success', 2000); 
           closeForgotModal();
           if (authMode === 'reg') { toggleAuthMode(); }
+          
           document.getElementById('loginIdInput').value = mobile;
-          document.getElementById('loginPassInput').value = ''; 
-          document.getElementById('loginPassInput').focus();
+          document.getElementById('loginPassInput').value = newPassword; 
+          
           document.getElementById('recMobileInput').value = '';
           document.getElementById('recQ1Input').value = '';
           document.getElementById('recQ2Input').value = '';
           document.getElementById('recNewPassInput').value = '';
-          document.getElementById('recoveryResultDisplay').textContent = '';
+          document.getElementById('recConfirmPassInput').value = '';
+          
+          setTimeout(() => { handleLogin(); }, 1500); // Auto redirect login
         } else showToast(res?.error || 'Failed', 'error');
       });
     }
 
     function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
 
-    // --- WebRTC CALLING LOGIC (Tap to Answer/Decline + History) ---
+    // --- WebRTC CALLING LOGIC ---
     let localStream, peerConnection, callInterval;
     let callTargetCode = null, callTargetName = null;
     let callRole = null; 
@@ -1076,6 +1169,7 @@
       socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); });
     }
     
+    // FEATURE UPDATE: Callback Button
     function renderCalls(calls) {
        const list = document.getElementById('callsList');
        if(!calls || calls.length===0) { list.innerHTML = '<div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>'; return; }
@@ -1083,6 +1177,7 @@
        list.innerHTML = calls.map(c => {
           const isCaller = c.callerCode === currentUserData.userCode;
           const otherName = isCaller ? c.receiverName : c.callerName;
+          const otherCode = isCaller ? c.receiverCode : c.callerCode;
           const statusColor = c.status === 'missed' || c.status === 'declined' ? '#ff3b5c' : '#00ff88';
           const icon = isCaller ? '↗' : '↙';
           const timeStr = new Date(c.timestamp).toLocaleString([], {hour:'2-digit', minute:'2-digit', month:'short', day:'numeric'});
@@ -1093,6 +1188,7 @@
                    <div style="font-size:12px;color:#7e7e92;"><span style="color:${statusColor};font-weight:bold;font-size:16px;">${icon}</span> ${c.status} • ${timeStr}</div>
                 </div>
                 <div style="font-size:12px;color:#fff;background:rgba(255,255,255,0.08);padding:6px 10px;border-radius:12px;font-weight:bold;">${c.duration || '--'}</div>
+                <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-left:10px;" onclick="openChatWith('${otherCode}', '${escapeAttr(otherName)}', ''); startCall();">📞</button>
              </div>
           `;
        }).join('');
@@ -1212,11 +1308,14 @@
       }, 1000);
     }
 
+    // FEATURE UPDATE: Fix Red Button Crash
     function saveCallLog(status, duration) {
        if(!currentUserData || !callTargetCode) return;
        socket.emit('save-call-log', {
-          callerCode: currentUserCode, callerName: currentUserData.fullName,
-          receiverCode: callTargetCode, receiverName: callTargetName,
+          callerCode: currentUserData.userCode, 
+          callerName: currentUserData.fullName,
+          receiverCode: callTargetCode, 
+          receiverName: callTargetName,
           status, duration
        });
     }
@@ -1228,7 +1327,7 @@
       if(localStream) localStream.getTracks().forEach(track => track.stop());
       if(peerConnection) peerConnection.close();
       localStream = null; peerConnection = null; callTargetCode = null; callRole = null; callStartTime = 0; callTargetName = null;
-      loadCalls(); // Refresh history
+      loadCalls(); 
     }
   </script>
 </body>
