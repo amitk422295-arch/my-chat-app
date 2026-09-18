@@ -22,6 +22,7 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- CLOUDINARY & MULTER BACKUP SYSTEM (RESTORED) ---
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
@@ -64,6 +65,22 @@ function queuedCloudinaryUpload(file, folder, options = {}) {
   });
 }
 
+function getCloudinaryPublicId(url) {
+   try {
+      const parts = url.split('/');
+      const file = parts.pop();
+      const folder = parts.pop();
+      return folder + '/' + file.split('.')[0];
+   } catch(e) { return null; }
+}
+
+cloudinary.config({
+  cloud_name: 'gr8tp1tg',
+  api_key: '668573837891895',
+  api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
+});
+// ----------------------------------------------------
+
 const uploadTokens = new Map();
 function makeUploadToken(userCode) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -76,15 +93,7 @@ function validateUploadToken(token, userCode) {
   return true;
 }
 
-function getCloudinaryPublicId(url) {
-   try {
-      const parts = url.split('/');
-      const file = parts.pop();
-      const folder = parts.pop();
-      return folder + '/' + file.split('.')[0];
-   } catch(e) { return null; }
-}
-
+// --- CLOUDINARY API ROUTE (RESTORED) ---
 app.post('/api/upload-media', upload.single('media'), async (req, res) => {
   try {
     const userCode = String(req.headers['x-user-code'] || '').trim().toLowerCase();
@@ -120,12 +129,7 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
     return res.status(500).json({ success:false, error:'Media upload failed.' });
   }
 });
-
-cloudinary.config({
-  cloud_name: 'gr8tp1tg',
-  api_key: '668573837891895',
-  api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
-});
+// ---------------------------------------
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
@@ -229,9 +233,12 @@ io.on('connection', (socket) => {
       const existingUser = await User.findOne({ $or: [{ userCode: rawId }, { mobile: data.mobile.trim() }] });
       if (existingUser) return callback({ success: false, error: 'User ID or Mobile is already registered.' });
 
+      // Avatar will be stored directly as base64 in MongoDB for instant loading
+      const finalAvatar = (data.avatar && data.avatar.startsWith('data:image')) ? data.avatar : DEFAULT_AVATAR;
+
       const newUser = await User.create({
         userCode: rawId, password: data.password.trim(), fullName: data.fullName?.trim() || 'User',
-        mobile: data.mobile.trim(), avatar: DEFAULT_AVATAR, secQ1: data.q1?.trim().toLowerCase() || '', secQ2: data.q2?.trim().toLowerCase() || ''
+        mobile: data.mobile.trim(), avatar: finalAvatar, secQ1: data.q1?.trim().toLowerCase() || '', secQ2: data.q2?.trim().toLowerCase() || ''
       });
       
       currentUserCode = rawId; socket.join(rawId);
@@ -241,11 +248,6 @@ io.on('connection', (socket) => {
 
       callback({ success: true, user: newUser }); 
 
-      if (data.avatar && data.avatar.startsWith('data:image')) {
-        cloudinary.uploader.upload(data.avatar, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
-          .then(uploadRes => User.updateOne({ userCode: rawId }, { avatar: uploadRes.secure_url }).exec())
-          .catch(e => console.error(e));
-      }
     } catch (e) { callback({ success: false, error: 'Registration error.' }); }
   });
 
@@ -298,7 +300,7 @@ io.on('connection', (socket) => {
           $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode }
         }).sort({ createdAt: -1 }).lean();
         
-        const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] }, deletedFor: { $ne: currentUserCode } });
+        const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] }, deletedFor: {$ne: currentUserCode } });
         
         const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
         return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
@@ -327,14 +329,13 @@ io.on('connection', (socket) => {
     try {
       let avatarUrl = data.avatar;
       const update = { fullName: data.fullName?.trim() || 'User', secQ1: data.secQ1?.trim().toLowerCase(), secQ2: data.secQ2?.trim().toLowerCase() };
+      
+      if (avatarUrl && avatarUrl.startsWith('data:image')) {
+          update.avatar = avatarUrl;
+      }
+      
       const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
       callback({ success: true, user: user.toObject() });
-
-      if (avatarUrl && avatarUrl.startsWith('data:image')) {
-         cloudinary.uploader.upload(avatarUrl, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
-          .then(uploadRes => User.updateOne({ userCode: currentUserCode }, { avatar: uploadRes.secure_url }).exec())
-          .catch(e => socket.emit('profile-upload-error', { error: 'DP upload failed.' }));
-      }
     } catch (e) { callback({ success: false }); }
   });
 
@@ -386,7 +387,8 @@ io.on('connection', (socket) => {
 
       if (type === 'everyone' && msg.senderCode === currentUserCode) {
         await Message.deleteOne({ messageId });
-        if(msg.media) {
+        // Cloudinary Delete Backup
+        if(msg.media && msg.media.includes('cloudinary')) {
            const publicId = getCloudinaryPublicId(msg.media);
            if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
         }
@@ -432,7 +434,6 @@ io.on('connection', (socket) => {
     cb({ success: true });
   });
 
-  // Ticks System Logic (Delivered / Read)
   socket.on('mark-message-delivered', async ({ messageId, senderCode }) => {
     await Message.updateOne({ messageId }, { status: 'delivered' });
     io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
@@ -485,7 +486,35 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  // Instagram Reels Backend Logic
+  // TELEGRAM URL SAVER (New System)
+  socket.on('upload-status-reel', async ({ url, type }, cb) => {
+    if (!currentUserCode || !url) return cb({ success: false });
+    try {
+      const user = await User.findOne({ userCode: currentUserCode }).lean();
+      if (!user) return cb({ success: false });
+
+      await Status.findOneAndUpdate(
+        { userCode: currentUserCode },
+        { 
+          name: user.fullName, 
+          avatar: user.avatar, 
+          $push: { 
+            items: { 
+              id: Date.now().toString(), 
+              media: url, 
+              type: type || 'video', 
+              time: new Date().toISOString(), 
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), 
+              viewers: [], likes: [], caption: '', privacy: 'all' 
+            } 
+          } 
+        },
+        { upsert: true }
+      );
+      cb({ success: true, url });
+    } catch (e) { cb({ success: false }); }
+  });
+
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
@@ -552,8 +581,10 @@ io.on('connection', (socket) => {
   socket.on('delete-my-media', async ({ type, url, id }, cb) => {
     if(!currentUserCode) return cb({success:false});
     try {
-       const publicId = getCloudinaryPublicId(url);
-       if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
+       if(url && url.includes('cloudinary')) {
+           const publicId = getCloudinaryPublicId(url);
+           if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
+       }
 
        if(type === 'dp') {
           await User.updateOne({ userCode: currentUserCode }, { avatar: DEFAULT_AVATAR });
@@ -643,4 +674,4 @@ const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 setInterval(() => {
   const client = APP_URL.startsWith('https') ? https : http;
   client.get(APP_URL + '/health', () => {}).on("error", () => {});
-}, 14 * 60 * 1000); 
+}, 14 * 60 * 1000);
