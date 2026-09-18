@@ -43,12 +43,8 @@ function processUploadQueue() {
   activeUploadSize += file.size;
 
   cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder, quality: 'auto:eco', fetch_format: 'auto', ...options })
-    .then(result => {
-      activeUploadSize -= file.size; resolve(result); processUploadQueue(); 
-    })
-    .catch(err => {
-      activeUploadSize -= file.size; reject(err); processUploadQueue(); 
-    });
+    .then(result => { activeUploadSize -= file.size; resolve(result); processUploadQueue(); })
+    .catch(err => { activeUploadSize -= file.size; reject(err); processUploadQueue(); });
 }
 
 function queuedCloudinaryUpload(file, folder, options = {}) {
@@ -61,9 +57,9 @@ function getCloudinaryPublicId(url) {
 }
 
 cloudinary.config({
-  cloud_name: 'gr8tp1tg',
-  api_key: '668573837891895',
-  api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'gr8tp1tg',
+  api_key: process.env.CLOUDINARY_API_KEY || '668573837891895',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
 });
 
 const uploadTokens = new Map();
@@ -78,7 +74,7 @@ function validateUploadToken(token, userCode) {
   return true;
 }
 
-// --- SECURE DUAL-ENGINE UPLOAD LOGIC (Telegram -> Cloudinary) ---
+// --- SECURE DUAL-ENGINE UPLOAD LOGIC ---
 app.post('/api/upload-media', upload.single('media'), async (req, res) => {
   try {
     const userCode = String(req.headers['x-user-code'] || '').trim().toLowerCase();
@@ -97,14 +93,13 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
        return res.status(401).json({ success:false, error:'User not found.' });
     }
 
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8500652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe51o';
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-1004408463319';
     
     let finalUrl = '';
     let uploadSuccess = false;
     let resourceType = req.file.mimetype.startsWith('video/') ? 'video' : (req.file.mimetype.startsWith('image/') ? 'image' : 'raw');
 
-    // 1. TELEGRAM SECURE BACKEND UPLOAD
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
         try {
             const fileBuffer = fs.readFileSync(req.file.path);
@@ -117,7 +112,6 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
             else if (resourceType === 'video') { endpoint = 'sendVideo'; field = 'video'; }
 
             tgForm.append(field, blob, req.file.originalname);
-            
             const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${endpoint}`, { method: 'POST', body: tgForm });
             const tgData = await tgRes.json();
 
@@ -125,7 +119,6 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
                 let fileId = resourceType === 'image' ? tgData.result.photo[tgData.result.photo.length - 1].file_id : (resourceType === 'video' ? tgData.result.video.file_id : tgData.result.document.file_id);
                 const getFileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
                 const getFileData = await getFileRes.json();
-                
                 if (getFileData.ok) {
                     finalUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
                     uploadSuccess = true;
@@ -134,7 +127,6 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
         } catch(e) { console.error("Telegram Upload Error:", e); }
     }
 
-    // 2. CLOUDINARY FALLBACK (If Telegram Fails)
     if (!uploadSuccess) {
         try {
             const uploadOptions = isStatus && resourceType === 'video' ? { duration: 30 } : {};
@@ -145,14 +137,13 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
         } catch(e) { console.error("Cloudinary Fallback Error:", e); }
     }
 
-    fs.unlink(req.file.path, () => {}); // Cleanup temp file
-
+    fs.unlink(req.file.path, () => {});
     if (!uploadSuccess) return res.status(500).json({ success:false, error:'Media upload failed.' });
     
     if (isStatus) {
        await Status.findOneAndUpdate(
          { userCode }, 
-         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: finalUrl, type: resourceType, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: '', privacy: 'all' } } },
+         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: finalUrl, type: resourceType, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], comments: [], caption: '', privacy: 'all' } } },
          { upsert: true }
        );
     }
@@ -181,6 +172,7 @@ const userSchema = new mongoose.Schema({
   secQ2: { type: String, default: '' },
   contacts: { type: [String], default: [] },
   blockedUsers: { type: [String], default: [] },
+  reelBlockedUsers: { type: [String], default: [] }, // Reel block tab
   lastSeen: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
@@ -199,14 +191,48 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', messageSchema);
 
-// Reels Schema 
+// Comments & Reels Schema
+const commentSchema = new mongoose.Schema({
+  id: String,
+  userCode: String,
+  name: String,
+  avatar: String,
+  text: String,
+  time: String
+}, { _id: false });
+
 const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
 const statusItemSchema = new mongoose.Schema({ 
     id: String, media: String, type: String, time: String, expiresAt: Date, 
-    viewers: [viewerSchema], likes: { type: [String], default: [] }, caption: { type: String, default: '' }, privacy: { type: String, default: 'all' } 
+    viewers: [viewerSchema], likes: { type: [String], default: [] }, comments: [commentSchema], caption: { type: String, default: '' }, privacy: { type: String, default: 'all' } 
 }, { _id: false });
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
+
+// --- DEEP CLEAN CRON / INTERVAL (24 Hours Cleanup & Orphan File Purge) ---
+setInterval(async () => {
+  try {
+    const expiredStatuses = await Status.find({ 'items.expiresAt': { $lt: new Date() } });
+    for (const st of expiredStatuses) {
+      for (const item of st.items) {
+        if (new Date(item.expiresAt) < new Date()) {
+          // Purge Cloudinary if media belongs to cloudinary
+          if (item.media && item.media.includes('cloudinary')) {
+            const pubId = getCloudinaryPublicId(item.media);
+            if (pubId) cloudinary.uploader.destroy(pubId).catch(()=>{});
+          }
+        }
+      }
+      // Remove expired items
+      st.items = st.items.filter(i => new Date(i.expiresAt) > new Date());
+      if (st.items.length === 0) {
+        await Status.deleteOne({ _id: st._id });
+      } else {
+        await st.save();
+      }
+    }
+  } catch (e) { console.error('Deep clean cron error:', e); }
+}, 60 * 60 * 1000); // Run hourly
 
 const callLogSchema = new mongoose.Schema({
   callerCode: { type: String, required: true, lowercase: true },
@@ -229,11 +255,18 @@ io.on('connection', (socket) => {
     if (userCode) {
       currentUserCode = String(userCode).trim().toLowerCase();
       socket.join(currentUserCode);
-      
       if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
       userSockets.get(currentUserCode).add(socket.id);
       User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
+      // Offline tick sync check when user comes online
+      const unreadSent = await Message.find({ receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] } });
+      for (const m of unreadSent) {
+        m.status = 'delivered';
+        await m.save();
+        io.to(m.senderCode).emit('message-status-update', { messageId: m.messageId, status: 'delivered' });
+      }
 
       const pending = pendingCalls.get(currentUserCode);
       if(pending && pending.expiry > Date.now()) {
@@ -272,14 +305,11 @@ io.on('connection', (socket) => {
         userCode: rawId, password: data.password.trim(), fullName: data.fullName?.trim() || 'User',
         mobile: data.mobile.trim(), avatar: finalAvatar, secQ1: data.q1?.trim().toLowerCase() || '', secQ2: data.q2?.trim().toLowerCase() || ''
       });
-      
       currentUserCode = rawId; socket.join(rawId);
       if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
       userSockets.get(currentUserCode).add(socket.id);
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
-
       callback({ success: true, user: newUser }); 
-
     } catch (e) { callback({ success: false, error: 'Registration error.' }); }
   });
 
@@ -296,7 +326,6 @@ io.on('connection', (socket) => {
       userSockets.get(currentUserCode).add(socket.id);
       User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
       io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
-
       callback({ success: true, user: userObj });
     } catch (err) { callback({ success: false, error: 'Auth error.' }); }
   });
@@ -310,7 +339,6 @@ io.on('connection', (socket) => {
 
       const q1Match = q1 && user.secQ1 === String(q1).trim().toLowerCase();
       const q2Match = q2 && user.secQ2 === String(q2).trim().toLowerCase();
-
       if (!q1Match && !q2Match) return callback({ success: false, error: 'Security answers do not match.' });
 
       await User.updateOne({ _id: user._id }, { password: String(newPassword).trim() });
@@ -326,14 +354,12 @@ io.on('connection', (socket) => {
       if (!ids.length) return socket.emit('contact-list-data', { contacts: [] });
 
       const allUsers = await User.find({ userCode: { $in: ids } }).lean();
-      
       const contactsWithTime = await Promise.all(allUsers.map(async u => {
         const lastMsg = await Message.findOne({
           $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode }
         }).sort({ createdAt: -1 }).lean();
         
         const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] }, deletedFor: {$ne: currentUserCode } });
-        
         const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
         return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
       }));
@@ -373,6 +399,15 @@ io.on('connection', (socket) => {
       const clean = String(targetCode || '').toLowerCase();
       const base = { $or: [{ senderCode: currentUserCode, receiverCode: clean }, { senderCode: clean, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode } };
       const messages = await Message.find(after ? { $and: [base, { createdAt: {$gt: new Date(after) } }] } : base).sort({ createdAt: 1 }).limit(500).lean();
+      
+      // Mark received unread as read/delivered
+      for (const m of messages) {
+        if (m.receiverCode === currentUserCode && m.status === 'sent') {
+          m.status = 'delivered';
+          await Message.updateOne({ messageId: m.messageId }, { status: 'delivered' });
+          io.to(m.senderCode).emit('message-status-update', { messageId: m.messageId, status: 'delivered' });
+        }
+      }
       callback({ success: true, messages, full: !after });
     } catch (e) { callback({ success: false }); }
   });
@@ -386,9 +421,12 @@ io.on('connection', (socket) => {
       await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: data.targetCode } });
       await User.updateOne({ userCode: data.targetCode }, { $addToSet: { contacts: currentUserCode } });
 
+      const isReceiverOnline = userSockets.has(data.targetCode);
+      const initialStatus = isReceiverOnline ? 'delivered' : 'sent';
+
       const msg = await Message.create({
         messageId: data.clientMessageId || ('msg_' + Date.now()), senderCode: currentUserCode, receiverCode: data.targetCode, 
-        text: data.text || '', media: data.media || '', messageType: data.messageType || 'text', fileName: data.fileName || '', status: 'sent'
+        text: data.text || '', media: data.media || '', messageType: data.messageType || 'text', fileName: data.fileName || '', status: initialStatus
       });
       
       io.to(data.targetCode).emit('new-message', msg.toObject());
@@ -429,31 +467,44 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
+  // --- BLOCKS MANAGEMENT (Chat vs Reel blocks) ---
   socket.on('get-blocked-users', async (data, cb) => {
     if(!currentUserCode) return;
     try {
       const me = await User.findOne({ userCode: currentUserCode }).lean();
-      if(!me.blockedUsers || me.blockedUsers.length === 0) return cb({success:true, users:[]});
-      const blocked = await User.find({ userCode: { $in: me.blockedUsers } }).lean();
-      cb({success:true, users: blocked.map(u => ({userCode: u.userCode, name: u.fullName, avatar: u.avatar}))});
+      const blocked = await User.find({ userCode: { $in: me.blockedUsers || [] } }).lean();
+      const reelBlocked = await User.find({ userCode: { $in: me.reelBlockedUsers || [] } }).lean();
+      cb({
+        success: true, 
+        users: blocked.map(u => ({userCode: u.userCode, name: u.fullName, avatar: u.avatar})),
+        reelUsers: reelBlocked.map(u => ({userCode: u.userCode, name: u.fullName, avatar: u.avatar}))
+      });
     } catch(e) { cb({success:false}); }
   });
 
-  socket.on('unblock-user', async ({ targetCode }, cb) => {
+  socket.on('unblock-user', async ({ targetCode, type }, cb) => {
     if(!currentUserCode) return;
-    await User.updateOne({ userCode: currentUserCode }, { $pull: { blockedUsers: targetCode } });
+    if (type === 'reel') {
+      await User.updateOne({ userCode: currentUserCode }, { $pull: { reelBlockedUsers: targetCode } });
+    } else {
+      await User.updateOne({ userCode: currentUserCode }, { $pull: { blockedUsers: targetCode } });
+    }
     cb({ success: true });
   });
 
-  socket.on('block-user', async ({ targetCode }, cb) => {
+  socket.on('block-user', async ({ targetCode, type }, cb) => {
     if (!currentUserCode) return;
-    await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode },$pull: { contacts: targetCode } });
+    if (type === 'reel') {
+      await User.updateOne({ userCode: currentUserCode }, { $addToSet: { reelBlockedUsers: targetCode } });
+    } else {
+      await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode },$pull: { contacts: targetCode } });
+    }
     cb({ success: true });
   });
 
   socket.on('delete-contact', async ({ targetCode }, cb) => {
     if (!currentUserCode) return;
-    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode, blockedUsers: targetCode } }); 
+    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode, blockedUsers: targetCode, reelBlockedUsers: targetCode } }); 
     await Message.updateMany(
         { $or: [{senderCode: currentUserCode, receiverCode: targetCode}, {senderCode: targetCode, receiverCode: currentUserCode}] },
         { $addToSet: { deletedFor: currentUserCode } }
@@ -474,13 +525,14 @@ io.on('connection', (socket) => {
   socket.on('mark-all-read', async ({ senderCode }) => {
     if (!currentUserCode) return;
     await Message.updateMany({ senderCode: senderCode, receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] } }, { status: 'read' });
+    io.to(senderCode).emit('all-messages-read-by-receiver', { readerCode: currentUserCode });
   });
 
+  // --- CALL LOGS ---
   socket.on('call-user', async (data) => {
     if(!currentUserCode) return;
     const isOnline = userSockets.has(data.targetCode);
     socket.emit('call-status', { status: isOnline ? 'Ringing...' : 'Calling...', targetCode: data.targetCode });
-    
     if(isOnline) {
       const caller = await User.findOne({ userCode: currentUserCode }).lean();
       io.to(data.targetCode).emit('incoming-call', { callerCode: currentUserCode, callerName: caller.fullName, callerAvatar: caller.avatar, offer: data.offer });
@@ -513,19 +565,52 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
+  // --- REELS & COMMENTS LOGIC ---
+  socket.on('upload-status-reel', async ({ url, type }, cb) => {
+    if (!currentUserCode || !url) return cb({ success: false });
+    try {
+      const user = await User.findOne({ userCode: currentUserCode }).lean();
+      if (!user) return cb({ success: false });
+
+      await Status.findOneAndUpdate(
+        { userCode: currentUserCode },
+        { 
+          name: user.fullName, 
+          avatar: user.avatar, 
+          $push: { 
+            items: { 
+              id: Date.now().toString(), 
+              media: url, 
+              type: type || 'video', 
+              time: new Date().toISOString(), 
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), 
+              viewers: [], likes: [], comments: [], caption: '', privacy: 'all' 
+            } 
+          } 
+        },
+        { upsert: true }
+      );
+      cb({ success: true, url });
+    } catch (e) { cb({ success: false }); }
+  });
+
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
+      const me = await User.findOne({ userCode: currentUserCode }).lean();
+      const reelBlockedByMe = me?.reelBlockedUsers || [];
+
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
       let reels = [];
       const myContacts = data.myContacts || [];
       
       allStatuses.forEach(s => {
+         if (reelBlockedByMe.includes(s.userCode)) return; // Exclude reel-blocked users
          s.items.forEach(item => {
             if(item.expiresAt > new Date()) {
                 if(item.privacy === 'contacts' && s.userCode !== currentUserCode && !myContacts.includes(s.userCode)) return;
                 reels.push({ 
                     id: item.id, userCode: s.userCode, name: s.name, avatar: s.avatar, 
-                    media: item.media, type: item.type, likes: item.likes || [], caption: item.caption || '', privacy: item.privacy || 'all' 
+                    media: item.media, type: item.type, likes: item.likes || [], comments: item.comments || [], caption: item.caption || '', privacy: item.privacy || 'all' 
                 });
             }
          });
@@ -552,13 +637,61 @@ io.on('connection', (socket) => {
       } catch(e) {}
   });
 
+  // Comments handlers
+  socket.on('add-reel-comment', async ({ ownerUserCode, reelId, text }, cb) => {
+    if (!currentUserCode || !text) return cb({ success: false });
+    try {
+      const user = await User.findOne({ userCode: currentUserCode }).lean();
+      const statusDoc = await Status.findOne({ userCode: ownerUserCode });
+      if (!statusDoc) return cb({ success: false });
+      const item = statusDoc.items.find(i => i.id === reelId);
+      if (!item) return cb({ success: false });
+
+      const newComment = {
+        id: 'c_' + Date.now(),
+        userCode: currentUserCode,
+        name: user?.fullName || 'User',
+        avatar: user?.avatar || DEFAULT_AVATAR,
+        text: text.trim(),
+        time: new Date().toISOString()
+      };
+      item.comments.push(newComment);
+      await statusDoc.save();
+      io.emit('reel-comment-updated', { reelId, comments: item.comments });
+      cb({ success: true, comment: newComment });
+    } catch(e) { cb({ success: false }); }
+  });
+
+  socket.on('delete-reel-comment', async ({ ownerUserCode, reelId, commentId }, cb) => {
+    if (!currentUserCode) return cb({ success: false });
+    try {
+      const statusDoc = await Status.findOne({ userCode: ownerUserCode });
+      if (!statusDoc) return cb({ success: false });
+      const item = statusDoc.items.find(i => i.id === reelId);
+      if (!item) return cb({ success: false });
+
+      const comment = item.comments.find(c => c.id === commentId);
+      if (!comment) return cb({ success: false });
+
+      // Owner can delete any comment on their reel, commenter can delete their own
+      if (ownerUserCode === currentUserCode || comment.userCode === currentUserCode) {
+        item.comments = item.comments.filter(c => c.id !== commentId);
+        await statusDoc.save();
+        io.emit('reel-comment-updated', { reelId, comments: item.comments });
+        cb({ success: true });
+      } else {
+        cb({ success: false, error: 'Unauthorized delete' });
+      }
+    } catch(e) { cb({ success: false }); }
+  });
+
   socket.on('repost-reel', async ({ media, type }, cb) => {
       if(!currentUserCode) return cb({success:false});
       try {
           const user = await User.findOne({ userCode: currentUserCode }).lean();
           await Status.findOneAndUpdate(
              { userCode: currentUserCode }, 
-             { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media, type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: 'Reposted', privacy: 'all' } } },
+             { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media, type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], comments: [], caption: 'Reposted', privacy: 'all' } } },
              { upsert: true }
           );
           cb({success:true});
@@ -588,6 +721,15 @@ io.on('connection', (socket) => {
           await User.updateOne({ userCode: currentUserCode }, { avatar: DEFAULT_AVATAR });
           cb({success:true, avatar: DEFAULT_AVATAR});
        } else if(type === 'reel') {
+          // deep purge from cloudinary if matches
+          const st = await Status.findOne({ userCode: currentUserCode });
+          if (st) {
+            const item = st.items.find(i => i.id === id);
+            if (item && item.media && item.media.includes('cloudinary')) {
+              const pubId = getCloudinaryPublicId(item.media);
+              if (pubId) cloudinary.uploader.destroy(pubId).catch(()=>{});
+            }
+          }
           await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: id } } });
           cb({success:true});
        }
@@ -598,8 +740,7 @@ io.on('connection', (socket) => {
     try {
       const rawKey = process.env.GROQ_API_KEY || "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";
       const apiKey = String(rawKey).trim();
-      
-      let systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Answer strictly in Hindi or English mix. Your ONLY features are: 1. Text/Photo/Video Chat. 2. Audio/Video Calling. 3. 24h Instagram-style Reels (swipe, double tap like, repost). 4. Message Delete (Everyone/Me). 5. Password recovery via Security Questions. 6. Block/Unblock users. Do NOT invent any other features like groups or channels. Keep answers short and polite.";
+      let systemInstruction = "You are MC AI, official AI assistant for My Chat App. Answer strictly in Hindi/English mix. Features: Chat, Call, 24h Reels with comments & deep delete, Block types.";
 
       const postData = JSON.stringify({
         model: "openai/gpt-oss-20b",
@@ -628,7 +769,6 @@ io.on('connection', (socket) => {
            } catch(err) { cb({ success: false, error: 'JSON Parse error' }); }
         });
       });
-      
       req.on('error', (e) => cb({ success: false, error: 'Connection Error: ' + e.message })); req.write(postData); req.end();
     } catch (e) { cb({ success: false, error: 'Internal AI Error' }); }
   });
