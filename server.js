@@ -22,7 +22,6 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- CLOUDINARY & MULTER BACKUP SYSTEM (RESTORED) ---
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
@@ -45,33 +44,20 @@ function processUploadQueue() {
 
   cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder, quality: 'auto:eco', fetch_format: 'auto', ...options })
     .then(result => {
-      activeUploadSize -= file.size; 
-      fs.unlink(file.path, () => {}); 
-      resolve(result);
-      processUploadQueue(); 
+      activeUploadSize -= file.size; resolve(result); processUploadQueue(); 
     })
     .catch(err => {
-      activeUploadSize -= file.size; 
-      fs.unlink(file.path, () => {}); 
-      reject(err);
-      processUploadQueue(); 
+      activeUploadSize -= file.size; reject(err); processUploadQueue(); 
     });
 }
 
 function queuedCloudinaryUpload(file, folder, options = {}) {
-  return new Promise((resolve, reject) => {
-    uploadQueue.push({ file, folder, options, resolve, reject });
-    processUploadQueue();
-  });
+  return new Promise((resolve, reject) => { uploadQueue.push({ file, folder, options, resolve, reject }); processUploadQueue(); });
 }
 
 function getCloudinaryPublicId(url) {
-   try {
-      const parts = url.split('/');
-      const file = parts.pop();
-      const folder = parts.pop();
-      return folder + '/' + file.split('.')[0];
-   } catch(e) { return null; }
+   try { const parts = url.split('/'); const file = parts.pop(); const folder = parts.pop(); return folder + '/' + file.split('.')[0]; } 
+   catch(e) { return null; }
 }
 
 cloudinary.config({
@@ -79,7 +65,6 @@ cloudinary.config({
   api_key: '668573837891895',
   api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
 });
-// ----------------------------------------------------
 
 const uploadTokens = new Map();
 function makeUploadToken(userCode) {
@@ -93,7 +78,7 @@ function validateUploadToken(token, userCode) {
   return true;
 }
 
-// --- CLOUDINARY API ROUTE (RESTORED) ---
+// --- SECURE DUAL-ENGINE UPLOAD LOGIC (Telegram -> Cloudinary) ---
 app.post('/api/upload-media', upload.single('media'), async (req, res) => {
   try {
     const userCode = String(req.headers['x-user-code'] || '').trim().toLowerCase();
@@ -112,24 +97,72 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
        return res.status(401).json({ success:false, error:'User not found.' });
     }
 
-    const uploadOptions = isStatus && req.file.mimetype.startsWith('video/') ? { duration: 30 } : {};
-    const result = await queuedCloudinaryUpload(req.file, isStatus ? 'chat_app_status' : 'chat_app_media', uploadOptions);
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    
+    let finalUrl = '';
+    let uploadSuccess = false;
+    let resourceType = req.file.mimetype.startsWith('video/') ? 'video' : (req.file.mimetype.startsWith('image/') ? 'image' : 'raw');
+
+    // 1. TELEGRAM SECURE BACKEND UPLOAD
+    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+        try {
+            const fileBuffer = fs.readFileSync(req.file.path);
+            const blob = new Blob([fileBuffer], { type: req.file.mimetype });
+            const tgForm = new FormData();
+            tgForm.append('chat_id', TELEGRAM_CHAT_ID);
+
+            let endpoint = 'sendDocument'; let field = 'document';
+            if (resourceType === 'image') { endpoint = 'sendPhoto'; field = 'photo'; }
+            else if (resourceType === 'video') { endpoint = 'sendVideo'; field = 'video'; }
+
+            tgForm.append(field, blob, req.file.originalname);
+            
+            const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${endpoint}`, { method: 'POST', body: tgForm });
+            const tgData = await tgRes.json();
+
+            if (tgData.ok) {
+                let fileId = resourceType === 'image' ? tgData.result.photo[tgData.result.photo.length - 1].file_id : (resourceType === 'video' ? tgData.result.video.file_id : tgData.result.document.file_id);
+                const getFileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
+                const getFileData = await getFileRes.json();
+                
+                if (getFileData.ok) {
+                    finalUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
+                    uploadSuccess = true;
+                }
+            }
+        } catch(e) { console.error("Telegram Upload Error:", e); }
+    }
+
+    // 2. CLOUDINARY FALLBACK (If Telegram Fails)
+    if (!uploadSuccess) {
+        try {
+            const uploadOptions = isStatus && resourceType === 'video' ? { duration: 30 } : {};
+            const result = await queuedCloudinaryUpload(req.file, isStatus ? 'chat_app_status' : 'chat_app_media', uploadOptions);
+            finalUrl = result.secure_url;
+            resourceType = result.resource_type;
+            uploadSuccess = true;
+        } catch(e) { console.error("Cloudinary Fallback Error:", e); }
+    }
+
+    fs.unlink(req.file.path, () => {}); // Cleanup temp file
+
+    if (!uploadSuccess) return res.status(500).json({ success:false, error:'Media upload failed.' });
     
     if (isStatus) {
        await Status.findOneAndUpdate(
          { userCode }, 
-         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: result.secure_url, type: result.resource_type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: '', privacy: 'all' } } },
+         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: finalUrl, type: resourceType, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: '', privacy: 'all' } } },
          { upsert: true }
        );
     }
     
-    return res.json({ success:true, url:result.secure_url, resourceType:result.resource_type, bytes:req.file.size });
+    return res.json({ success:true, url: finalUrl, resourceType: resourceType, bytes: req.file.size });
   } catch (e) {
     if (req.file) fs.unlink(req.file.path, () => {});
     return res.status(500).json({ success:false, error:'Media upload failed.' });
   }
 });
-// ---------------------------------------
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
@@ -233,7 +266,6 @@ io.on('connection', (socket) => {
       const existingUser = await User.findOne({ $or: [{ userCode: rawId }, { mobile: data.mobile.trim() }] });
       if (existingUser) return callback({ success: false, error: 'User ID or Mobile is already registered.' });
 
-      // Avatar will be stored directly as base64 in MongoDB for instant loading
       const finalAvatar = (data.avatar && data.avatar.startsWith('data:image')) ? data.avatar : DEFAULT_AVATAR;
 
       const newUser = await User.create({
@@ -329,11 +361,7 @@ io.on('connection', (socket) => {
     try {
       let avatarUrl = data.avatar;
       const update = { fullName: data.fullName?.trim() || 'User', secQ1: data.secQ1?.trim().toLowerCase(), secQ2: data.secQ2?.trim().toLowerCase() };
-      
-      if (avatarUrl && avatarUrl.startsWith('data:image')) {
-          update.avatar = avatarUrl;
-      }
-      
+      if (avatarUrl && avatarUrl.startsWith('data:image')) update.avatar = avatarUrl;
       const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
       callback({ success: true, user: user.toObject() });
     } catch (e) { callback({ success: false }); }
@@ -387,7 +415,6 @@ io.on('connection', (socket) => {
 
       if (type === 'everyone' && msg.senderCode === currentUserCode) {
         await Message.deleteOne({ messageId });
-        // Cloudinary Delete Backup
         if(msg.media && msg.media.includes('cloudinary')) {
            const publicId = getCloudinaryPublicId(msg.media);
            if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
@@ -486,35 +513,6 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  // TELEGRAM URL SAVER (New System)
-  socket.on('upload-status-reel', async ({ url, type }, cb) => {
-    if (!currentUserCode || !url) return cb({ success: false });
-    try {
-      const user = await User.findOne({ userCode: currentUserCode }).lean();
-      if (!user) return cb({ success: false });
-
-      await Status.findOneAndUpdate(
-        { userCode: currentUserCode },
-        { 
-          name: user.fullName, 
-          avatar: user.avatar, 
-          $push: { 
-            items: { 
-              id: Date.now().toString(), 
-              media: url, 
-              type: type || 'video', 
-              time: new Date().toISOString(), 
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), 
-              viewers: [], likes: [], caption: '', privacy: 'all' 
-            } 
-          } 
-        },
-        { upsert: true }
-      );
-      cb({ success: true, url });
-    } catch (e) { cb({ success: false }); }
-  });
-
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
@@ -596,7 +594,6 @@ io.on('connection', (socket) => {
     } catch(e) { cb({success:false}); }
   });
 
-  // Groq / Meta AI Logic
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
       const rawKey = process.env.GROQ_API_KEY || "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";
@@ -617,43 +614,26 @@ io.on('connection', (socket) => {
         port: 443,
         path: '/openai/v1/chat/completions',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Length': Buffer.byteLength(postData)
-        }
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, 'Content-Length': Buffer.byteLength(postData) }
       };
 
       const req = https.request(options, (resAPI) => {
-        let body = '';
-        resAPI.on('data', (chunk) => body += chunk);
+        let body = ''; resAPI.on('data', (chunk) => body += chunk);
         resAPI.on('end', () => {
            try {
               const data = JSON.parse(body);
-              if(data.error) {
-                 return cb({ success: false, error: "AI API Error: " + (data.error.message || "Unknown error") });
-              }
-              if(data.choices && data.choices.length > 0) {
-                 cb({ success: true, text: data.choices[0].message.content });
-              } else {
-                 cb({ success: false, error: 'AI gave no response' });
-              }
+              if(data.error) return cb({ success: false, error: "AI API Error: " + (data.error.message || "Unknown error") });
+              if(data.choices && data.choices.length > 0) cb({ success: true, text: data.choices[0].message.content });
+              else cb({ success: false, error: 'AI gave no response' });
            } catch(err) { cb({ success: false, error: 'JSON Parse error' }); }
         });
       });
       
-      req.on('error', (e) => cb({ success: false, error: 'Connection Error: ' + e.message }));
-      req.write(postData);
-      req.end();
-      
-    } catch (e) {
-      console.error("AI Catch Block Error:", e);
-      cb({ success: false, error: 'Internal AI Error' });
-    }
+      req.on('error', (e) => cb({ success: false, error: 'Connection Error: ' + e.message })); req.write(postData); req.end();
+    } catch (e) { cb({ success: false, error: 'Internal AI Error' }); }
   });
 
   socket.on('ping-server', () => {});
-
   socket.on('disconnect', () => {
     if (currentUserCode && userSockets.has(currentUserCode)) {
       userSockets.get(currentUserCode).delete(socket.id);
