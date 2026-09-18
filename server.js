@@ -93,8 +93,8 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
        return res.status(401).json({ success:false, error:'User not found.' });
     }
 
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8508652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe5io';
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-1004408463319';
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
     
     let finalUrl = '';
     let uploadSuccess = false;
