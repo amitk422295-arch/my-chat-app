@@ -35,7 +35,9 @@
     .modal-card { width:100%; max-width:390px; max-height:88vh; overflow:auto; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:22px; box-shadow:0 20px 70px rgba(0,0,0,.85); }
     
     #aiModal { z-index: 10005; }
-    .panes-wrapper { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-y: none; }
+    
+    /* Instant Tab Swipe (Zero delay) */
+    .panes-wrapper { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: auto; scrollbar-width: none; overscroll-behavior-y: none; }
     .panes-wrapper::-webkit-scrollbar { display: none; }
     .tab-pane { min-width: 100%; scroll-snap-align: start; display: flex; flex-direction: column; overflow-y: auto; background: #0c0c12; overscroll-behavior-y: none; }
     
@@ -59,15 +61,15 @@
     #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
 
-    /* Instagram Reels UI */
+    /* Instagram Reels UI - Bottom Left Info + High sensitivity Snap */
     .reels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding-bottom: 20px; }
     .reel-thumb { width: 100%; aspect-ratio: 9/16; background: #1c1c26; object-fit: cover; cursor: pointer; position: relative; }
     #reelsViewerModal { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; }
-    #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; scroll-behavior: smooth; }
+    #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; scroll-behavior: auto; }
     .reel-item { height: 100vh; height: 100dvh; width: 100%; scroll-snap-align: start; scroll-snap-stop: always; position: relative; display: flex; align-items: center; justify-content: center; background: #000; flex: none; }
     
     .reel-media { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .reel-overlay { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 15px; }
+    .reel-overlay { position: absolute; left: 15px; bottom: 80px; right: 80px; pointer-events: none; display: flex; flex-direction: column; gap: 8px; }
     .reel-actions { position: absolute; right: 15px; bottom: 80px; display: flex; flex-direction: column; gap: 20px; pointer-events: auto; }
     .action-btn { background: transparent; border: none; color: #fff; font-size: 28px; cursor: pointer; text-shadow: 0 2px 5px rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; gap: 5px; transition: transform 0.2s;}
     .action-btn:active { transform: scale(0.8); }
@@ -75,9 +77,14 @@
     .heart-anim { position: absolute; font-size: 80px; color: #ff3b5c; opacity: 0; transform: scale(0); transition: all 0.4s ease-out; pointer-events: none; z-index: 10; }
     .heart-anim.show { opacity: 1; transform: scale(1.2); }
 
+    /* Comments Bottom Sheet */
+    #commentsSheet { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: none; align-items: flex-end; }
+    .comments-card { width: 100%; max-height: 60vh; background: #171720; border-top-left-radius: 24px; border-top-right-radius: 24px; display: flex; flex-direction: column; padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+    
     .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; cursor:pointer;}
     .progress-ring::before { content:''; position:absolute; inset:0; border-radius:50%; padding:3px; background: conic-gradient(#ff3b5c var(--progress, 0%), transparent 0); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
     
+    /* PiP Call Screen */
     #callScreen { position: fixed; inset: 0; background: rgba(12,12,18,0.95); backdrop-filter: blur(20px); z-index: 900; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 20px; text-align: center; }
     .call-avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); margin-bottom: 20px; animation: pulseCall 2s infinite; }
     @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
@@ -85,11 +92,16 @@
     .btn-red { background: #ff3b5c; box-shadow: 0 10px 25px rgba(255,59,92,0.4); }
     .tap-btn { width: 70px; height: 70px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: transform 0.2s; }
     .tap-btn:active { transform: scale(0.9); }
-    #localVideo, #remoteVideo { display: none; width: 100px; height: 150px; border-radius: 12px; object-fit: cover; position: absolute; }
-    #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; z-index: -1; opacity: 0.3; }
+    
+    #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; object-fit: cover; position: absolute; z-index: 1; }
+    #localVideo { width: 110px; height: 160px; border-radius: 14px; object-fit: cover; position: absolute; top: 80px; right: 20px; z-index: 5; border: 2px solid rgba(255,255,255,0.4); cursor: pointer; touch-action: none; box-shadow: 0 8px 25px rgba(0,0,0,0.8); }
 
     .mc-ai-btn { position: fixed; bottom: 85px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, #5ac8fa, #007aff); box-shadow: 0 4px 20px rgba(90,200,250,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 18px; cursor: pointer; z-index: 100; border: 2px solid rgba(255,255,255,0.2); transition: transform 0.3s; }
     .mc-ai-btn:active { transform: scale(0.9); }
+    
+    .profile-tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; }
+    .p-tab { flex: 1; text-align: center; padding: 10px; font-weight: 700; font-size: 13px; color: #7e7e92; cursor: pointer; }
+    .p-tab.active { color: #ff3b5c; border-bottom: 2px solid #ff3b5c; }
   </style>
 </head>
 <body>
@@ -114,7 +126,7 @@
     </div>
   </div>
   
-  <!-- NEW REGISTRATION DP POPUP -->
+  <!-- REGISTRATION DP POPUP -->
   <div id="regDpModal" class="modal" onclick="closeRegDpModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:320px; text-align:center;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -128,6 +140,21 @@
       <div style="display:flex; gap:10px;">
         <button class="btn-gradient" style="flex:1; background:#333; box-shadow:none; color:#fff;" onclick="closeRegDpModal()">Exit</button>
         <button class="btn-gradient" style="flex:1; background:#00ff88; box-shadow: 0 4px 15px rgba(0,255,136,0.3); color:#000;" onclick="saveRegDp()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMENTS BOTTOM SHEET -->
+  <div id="commentsSheet" onclick="closeCommentsSheet()">
+    <div class="comments-card" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h4 style="color:#fff;">Comments (<span id="commentCountHeader">0</span>)</h4>
+        <button onclick="closeCommentsSheet()" style="background:transparent; border:none; color:#fff; font-size:18px;">✕</button>
+      </div>
+      <div id="commentsListArea" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; max-height:35vh; margin-bottom:12px;"></div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="reelCommentInput" class="input-box" placeholder="Write a comment..." onkeypress="if(event.key==='Enter') submitReelComment()">
+        <button class="btn-gradient" style="padding: 10px 18px;" onclick="submitReelComment()">➤</button>
       </div>
     </div>
   </div>
@@ -198,11 +225,18 @@
       </div>
     </div>
 
+    <!-- Instant Tab Swipe (behavior: instant) -->
     <div class="panes-wrapper" id="panesWrapper">
       <div class="tab-pane" id="paneChats">
-        <div style="padding:12px;display:flex;gap:8px;flex:none;">
-          <input type="text" id="directSearchInput" class="input-box" placeholder="Search @userid or mobile">
-          <button class="btn-gradient" onclick="openDirectChat()">Add</button>
+        <div style="padding:12px;display:flex;gap:8px;flex:none;flex-direction:column;">
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="directSearchInput" class="input-box" placeholder="Search @userid or mobile">
+            <button class="btn-gradient" onclick="openDirectChat()">Add</button>
+          </div>
+          <div id="inviteBox" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; text-align:center;">
+            <span style="font-size:13px; color:#aaa;">User not found on database.</span>
+            <button class="btn-gradient" style="background:#5ac8fa; color:#000; padding:8px 16px; margin-top:6px; font-size:12px;" onclick="inviteViaLink()">Invite via Link ↗</button>
+          </div>
         </div>
         <div id="chatsList" style="flex:1; overflow-y:auto;"></div>
       </div>
@@ -214,7 +248,7 @@
             <div id="myStatusRing" class="progress-ring" onclick="document.getElementById('statusMediaInput').click()">+</div>
             <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
               <div style="font-weight:700; font-size:15px; color:#fff;">Post a Reel</div>
-              <div style="font-size:12px; color:#7e7e92; margin-top:2px;">Max 30s video or photo</div>
+              <div style="font-size:12px; color:#7e7e92; margin-top:2px;">Max 30s video or photo (Auto clean 24h)</div>
             </div>
           </div>
           <div id="reelsGridArea" class="reels-grid"></div>
@@ -229,6 +263,7 @@
     <div class="mc-ai-btn" onclick="openAiHelp('general')">MC</div>
   </div>
 
+  <!-- Reels Viewer (Bottom-Left Name/DP + Comments) -->
   <div id="reelsViewerModal">
      <div style="position:absolute; top:20px; left:20px; z-index:1001; font-weight:800; font-size:20px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">Reels</div>
      <button class="icon-btn" onclick="closeReelsViewer()" style="position:absolute; top:20px; right:20px; z-index:1001; background:transparent; border:none;">✕</button>
@@ -238,8 +273,9 @@
   <div id="contactMenuModal" class="modal" onclick="closeContactMenu()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 id="cmName" style="margin-bottom:16px; text-align:center; color:#fff;"></h3>
-      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff9aae; color:#171720;" onclick="deleteContactAction()">🗑️ Delete Chat</button>
-      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff3b5c;" onclick="blockContactAction()">🚫 Block User</button>
+      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff9aae; color:#171720;" onclick="deleteContactAction()">🗑️ Delete Chat (Local)</button>
+      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff3b5c;" onclick="blockContactAction('chat')">🚫 Block Chat</button>
+      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#20202a; border:1px solid #ff3b5c;" onclick="blockContactAction('reel')">🔕 Block from Reels</button>
       <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeContactMenu()">✕</button>
     </div>
   </div>
@@ -255,99 +291,44 @@
   </div>
 
   <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
-    <button onclick="openMyProfile()">👤 Edit Profile</button>
-    <button onclick="openBlockedModal()">🚫 Blocked Users</button>
+    <button onclick="openMyProfile()">👤 Edit Profile & Blocks</button>
     <button class="danger" onclick="logoutApp()" style="color:#ff6b8b;">🚪 Logout</button>
   </div>
   
-  <div id="reelMenu" class="menu-panel" style="width:150px; z-index:1005;">
+  <div id="reelMenu" class="menu-panel" style="width:160px; z-index:1005;">
      <button id="btnReelEdit" onclick="editReelAction()">✏️ Edit</button>
      <button id="btnReelPrivacy" onclick="privacyReelAction()">🔒 Privacy</button>
      <button id="btnReelDelete" onclick="deleteReelAction()" style="color:#ff3b5c;">🗑️ Delete</button>
   </div>
 
-  <div id="blockedModal" class="modal" onclick="closeBlockedModal()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:350px;">
-       <h3 style="text-align:center;margin-bottom:14px;">Blocked Users</h3>
-       <div id="blockedListArea" style="display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow-y:auto;"></div>
-       <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeBlockedModal()">✕</button>
-    </div>
-  </div>
-
-  <div id="chatRoom">
-    <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
-      <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onmousedown="startDpPress(event, this.src, currentChatTarget.userCode)" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, currentChatTarget.userCode)" ontouchend="cancelDpPress()">
-      <div style="flex:1;">
-        <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
-        <div id="roomUserStatus" style="font-size:11px;color:#7e7e92;">Connecting...</div>
-      </div>
-      <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-right:8px;" onclick="startCall()">📞</button>
-      <div style="position:relative;">
-        <button class="icon-btn" onclick="toggleAppMenu(event, 'chatRoomMenu')" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
-        <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0; width:160px;">
-          <button onclick="clearCurrentChat()" style="color:#ff9aae;">🧹 Clear Chat</button>
-        </div>
-      </div>
-    </div>
-    
-    <div id="roomMessages"></div>
-    
-    <div class="bottom-input-bar">
-      <div class="input-wrapper">
-        <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto; word-break: break-word; white-space: pre-wrap;"></div>
-      </div>
-      <div style="position:relative;">
-        <button class="icon-btn" onclick="toggleAppMenu(event, 'attachMenu')" style="background:#1c1c26;border:none;">📎</button>
-        <div id="attachMenu" class="menu-panel" style="bottom:55px; right:0; width:160px; top:auto;">
-          <button onclick="document.getElementById('chatMediaImg').click()">🖼️ Photo</button>
-          <button onclick="document.getElementById('chatMediaVid').click()">🎥 Video</button>
-          <button onclick="document.getElementById('chatMediaDoc').click()">📄 File/Doc</button>
-        </div>
-      </div>
-      <button class="btn-circle" onclick="sendChatMessage()">➤</button>
-      <input type="file" id="chatMediaImg" style="display:none" accept="image/*" onchange="sendMediaFile(this, 'image')">
-      <input type="file" id="chatMediaVid" style="display:none" accept="video/*" onchange="sendMediaFile(this, 'video')">
-      <input type="file" id="chatMediaDoc" style="display:none" accept=".pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this, 'document')">
-    </div>
-  </div>
-
-  <div id="callScreen">
-    <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo" autoplay playsinline muted></video>
-    <h2 id="callName" style="margin-bottom: 5px; font-weight: 800; font-size: 24px;">Name</h2>
-    <p id="callStatusText" style="margin-bottom: 30px; color: #00ff88; font-weight: 600; font-size: 14px;">Calling...</p>
-    <img id="callAvatar" class="call-avatar" src="">
-    
-    <div id="callTimeDisplay" style="margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #fff; display: none;">00:00</div>
-    
-    <div id="callReceiverUI" style="display: none; width:100%; max-width:250px; justify-content: space-between; margin-top: auto; margin-bottom: 40px;">
-       <button class="tap-btn btn-red" id="btnRejectCall" style="font-size:35px; transform: rotate(135deg);">📞</button>
-       <button class="tap-btn btn-green" id="btnAcceptCall" style="font-size:35px;">📞</button>
-    </div>
-    <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px; display:flex; justify-content:center; width:100%;">
-       <button class="tap-btn btn-red" onclick="endCall()" style="font-size:35px; transform: rotate(135deg);">📞</button>
-    </div>
-  </div>
-
+  <!-- MY PROFILE WITH CHAT BLOCKS & REEL BLOCKS TABS -->
   <div id="myProfileModal" class="modal" onclick="closeMyProfile()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <h3 style="text-align:center;margin-bottom:14px;">Edit Profile</h3>
-      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:380px;">
+      <h3 style="text-align:center;margin-bottom:14px;">My Profile & Blocks</h3>
+      <div class="profile-tabs">
+        <div class="p-tab active" id="ptabProfile" onclick="switchProfileTab('profile')">Profile</div>
+        <div class="p-tab" id="ptabChatBlocks" onclick="switchProfileTab('chatblocks')">Chat Blocks</div>
+        <div class="p-tab" id="ptabReelBlocks" onclick="switchProfileTab('reelblocks')">Reel Blocks</div>
+      </div>
       
-      <div style="position:relative; width:90px; height:90px; margin:0 auto 12px;">
-        <img id="myProfileAvatar" src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid #ff3b5c;cursor:pointer;" onclick="openFullScreenImage(this.src)">
-        <div style="position:absolute; bottom:0; right:-5px; background:#ff3b5c; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:2px solid #171720; box-shadow:0 2px 10px rgba(0,0,0,0.5);" onclick="document.getElementById('profileAvatarInput').click()">📷</div>
+      <div id="pContentProfile">
+        <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
+        <div style="position:relative; width:90px; height:90px; margin:0 auto 12px;">
+          <img id="myProfileAvatar" src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid #ff3b5c;cursor:pointer;" onclick="openFullScreenImage(this.src)">
+          <div style="position:absolute; bottom:0; right:-5px; background:#ff3b5c; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:2px solid #171720; box-shadow:0 2px 10px rgba(0,0,0,0.5);" onclick="document.getElementById('profileAvatarInput').click()">📷</div>
+        </div>
+        <input id="myProfileName" class="input-box" placeholder="Full Name" style="margin-bottom:8px;">
+        <input id="myProfileId" class="input-box" readonly style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="User ID">
+        <input id="myProfileMobile" class="input-box" readonly style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="Mobile Number">
+        <input id="myProfileQ1" class="input-box" placeholder="1. Pet's name?" style="margin-bottom:8px;">
+        <input id="myProfileQ2" class="input-box" placeholder="2. Best friend?" style="margin-bottom:12px;">
+        <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
       </div>
 
-      <input id="myProfileName" class="input-box" placeholder="Full Name" style="margin-bottom:8px;">
-      <input id="myProfileId" class="input-box" readonly title="Cannot change User ID" style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="User ID">
-      <input id="myProfileMobile" class="input-box" readonly title="Cannot change Mobile" style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="Mobile Number">
-      <input id="myProfileQ1" class="input-box" placeholder="1. Pet's name?" style="margin-bottom:8px;">
-      <input id="myProfileQ2" class="input-box" placeholder="2. Best friend?" style="margin-bottom:12px;">
-
-      <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
-      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMyProfile()">✕</button>
+      <div id="pContentChatBlocks" style="display:none; max-height:45vh; overflow-y:auto; display:none; flex-direction:column; gap:8px;"></div>
+      <div id="pContentReelBlocks" style="display:none; max-height:45vh; overflow-y:auto; display:none; flex-direction:column; gap:8px;"></div>
+      
+      <button class="icon-btn" style="margin:14px auto 0;display:block" onclick="closeMyProfile()">✕</button>
     </div>
   </div>
 
@@ -366,6 +347,72 @@
         <button class="btn-gradient" onclick="submitRecovery()">Reset & Login</button>
       </div>
       <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">✕</button>
+    </div>
+  </div>
+
+  <!-- Chat Room -->
+  <div id="chatRoom">
+    <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
+      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onmousedown="startDpPress(event, this.src, currentChatTarget.userCode)" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, currentChatTarget.userCode)" ontouchend="cancelDpPress()">
+      <div style="flex:1;">
+        <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
+        <div id="roomUserStatus" style="font-size:11px;color:#7e7e92;">Connecting...</div>
+      </div>
+      
+      <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-right:8px;" onclick="startCall()">📞</button>
+
+      <div style="position:relative;">
+        <button class="icon-btn" onclick="toggleAppMenu(event, 'chatRoomMenu')" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
+        <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0; width:160px;">
+          <button onclick="clearCurrentChat()" style="color:#ff9aae;">🧹 Clear Chat</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="roomMessages"></div>
+    
+    <div class="bottom-input-bar">
+      <div class="input-wrapper">
+        <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto; word-break: break-word; white-space: pre-wrap;"></div>
+      </div>
+      
+      <div style="position:relative;">
+        <button class="icon-btn" onclick="toggleAppMenu(event, 'attachMenu')" style="background:#1c1c26;border:none;">📎</button>
+        <div id="attachMenu" class="menu-panel" style="bottom:55px; right:0; width:160px; top:auto;">
+          <button onclick="document.getElementById('chatMediaImg').click()">🖼️ Photo</button>
+          <button onclick="document.getElementById('chatMediaVid').click()">🎥 Video</button>
+          <button onclick="document.getElementById('chatMediaDoc').click()">📄 File/Doc</button>
+        </div>
+      </div>
+      
+      <button class="btn-circle" onclick="sendChatMessage()">➤</button>
+
+      <input type="file" id="chatMediaImg" style="display:none" accept="image/*" onchange="sendMediaFile(this, 'image')">
+      <input type="file" id="chatMediaVid" style="display:none" accept="video/*" onchange="sendMediaFile(this, 'video')">
+      <input type="file" id="chatMediaDoc" style="display:none" accept=".pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this, 'document')">
+    </div>
+  </div>
+
+  <!-- PiP Draggable & Swappable Call Screen -->
+  <div id="callScreen">
+    <video id="remoteVideo" autoplay playsinline onclick="swapVideoStreams()"></video>
+    <video id="localVideo" autoplay playsinline muted onclick="swapVideoStreams()"></video>
+    
+    <div style="position:absolute; top:20px; left:20px; z-index:10; background:rgba(0,0,0,0.5); padding:8px 16px; border-radius:12px; backdrop-filter:blur(8px);">
+      <h3 id="callName" style="font-weight: 800; font-size: 18px; text-align:left;">Name</h3>
+      <p id="callStatusText" style="color: #00ff88; font-weight: 600; font-size: 12px; text-align:left;">Calling...</p>
+    </div>
+    
+    <div id="callTimeDisplay" style="position:absolute; top:25px; right:20px; font-size: 16px; font-weight: 600; color: #fff; background:rgba(0,0,0,0.5); padding:6px 14px; border-radius:12px; display: none;">00:00</div>
+    
+    <div id="callReceiverUI" style="display: none; width:100%; max-width:250px; justify-content: space-between; position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:20;">
+       <button class="tap-btn btn-red" id="btnRejectCall" style="font-size:35px; transform: rotate(135deg);">📞</button>
+       <button class="tap-btn btn-green" id="btnAcceptCall" style="font-size:35px;">📞</button>
+    </div>
+
+    <div id="callCallerUI" style="position:absolute; bottom:40px; left:50%; transform:translateX(-50%); display:flex; justify-content:center; width:100%; z-index:20;">
+       <button class="tap-btn btn-red" onclick="endCall()" style="font-size:35px; transform: rotate(135deg);">📞</button>
     </div>
   </div>
 
@@ -404,30 +451,23 @@
        document.getElementById('regDpModal').style.display = 'flex';
     }
     function closeRegDpModal() { document.getElementById('regDpModal').style.display = 'none'; }
-    function removeRegDp() {
-       tempRegDpBase64 = '';
-       document.getElementById('regDpPreview').src = DEFAULT_AVATAR;
-    }
-    function saveRegDp() {
-       regDpBase64 = tempRegDpBase64;
-       document.getElementById('dpViewer').src = regDpBase64 || DEFAULT_AVATAR;
-       closeRegDpModal();
-    }
+    function removeRegDp() { tempRegDpBase64 = ''; document.getElementById('regDpPreview').src = DEFAULT_AVATAR; }
+    function saveRegDp() { regDpBase64 = tempRegDpBase64; document.getElementById('dpViewer').src = regDpBase64 || DEFAULT_AVATAR; closeRegDpModal(); }
     function previewDpInput(inp) { 
        const file = inp.files?.[0]; if (!file) return; 
        const reader = new FileReader(); 
-       reader.onload = e => { 
-           tempRegDpBase64 = e.target.result; 
-           document.getElementById('regDpPreview').src = tempRegDpBase64; 
-       }; 
+       reader.onload = e => { tempRegDpBase64 = e.target.result; document.getElementById('regDpPreview').src = tempRegDpBase64; }; 
        reader.readAsDataURL(file); 
     }
 
+    // Instant switch tabs (behavior: instant)
     const panesWrapper = document.getElementById('panesWrapper');
     const navTabs = document.querySelectorAll('#mainNavTabs .nav-tab');
     function scrollToPane(index) {
         const paneWidth = panesWrapper.clientWidth;
-        panesWrapper.scrollTo({ left: index * paneWidth, behavior: 'smooth' });
+        panesWrapper.scrollTo({ left: index * paneWidth, behavior: 'instant' });
+        navTabs.forEach((t, i) => t.classList.toggle('active', i === index));
+        if(index === 2) loadCalls();
     }
     panesWrapper.addEventListener('scroll', () => {
         const index = Math.round(panesWrapper.scrollLeft / panesWrapper.clientWidth);
@@ -448,18 +488,8 @@
        const input = document.getElementById('aiInput');
        const text = input.value.trim(); if(!text) return;
        const windowEl = document.getElementById('aiChatWindow');
-       
        windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 14px; border-radius:16px; border-bottom-right-radius:4px; max-width:85%; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.3);">${escapeHtml(text)}</div>`);
        input.value = ''; windowEl.scrollTo(0, windowEl.scrollHeight);
-       
-       const lower = text.toLowerCase();
-       const isGreeting = /^(hi|hello|hey|namaste|kaise ho|aur batao)/.test(lower);
-
-       if (currentAiContext === 'reg') return appendAiReply("मैं आपकी अकाउंट बनाने में मदद कर सकता हूँ। कृपया 10 अंकों का मोबाइल नंबर, एक User ID (@ से शुरू), 8 अंकों का पासवर्ड और एक सिक्योरिटी सवाल भरें।");
-       if (currentAiContext === 'login') return appendAiReply("लॉगिन करने के लिए अपना User ID या रजिस्टर्ड मोबाइल नंबर और 8-अंकों का पासवर्ड दर्ज करें।");
-       if (currentAiContext === 'forgot') return appendAiReply("पासवर्ड रिसेट करने के लिए अपना मोबाइल नंबर और अपना सेट किया हुआ सिक्योरिटी सवाल (जैसे Pet's name) का सही जवाब डालें। फिर नया 8-डिजिट का पासवर्ड बनाएं।");
-       if (isGreeting) return appendAiReply("नमस्ते! मैं MC AI हूँ। मैं इस चैट ऐप के फीचर्स (Chat, Call, Reels) में आपकी क्या मदद कर सकता हूँ?");
-
        socket.emit('ask-mc-ai', { prompt: text, context: currentAiContext }, res => {
           if(res?.success) { appendAiReply(res.text.replace(/\n/g,'<br>')); } 
           else { appendAiReply(res.error || 'Failed to connect to AI.', true); }
@@ -519,6 +549,15 @@
         socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
         syncContacts(); if (currentChatTarget) syncCurrentChat(true); 
       }
+    });
+
+    socket.on('all-messages-read-by-receiver', ({ readerCode }) => {
+      // Glow/Double ticks update on local messages
+      document.querySelectorAll('[id^="status_"]').forEach(el => {
+        if(el.innerHTML.includes('✓')) {
+          el.innerHTML = '<span style="color:#5ac8fa; font-weight:bold; text-shadow:0 0 8px #5ac8fa;">✓✓</span>';
+        }
+      });
     });
 
     function toggleAuthMode() {
@@ -591,60 +630,79 @@
     function cancelPress() { clearTimeout(pressTimer); }
     function closeContactMenu() { document.getElementById('contactMenuModal').style.display = 'none'; activeContactMenuTarget = null; }
     
-    function blockContactAction() {
+    function blockContactAction(type) {
       if(!activeContactMenuTarget) return;
-      socket.emit('block-user', { targetCode: activeContactMenuTarget }, res => {
+      socket.emit('block-user', { targetCode: activeContactMenuTarget, type }, res => {
         if(res?.success) {
-           globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
-           renderContacts(globalContacts); showToast('User Blocked'); closeContactMenu();
+           if(type === 'chat') {
+             globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
+             renderContacts(globalContacts); showToast('User Blocked from Chat');
+           } else {
+             showToast('User Blocked from Reels');
+           }
+           closeContactMenu();
         }
       });
     }
+    
     function deleteContactAction() {
       if(!activeContactMenuTarget) return;
-      showConfirm("Delete this chat permanently?", () => {
+      showConfirm("Delete this chat locally?", () => {
          socket.emit('delete-contact', { targetCode: activeContactMenuTarget }, async res => {
            if(res?.success) {
               await saveMessagesLocal(activeContactMenuTarget, []); 
               globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
-              renderContacts(globalContacts); showToast('Chat Deleted'); closeContactMenu();
+              renderContacts(globalContacts); showToast('Chat Deleted Locally'); closeContactMenu();
            }
          });
       });
     }
 
-    function openBlockedModal() {
-       document.getElementById('appMenu').style.display = 'none';
-       socket.emit('get-blocked-users', {}, res => {
+    // PROFILE TABS SWITCHING (Profile vs Chat Blocks vs Reel Blocks)
+    function switchProfileTab(tab) {
+      document.getElementById('ptabProfile').classList.toggle('active', tab === 'profile');
+      document.getElementById('ptabChatBlocks').classList.toggle('active', tab === 'chatblocks');
+      document.getElementById('ptabReelBlocks').classList.toggle('active', tab === 'reelblocks');
+      
+      document.getElementById('pContentProfile').style.display = tab === 'profile' ? 'block' : 'none';
+      document.getElementById('pContentChatBlocks').style.display = tab === 'chatblocks' ? 'flex' : 'none';
+      document.getElementById('pContentReelBlocks').style.display = tab === 'reelblocks' ? 'flex' : 'none';
+
+      if(tab !== 'profile') {
+        socket.emit('get-blocked-users', {}, res => {
           if(res?.success) {
-             const area = document.getElementById('blockedListArea');
-             area.innerHTML = res.users.map(u => `
+            if(tab === 'chatblocks') {
+              document.getElementById('pContentChatBlocks').innerHTML = res.users.map(u => `
                 <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px;">
                    <img src="${escapeAttr(u.avatar)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
                    <div style="flex:1;font-weight:bold;">${escapeHtml(u.name)}</div>
-                   <button style="background:#5ac8fa; color:#000; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="unblockUser('${u.userCode}')">Unblock</button>
+                   <button style="background:#5ac8fa; color:#000; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="unblockUser('${u.userCode}','chat')">Unblock</button>
                 </div>
-             `).join('') || '<p style="text-align:center;color:#888;">No blocked users.</p>';
-             document.getElementById('blockedModal').style.display = 'flex';
+              `).join('') || '<p style="text-align:center;color:#888;">No chat blocks.</p>';
+            } else {
+              document.getElementById('pContentReelBlocks').innerHTML = (res.reelUsers || []).map(u => `
+                <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px;">
+                   <img src="${escapeAttr(u.avatar)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                   <div style="flex:1;font-weight:bold;">${escapeHtml(u.name)}</div>
+                   <button style="background:#5ac8fa; color:#000; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="unblockUser('${u.userCode}','reel')">Unblock</button>
+                </div>
+              `).join('') || '<p style="text-align:center;color:#888;">No reel blocks.</p>';
+            }
           }
+        });
+      }
+    }
+    
+    function unblockUser(code, type) {
+       socket.emit('unblock-user', {targetCode: code, type}, res => {
+          if(res?.success) { showToast('Unblocked'); switchProfileTab(type==='reel'?'reelblocks':'chatblocks'); syncContacts(); }
        });
     }
-    function closeBlockedModal() { document.getElementById('blockedModal').style.display = 'none'; }
-    function unblockUser(code) { socket.emit('unblock-user', {targetCode: code}, res => { if(res?.success) { showToast('User Unblocked'); openBlockedModal(); syncContacts(); } }); }
 
-    let dpPressTimer;
-    let isLongPress = false;
-    function startDpPress(e, src, userCode) {
-      isLongPress = false;
-      dpPressTimer = setTimeout(() => { isLongPress = true; openFullScreenImage(src); }, 600);
-    }
+    let dpPressTimer; let isLongPress = false;
+    function startDpPress(e, src, userCode) { isLongPress = false; dpPressTimer = setTimeout(() => { isLongPress = true; openFullScreenImage(src); }, 600); }
     function cancelDpPress() { clearTimeout(dpPressTimer); }
-    
-    function handleDpClick(e, src, userCode, hasActiveStatus) {
-      e.stopPropagation();
-      if(isLongPress) return; 
-      openFullScreenImage(src);
-    }
+    function handleDpClick(e, src, userCode, hasActiveStatus) { e.stopPropagation(); if(isLongPress) return; openFullScreenImage(src); }
 
     function openFullScreenImage(src) { 
       const container = document.getElementById('mediaContainer');
@@ -654,11 +712,8 @@
     }
     function toggleDpSize(imgEl, e) {
        e.stopPropagation();
-       if(imgEl.style.width === '250px') {
-          imgEl.style.width = '100%'; imgEl.style.height = '100vh'; imgEl.style.borderRadius = '4px'; imgEl.style.objectFit = 'contain'; imgEl.style.border = 'none';
-       } else {
-          imgEl.style.width = '250px'; imgEl.style.height = '250px'; imgEl.style.borderRadius = '50%'; imgEl.style.objectFit = 'cover'; imgEl.style.border = '3px solid #ff3b5c';
-       }
+       if(imgEl.style.width === '250px') { imgEl.style.width = '100%'; imgEl.style.height = '100vh'; imgEl.style.borderRadius = '4px'; imgEl.style.objectFit = 'contain'; imgEl.style.border = 'none'; } 
+       else { imgEl.style.width = '250px'; imgEl.style.height = '250px'; imgEl.style.borderRadius = '50%'; imgEl.style.objectFit = 'cover'; imgEl.style.border = '3px solid #ff3b5c'; }
     }
     function closeImageModal() { document.getElementById('mediaContainer').innerHTML = ''; document.getElementById('imageModal').style.display = 'none'; }
 
@@ -692,11 +747,23 @@
       const query = document.getElementById('directSearchInput').value.trim(); if (!query) return;
       socket.emit('open-direct-chat', { targetCode: query, query }, res => {
         if (res?.success) {
+          document.getElementById('inviteBox').style.display = 'none';
           const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0 };
           globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
           renderContacts(globalContacts); openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
-        } else showToast(res?.error || 'User not found');
+        } else {
+          document.getElementById('inviteBox').style.display = 'block';
+        }
       });
+    }
+    
+    function inviteViaLink() {
+      if(navigator.share) {
+        navigator.share({ title: 'My Chat App', text: 'Join me on My Chat App!', url: window.location.origin }).catch(()=>{});
+      } else {
+        navigator.clipboard.writeText(window.location.origin);
+        showToast('Invite link copied!');
+      }
     }
 
     function updateRoomStatusUI(isOnline, lastSeen) {
@@ -730,7 +797,6 @@
       document.getElementById('roomUserName').textContent = currentChatTarget.name;
       document.getElementById('roomUserAvatar').src = currentChatTarget.avatar;
       document.getElementById('chatRoom').style.display = 'flex';
-      
       checkUserStatus(cleanCode);
 
       const cached = await getMessagesLocal(currentChatTarget.userCode);
@@ -739,11 +805,7 @@
       setTimeout(() => { document.getElementById('msgInputBox').focus(); }, 100);
     }
     
-    function closeChatRoom() { 
-        document.getElementById('chatRoom').style.display = 'none'; 
-        currentChatTarget = null; 
-        loadContacts(); 
-    }
+    function closeChatRoom() { document.getElementById('chatRoom').style.display = 'none'; currentChatTarget = null; loadContacts(); }
 
     async function syncCurrentChat(silent = false) {
       if (!currentChatTarget || !socket.connected) return;
@@ -789,7 +851,6 @@
         activeMsgId = msgId; activeMsgElement = document.getElementById(msgId);
         document.getElementById('msgActionModal').style.display = 'flex';
         document.getElementById('btnDelEveryone').style.display = isMine ? 'block' : 'none';
-        
         document.getElementById('btnCopyMsg').onclick = () => {
            const text = activeMsgElement.innerText.replace(/✓|🕒|[\d:]+(AM|PM)?/g, '').trim();
            navigator.clipboard.writeText(text); showToast('Text copied!'); closeMsgActionMenu();
@@ -862,14 +923,11 @@
       const val = box.innerText.trim();
       if (!val || !currentChatTarget) return;
       const clientMsgId = 'msg_' + Date.now();
-      
       const tempMsg = { messageId: clientMsgId, text: val, mine: true, status: 'pending', messageType: 'text', createdAt: Date.now() };
       document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
-      
       scrollToBottom(true);
       box.innerText = ''; box.focus(); 
       promoteChatToTop(currentChatTarget.userCode);
-      
       socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId: clientMsgId }, async res => {
         if (res?.success) {
           const el = document.getElementById(clientMsgId);
@@ -880,27 +938,20 @@
       });
     }
 
-    // --- SECURE UPLOAD (Moved strictly to Backend) ---
     async function sendMediaFile(inp, forcedType) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
       if (file.size > 50 * 1024 * 1024) { showToast('50 MB Limit Exceeded!'); inp.value = ''; return; }
       document.getElementById('attachMenu').style.display = 'none';
-      
       try {
         const clientMsgId = 'msg_' + Date.now();
         const tempUrl = URL.createObjectURL(file);
-        
         const tempMsg = { messageId: clientMsgId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
         document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
-        
         scrollToBottom(true);
         promoteChatToTop(currentChatTarget.userCode);
-
-        // Upload to Backend (Backend will securely handle Telegram/Cloudinary logic using ENV Variables)
         const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
         xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
         const form = new FormData(); form.append('media', file, file.name);
-        
         xhr.onload = () => {
           const result = JSON.parse(xhr.responseText || '{}');
           if (result.success) {
@@ -912,9 +963,6 @@
                 await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
               }
             });
-          } else {
-             showToast('Upload failed');
-             const el = document.getElementById(clientMsgId); if (el) el.remove();
           }
         }; xhr.send(form);
       } catch (e) { showToast('Upload failed'); }
@@ -924,7 +972,6 @@
     socket.on('new-message', async m => {
       if (!currentUserData) return;
       const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
-
       if (currentChatTarget && currentChatTarget.userCode === otherCode) {
         if (!document.getElementById(m.messageId)) {
           document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble theirs" id="${m.messageId}" onmousedown="startMsgPress(event, '${m.messageId}', false)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${m.messageId}', false)" ontouchend="cancelMsgPress()">${formatMessageContent(m)}</div>`);
@@ -932,7 +979,6 @@
         }
         const cached = await getMessagesLocal(currentChatTarget.userCode);
         if (!cached.find(x => x.messageId === m.messageId)) await saveMessagesLocal(currentChatTarget.userCode, [...cached, m]);
-        
         socket.emit('mark-message-read', { messageId: m.messageId, senderCode: m.senderCode });
       } else {
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
@@ -959,7 +1005,7 @@
         });
     }, { threshold: 0.6 }); 
 
-    let activeReelsData = []; let currentReelIdForMenu = null;
+    let activeReelsData = []; let currentReelIdForMenu = null; let activeCommentReel = null;
     function loadAllReels() {
        socket.emit('get-all-active-reels', { myContacts: currentUserData?.contacts || [] }, res => {
           if(res?.success) {
@@ -984,17 +1030,21 @@
           <div class="reel-item" data-id="${r.id}" onclick="handleReelTap(event, '${r.id}', '${r.userCode}')">
              ${r.type.includes('video') ? `<video src="${r.media}" loop playsinline class="reel-media"></video>` : `<img src="${r.media}" class="reel-media">`}
              <div id="heart_${r.id}" class="heart-anim">❤️</div>
+             <!-- Bottom-left name and DP placement -->
              <div class="reel-overlay">
                  <div style="display:flex;align-items:center;gap:10px;">
-                     <img src="${r.avatar}" style="width:36px;height:36px;border-radius:50%;border:2px solid #ff3b5c;object-fit:cover;">
-                     <span style="font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.name)}</span>
+                     <img src="${r.avatar}" style="width:42px;height:42px;border-radius:50%;border:2px solid #ff3b5c;object-fit:cover;">
+                     <span style="font-weight:700;font-size:16px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.name)}</span>
                  </div>
-                 <div style="text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.caption)}</div>
+                 <div style="font-size:13px;text-shadow:0 1px 3px rgba(0,0,0,0.9);color:#eee;">${escapeHtml(r.caption)}</div>
              </div>
              <div class="reel-actions">
                  <button class="action-btn" onclick="event.stopPropagation(); toggleLike('${r.id}', '${r.userCode}')">
                      <span id="likeIcon_${r.id}" style="color:${r.likes.includes(currentUserData.userCode) ? '#ff3b5c' : '#fff'}">${r.likes.includes(currentUserData.userCode) ? '❤️' : '🤍'}</span>
                      <span class="action-text" id="likeCount_${r.id}">${r.likes.length}</span>
+                 </button>
+                 <button class="action-btn" onclick="event.stopPropagation(); openCommentsSheet('${r.id}', '${r.userCode}')">
+                     💬 <span class="action-text" id="commCount_${r.id}">${(r.comments||[]).length}</span>
                  </button>
                  <button class="action-btn" onclick="event.stopPropagation(); nativeShare('${r.media}')">↗️<span class="action-text">Share</span></button>
                  <button class="action-btn" onclick="event.stopPropagation(); repostReel('${r.media}', '${r.type}')">🔄<span class="action-text">Repost</span></button>
@@ -1004,7 +1054,6 @@
        `).join('');
 
        viewer.style.display = 'flex';
-       
        document.querySelectorAll('.reel-item').forEach(el => reelObserver.observe(el));
        setTimeout(() => { const items = document.querySelectorAll('.reel-item'); if(items[startIndex]) items[startIndex].scrollIntoView({behavior: 'instant'}); }, 50);
     }
@@ -1014,6 +1063,61 @@
         document.querySelectorAll('.reel-item').forEach(el => reelObserver.unobserve(el));
         document.getElementById('reelsScrollArea').innerHTML = ''; 
     }
+
+    // COMMENTS FUNCTIONS (Owner delete + commenter delete)
+    function openCommentsSheet(reelId, ownerCode) {
+      activeCommentReel = { reelId, ownerCode };
+      const r = activeReelsData.find(x => x.id === reelId);
+      renderComments(r?.comments || []);
+      document.getElementById('commentsSheet').style.display = 'flex';
+    }
+    function closeCommentsSheet() { document.getElementById('commentsSheet').style.display = 'none'; activeCommentReel = null; }
+    
+    function renderComments(comments) {
+      document.getElementById('commentCountHeader').textContent = comments.length;
+      const area = document.getElementById('commentsListArea');
+      area.innerHTML = comments.map(c => {
+        const canDelete = currentUserData?.userCode === activeCommentReel?.ownerCode || currentUserData?.userCode === c.userCode;
+        return `
+          <div style="display:flex; align-items:flex-start; gap:10px; background:rgba(255,255,255,0.04); padding:8px 12px; border-radius:12px;">
+            <img src="${escapeAttr(c.avatar)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+            <div style="flex:1;">
+              <div style="font-size:12px; font-weight:bold; color:#ff3b5c;">${escapeHtml(c.name)}</div>
+              <div style="font-size:14px; color:#fff; word-break:break-word;">${escapeHtml(c.text)}</div>
+            </div>
+            ${canDelete ? `<button style="background:transparent;border:none;color:#ff3b5c;font-size:12px;cursor:pointer;" onclick="deleteReelComment('${c.id}')">🗑️</button>` : ''}
+          </div>
+        `;
+      }).join('') || '<p style="text-align:center; color:#777; font-size:13px; margin:20px 0;">No comments yet.</p>';
+    }
+
+    function submitReelComment() {
+      const inp = document.getElementById('reelCommentInput');
+      const text = inp.value.trim();
+      if(!text || !activeCommentReel) return;
+      socket.emit('add-reel-comment', { ownerUserCode: activeCommentReel.ownerCode, reelId: activeCommentReel.reelId, text }, res => {
+        if(res?.success) {
+          inp.value = '';
+          const r = activeReelsData.find(x => x.id === activeCommentReel.reelId);
+          if(r) { r.comments = r.comments || []; r.comments.push(res.comment); renderComments(r.comments); const badge = document.getElementById('commCount_'+r.id); if(badge) badge.textContent = r.comments.length; }
+        }
+      });
+    }
+
+    function deleteReelComment(commentId) {
+      if(!activeCommentReel) return;
+      socket.emit('delete-reel-comment', { ownerUserCode: activeCommentReel.ownerCode, reelId: activeCommentReel.reelId, commentId }, res => {
+        if(res?.success) {
+          const r = activeReelsData.find(x => x.id === activeCommentReel.reelId);
+          if(r) { r.comments = (r.comments||[]).filter(c => c.id !== commentId); renderComments(r.comments); const badge = document.getElementById('commCount_'+r.id); if(badge) badge.textContent = r.comments.length; }
+        }
+      });
+    }
+
+    socket.on('reel-comment-updated', ({ reelId, comments }) => {
+      const r = activeReelsData.find(x => x.id === reelId);
+      if(r) { r.comments = comments; const badge = document.getElementById('commCount_'+reelId); if(badge) badge.textContent = comments.length; if(activeCommentReel?.reelId === reelId) renderComments(comments); }
+    });
 
     let lastTap = 0;
     function handleReelTap(e, reelId, authorCode) {
@@ -1065,49 +1169,56 @@
     }
     function deleteReelAction() {
        document.getElementById('reelMenu').style.display = 'none';
-       showConfirm("Delete this Reel?", () => { socket.emit('delete-my-media', { type: 'reel', id: currentReelIdForMenu }, res => { if(res?.success) { showToast('Deleted'); loadAllReels(); closeReelsViewer(); } }); });
+       showConfirm("Delete this Reel permanently?", () => { socket.emit('delete-my-media', { type: 'reel', id: currentReelIdForMenu }, res => { if(res?.success) { showToast('Deleted'); loadAllReels(); closeReelsViewer(); } }); });
     }
 
+    // Silent Upload Reel (no alerts, just ring)
     function uploadStatusMedia(inp) {
       const file = inp.files?.[0]; if (!file) return;
       if (file.size > 50 * 1024 * 1024) { showToast('50 MB Limit Exceeded!'); inp.value = ''; return; }
-      
       const ring = document.getElementById('myStatusRing');
-      ring.innerHTML = ''; ring.classList.remove('glow-complete'); 
-      ring.style.setProperty('--progress', '5%');
-      showToast('Uploading Reel...');
-
+      ring.innerHTML = ''; ring.classList.remove('glow-complete'); ring.style.setProperty('--progress', '5%');
+      
       const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
       xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
       xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
       xhr.setRequestHeader('X-Is-Status', 'true');
-      
-      xhr.upload.onprogress = (e) => { 
-          if(e.lengthComputable) { const pct = Math.floor((e.loaded / e.total) * 90) + 5; ring.style.setProperty('--progress', pct + '%'); } 
-      };
-      
+      xhr.upload.onprogress = (e) => { if(e.lengthComputable) { const pct = Math.floor((e.loaded / e.total) * 90) + 5; ring.style.setProperty('--progress', pct + '%'); } };
       const form = new FormData(); form.append('media', file, file.name);
       xhr.onload = () => {
-        if (xhr.status === 200) {
-          ring.style.setProperty('--progress', '100%'); ring.classList.add('glow-complete'); ring.innerHTML = '✓';
-          showToast('Reel Uploaded!'); loadAllReels(); 
-        } else {
-          ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); showToast('Upload failed');
-        }
+        if (xhr.status === 200) { ring.style.setProperty('--progress', '100%'); ring.classList.add('glow-complete'); ring.innerHTML = '✓'; loadAllReels(); } 
+        else { ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); }
       };
       xhr.send(form);
       inp.value = '';
     }
 
+    // PiP DRAGGABLE VIDEO IMPLEMENTATION
+    let isDraggingVid = false, dragStartX = 0, dragStartY = 0, initialVidRight = 20, initialVidTop = 80;
+    const localVid = document.getElementById('localVideo');
+    localVid.addEventListener('touchstart', e => { isDraggingVid = true; dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY; });
+    document.addEventListener('touchmove', e => {
+      if(!isDraggingVid) return;
+      const dx = e.touches[0].clientX - dragStartX; const dy = e.touches[0].clientY - dragStartY;
+      localVid.style.top = Math.max(10, Math.min(window.innerHeight - 200, initialVidTop + dy)) + 'px';
+      localVid.style.right = Math.max(10, Math.min(window.innerWidth - 130, initialVidRight - dx)) + 'px';
+    });
+    document.addEventListener('touchend', () => { isDraggingVid = false; initialVidTop = parseInt(localVid.style.top)||80; initialVidRight = parseInt(localVid.style.right)||20; });
+
     let localStream, peerConnection, callInterval; let callTargetCode = null, callTargetName = null; let callRole = null; let callStartTime = 0;
     const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
+    function swapVideoStreams() {
+      const remoteVid = document.getElementById('remoteVideo');
+      const tempStream = remoteVid.srcObject;
+      remoteVid.srcObject = localVid.srcObject;
+      localVid.srcObject = tempStream;
+    }
+
     function loadCalls() { socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); }); }
-    
     function renderCalls(calls) {
        const list = document.getElementById('callsList');
        if(!calls || calls.length===0) { list.innerHTML = '<div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>'; return; }
-       
        list.innerHTML = calls.map(c => {
           const isCaller = c.callerCode === currentUserData.userCode;
           const otherName = isCaller ? c.receiverName : c.callerName;
@@ -1131,9 +1242,9 @@
     function startCall() {
       if(!currentChatTarget) return;
       callTargetCode = currentChatTarget.userCode; callTargetName = currentChatTarget.name; callRole = 'caller';
-      document.getElementById('callName').textContent = currentChatTarget.name; document.getElementById('callAvatar').src = currentChatTarget.avatar;
+      document.getElementById('callName').textContent = currentChatTarget.name;
       document.getElementById('callStatusText').textContent = "Connecting..."; document.getElementById('callTimeDisplay').style.display = 'none';
-      document.getElementById('callScreen').style.display = 'flex'; document.getElementById('callReceiverUI').style.display = 'none';
+      document.getElementById('callScreen').style.display = 'block'; document.getElementById('callReceiverUI').style.display = 'none';
       document.getElementById('callCallerUI').style.display = 'flex';
 
       navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
@@ -1142,7 +1253,6 @@
         stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
         peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
         peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
-
         peerConnection.createOffer().then(offer => { peerConnection.setLocalDescription(offer); socket.emit('call-user', { targetCode: callTargetCode, offer: offer }); });
       }).catch(err => { showToast('Camera/Mic permission denied'); cleanupCall(false); });
     }
@@ -1151,9 +1261,9 @@
 
     socket.on('incoming-call', async (data) => {
       callTargetCode = data.callerCode; callTargetName = data.callerName; callRole = 'receiver';
-      document.getElementById('callName').textContent = data.callerName; document.getElementById('callAvatar').src = data.callerAvatar || DEFAULT_AVATAR;
+      document.getElementById('callName').textContent = data.callerName;
       document.getElementById('callStatusText').textContent = "Incoming Call..."; document.getElementById('callTimeDisplay').style.display = 'none';
-      document.getElementById('callScreen').style.display = 'flex'; document.getElementById('callReceiverUI').style.display = 'flex';
+      document.getElementById('callScreen').style.display = 'block'; document.getElementById('callReceiverUI').style.display = 'flex';
       document.getElementById('callCallerUI').style.display = 'none';
 
       navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
@@ -1223,6 +1333,7 @@
       document.getElementById('myProfileQ1').value = currentUserData.secQ1 || '';
       document.getElementById('myProfileQ2').value = currentUserData.secQ2 || '';
       document.getElementById('myProfileAvatar').src = currentUserData.avatar || DEFAULT_AVATAR;
+      switchProfileTab('profile');
       document.getElementById('myProfileModal').style.display = 'flex'; document.getElementById('appMenu').style.display = 'none'; 
     }
     
@@ -1245,11 +1356,9 @@
       const mobile = document.getElementById('recMobileInput').value.trim(); const q1 = document.getElementById('recQ1Input').value.trim();
       const q2 = document.getElementById('recQ2Input').value.trim(); const newPassword = document.getElementById('recNewPassInput').value.trim();
       const confirmPassword = document.getElementById('recConfirmPassInput').value.trim();
-      
       if(!mobile || !newPassword) return showToast('Mobile and New Password are required');
       if(newPassword.length !== 8) return showToast('Password must be 8 digits');
       if(newPassword !== confirmPassword) return showToast('Passwords do not match!');
-
       socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
         if (res?.success) { 
           showToast("Recovery successful! Logging in..."); closeForgotModal();
