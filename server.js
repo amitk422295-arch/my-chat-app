@@ -130,7 +130,6 @@ cloudinary.config({
 app.get('/health', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
-// Removed deprecated options to fix MongoDB warnings
 mongoose.connect(MONGO_URI).then(() => console.log('MongoDB connected')).catch(e => console.error(e));
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
@@ -507,11 +506,10 @@ io.on('connection', (socket) => {
     } catch(e) { cb({success:false}); }
   });
 
-  // ========== UPDATED GROQ AI LOGIC ==========
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
-      // Use Environment variable on Render, with fallback to hardcoded key
-      const apiKey = process.env.GROQ_API_KEY || "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"; 
+      const rawKey = process.env.GROQ_API_KEY || "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";
+      const apiKey = String(rawKey).trim();
       
       let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
       if(context === 'register') systemInstruction = "Only help the user with creating a new account (like 8-digit password, security questions). Keep it very short.";
@@ -562,10 +560,10 @@ io.on('connection', (socket) => {
       req.end();
       
     } catch (e) {
+      console.error("AI Catch Block Error:", e);
       cb({ success: false, error: 'Internal AI Error' });
     }
   });
-  // ===========================================
 
   socket.on('ping-server', () => {});
 
