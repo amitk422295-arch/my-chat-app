@@ -63,12 +63,15 @@
     #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
 
-    /* Instagram Reels UI */
+    /* Instagram Reels UI - CSS Scroll Snapping Enhanced */
     .reels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding-bottom: 20px; }
     .reel-thumb { width: 100%; aspect-ratio: 9/16; background: #1c1c26; object-fit: cover; cursor: pointer; position: relative; }
     #reelsViewerModal { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; }
-    #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; }
-    .reel-item { height: 100vh; height: 100dvh; scroll-snap-align: start; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+    
+    /* Enhanced Reel Scroll Area */
+    #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; scroll-behavior: smooth; }
+    .reel-item { height: 100vh; height: 100dvh; width: 100%; scroll-snap-align: start; scroll-snap-stop: always; position: relative; display: flex; align-items: center; justify-content: center; background: #000; flex: none; }
+    
     .reel-media { max-width: 100%; max-height: 100%; object-fit: contain; }
     .reel-overlay { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 15px; }
     .reel-actions { position: absolute; right: 15px; bottom: 80px; display: flex; flex-direction: column; gap: 20px; pointer-events: auto; }
@@ -116,6 +119,24 @@
        </div>
     </div>
   </div>
+  
+  <!-- NEW REGISTRATION DP POPUP (Exit, Save, Delete) -->
+  <div id="regDpModal" class="modal" onclick="closeRegDpModal()">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:320px; text-align:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="color:#fff; margin:0;">Set Profile Photo</h3>
+        <button class="icon-btn" style="background:transparent; border:none; color:#ff3b5c; font-size:22px; width:auto; height:auto; padding:0;" onclick="removeRegDp()" title="Remove Photo">🗑️</button>
+      </div>
+      <div style="position:relative; width:130px; height:130px; margin:0 auto 25px;">
+        <img id="regDpPreview" src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px dashed #ff3b5c;cursor:pointer;" onclick="document.getElementById('dpFileInput').click()">
+        <div style="position:absolute; bottom:0; right:0; background:#ff3b5c; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; border:3px solid #171720; box-shadow:0 4px 10px rgba(0,0,0,0.4);" onclick="document.getElementById('dpFileInput').click()">📷</div>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-gradient" style="flex:1; background:#333; box-shadow:none; color:#fff;" onclick="closeRegDpModal()">Exit</button>
+        <button class="btn-gradient" style="flex:1; background:#00ff88; box-shadow: 0 4px 15px rgba(0,255,136,0.3); color:#000;" onclick="saveRegDp()">Save</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Image Modal (For DP and Chat Images) -->
   <div id="imageModal">
@@ -147,8 +168,10 @@
       </div>
       <h3 style="color:#fff; text-align:left;" id="authTitle">Create Account</h3>
       <div id="viewRegister" style="display:flex; flex-direction:column; gap:10px;">
-        <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
-        <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>" onclick="document.getElementById('dpFileInput').click()">
+        <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDpInput(this)">
+        <!-- DP VIEWER NOW OPENS THE REG DP POPUP -->
+        <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>" onclick="openRegDpModal()">
+        
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name (Optional)">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number * (Compulsory)" maxlength="13">
         <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID * (e.g. @amit123)">
@@ -399,6 +422,33 @@
       m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
     }
 
+    // --- REGISTRATION DP LOGIC (NEW MODAL) ---
+    let tempRegDpBase64 = '';
+    function openRegDpModal() {
+       document.getElementById('regDpPreview').src = regDpBase64 || DEFAULT_AVATAR;
+       tempRegDpBase64 = regDpBase64;
+       document.getElementById('regDpModal').style.display = 'flex';
+    }
+    function closeRegDpModal() { document.getElementById('regDpModal').style.display = 'none'; }
+    function removeRegDp() {
+       tempRegDpBase64 = '';
+       document.getElementById('regDpPreview').src = DEFAULT_AVATAR;
+    }
+    function saveRegDp() {
+       regDpBase64 = tempRegDpBase64;
+       document.getElementById('dpViewer').src = regDpBase64 || DEFAULT_AVATAR;
+       closeRegDpModal();
+    }
+    function previewDpInput(inp) { 
+       const file = inp.files?.[0]; if (!file) return; 
+       const reader = new FileReader(); 
+       reader.onload = e => { 
+           tempRegDpBase64 = e.target.result; 
+           document.getElementById('regDpPreview').src = tempRegDpBase64; 
+       }; 
+       reader.readAsDataURL(file); 
+    }
+
     // --- NATIVE SCROLL SNAPPING TABS ---
     const panesWrapper = document.getElementById('panesWrapper');
     const navTabs = document.querySelectorAll('#mainNavTabs .nav-tab');
@@ -509,8 +559,7 @@
       document.getElementById('authTitle').textContent = authMode === 'reg' ? 'Create Account' : 'Welcome Back';
       document.getElementById('authSwitchText').textContent = authMode === 'reg' ? 'Already have an account? Login' : 'New here? Register Account';
     }
-
-    function previewDp(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; }; reader.readAsDataURL(file); }
+    
     function changeMyAvatar(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; }; reader.readAsDataURL(file); }
     
     function handleRegisterCustom() {
@@ -637,9 +686,8 @@
 
     function openFullScreenImage(src) { 
       const container = document.getElementById('mediaContainer');
-      // FRONTEND FIX: Big Perfect Circle in the center
       container.innerHTML = `<img src="${src}" onclick="toggleDpSize(this, event)" style="width:250px; height:250px; object-fit:cover; border-radius:50%; transition: all 0.3s; cursor:pointer; box-shadow:0 10px 40px rgba(0,0,0,0.9); border: 3px solid #ff3b5c;">`;
-      document.getElementById('imageModal').style.zIndex = '10010'; // Above everything
+      document.getElementById('imageModal').style.zIndex = '10010'; 
       document.getElementById('imageModal').style.display = 'flex'; 
     }
     function toggleDpSize(imgEl, e) {
@@ -869,7 +917,6 @@
       
       socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId: clientMsgId }, async res => {
         if (res?.success) {
-          // Sent successfully, update icon
           const el = document.getElementById(clientMsgId);
           if(el) el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
           const cached = await getMessagesLocal(currentChatTarget.userCode);
@@ -878,8 +925,10 @@
       });
     }
 
+    // --- NEW DUAL-ENGINE MEDIA UPLOAD (TELEGRAM + CLOUDINARY FALLBACK) ---
     async function sendMediaFile(inp, forcedType) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
+      if (file.size > 50 * 1024 * 1024) { showToast('50 MB Limit Exceeded!'); inp.value = ''; return; }
       document.getElementById('attachMenu').style.display = 'none';
       
       try {
@@ -889,17 +938,66 @@
         const tempMsg = { messageId: clientMsgId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
         document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
         
-        scrollToBottom(true); // Force scroll
+        scrollToBottom(true);
         promoteChatToTop(currentChatTarget.userCode);
 
-        const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
-        xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-        const form = new FormData(); form.append('media', file, file.name);
-        
-        xhr.onload = () => {
-          const result = JSON.parse(xhr.responseText || '{}');
-          if (result.success) {
-            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId: clientMsgId }, async res => {
+        // 1. TELEGRAM DIRECT UPLOAD ATTEMPT
+        const TELEGRAM_BOT_TOKEN = '8500652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe51o'; 
+        const TELEGRAM_CHAT_ID = '-1004408463319';
+        let tgApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`;
+        if (forcedType === 'image') tgApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
+        else if (forcedType === 'video') tgApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo`;
+
+        const tgForm = new FormData();
+        tgForm.append('chat_id', TELEGRAM_CHAT_ID);
+        if(forcedType === 'image') tgForm.append('photo', file);
+        else if (forcedType === 'video') tgForm.append('video', file);
+        else tgForm.append('document', file);
+
+        let uploadSuccess = false;
+        let finalMediaUrl = '';
+
+        try {
+            const tgResponse = await fetch(tgApiUrl, { method: 'POST', body: tgForm });
+            const tgData = await tgResponse.json();
+            if (tgData.ok) {
+               let fileId = '';
+               if (forcedType === 'image') fileId = tgData.result.photo[tgData.result.photo.length - 1].file_id;
+               else if (forcedType === 'video') fileId = tgData.result.video.file_id;
+               else fileId = tgData.result.document.file_id;
+
+               const getFileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
+               const getFileData = await getFileRes.json();
+               
+               if(getFileData.ok) {
+                   finalMediaUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
+                   uploadSuccess = true;
+               }
+            }
+        } catch(e) { console.log('Telegram API Error, routing to Cloudinary', e); }
+
+        // 2. CLOUDINARY FALLBACK (If Telegram Fails)
+        if (!uploadSuccess) {
+            const xhr = new XMLHttpRequest();
+            await new Promise((resolve, reject) => {
+                xhr.open('POST', '/api/upload-media');
+                xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
+                xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
+                const form = new FormData(); form.append('media', file, file.name);
+                
+                xhr.onload = () => {
+                  const result = JSON.parse(xhr.responseText || '{}');
+                  if (result.success) { finalMediaUrl = result.url; uploadSuccess = true; resolve(); }
+                  else reject();
+                };
+                xhr.onerror = reject;
+                xhr.send(form);
+            });
+        }
+
+        // 3. FINALIZE AND SAVE
+        if (uploadSuccess && finalMediaUrl) {
+            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: finalMediaUrl, messageType: forcedType, fileName: file.name, clientMessageId: clientMsgId }, async res => {
               const el = document.getElementById(clientMsgId);
               if (res?.success && el) {
                 el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
@@ -907,8 +1005,9 @@
                 await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
               }
             });
-          }
-        }; xhr.send(form);
+        } else {
+            showToast('Media upload failed entirely');
+        }
       } catch (e) { showToast('Upload failed'); }
       inp.value = '';
     }
@@ -925,12 +1024,10 @@
         const cached = await getMessagesLocal(currentChatTarget.userCode);
         if (!cached.find(x => x.messageId === m.messageId)) await saveMessagesLocal(currentChatTarget.userCode, [...cached, m]);
         
-        // Chat is open, send READ tick
         socket.emit('mark-message-read', { messageId: m.messageId, senderCode: m.senderCode });
       } else {
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
         promoteChatToTop(otherCode); showToast(`New message from ${otherCode}`);
-        // Chat is NOT open, send DELIVERED tick
         socket.emit('mark-message-delivered', { messageId: m.messageId, senderCode: m.senderCode });
       }
     });
@@ -948,16 +1045,11 @@
         entries.forEach(entry => {
             const video = entry.target.querySelector('video');
             if (video) {
-                // If 60% of the video is visible, play it. Otherwise pause and rewind.
-                if (entry.isIntersecting) {
-                    video.play().catch(()=>{});
-                } else {
-                    video.pause();
-                    video.currentTime = 0;
-                }
+                if (entry.isIntersecting) { video.play().catch(()=>{}); } 
+                else { video.pause(); video.currentTime = 0; }
             }
         });
-    }, { threshold: 0.6 }); // Requires 60% visibility to trigger
+    }, { threshold: 0.6 }); 
 
     // --- INSTAGRAM STYLE REELS LOGIC ---
     let activeReelsData = []; let currentReelIdForMenu = null;
@@ -1006,15 +1098,12 @@
 
        viewer.style.display = 'flex';
        
-       // Observe all reel items for Audio Auto Play/Pause Fix
        document.querySelectorAll('.reel-item').forEach(el => reelObserver.observe(el));
-
-       setTimeout(() => { const items = document.querySelectorAll('.reel-item'); if(items[startIndex]) items[startIndex].scrollIntoView(); }, 50);
+       setTimeout(() => { const items = document.querySelectorAll('.reel-item'); if(items[startIndex]) items[startIndex].scrollIntoView({behavior: 'instant'}); }, 50);
     }
     
     function closeReelsViewer() { 
         document.getElementById('reelsViewerModal').style.display = 'none'; 
-        // Cleanup observer and videos
         document.querySelectorAll('.reel-item').forEach(el => reelObserver.unobserve(el));
         document.getElementById('reelsScrollArea').innerHTML = ''; 
     }
@@ -1072,41 +1161,81 @@
        showConfirm("Delete this Reel?", () => { socket.emit('delete-my-media', { type: 'reel', id: currentReelIdForMenu }, res => { if(res?.success) { showToast('Deleted'); loadAllReels(); closeReelsViewer(); } }); });
     }
 
-    // UPLOAD PROGRESS RING RESTORED
-    function uploadStatusMedia(inp) {
+    // --- NEW DUAL-ENGINE REELS UPLOAD (TELEGRAM + CLOUDINARY) ---
+    async function uploadStatusMedia(inp) {
       const file = inp.files?.[0]; if (!file) return;
+      if (file.size > 50 * 1024 * 1024) { showToast('50 MB Limit Exceeded!'); inp.value = ''; return; }
+      
       const ring = document.getElementById('myStatusRing');
       ring.innerHTML = ''; ring.classList.remove('glow-complete'); 
       ring.style.setProperty('--progress', '5%');
       showToast('Uploading Reel...');
 
-      const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
-      xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
-      xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-      xhr.setRequestHeader('X-Is-Status', 'true');
-      
-      // Live Percentage Tracking
-      xhr.upload.onprogress = (e) => {
-         if(e.lengthComputable) {
-            const pct = Math.floor((e.loaded / e.total) * 90) + 5; 
-            ring.style.setProperty('--progress', pct + '%');
-         }
-      };
+      let uploadSuccess = false;
+      let finalMediaUrl = '';
+      const isVideo = file.type.startsWith('video');
+      const typeStr = isVideo ? 'video' : 'image';
 
-      const form = new FormData(); form.append('media', file, file.name);
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          ring.style.setProperty('--progress', '100%');
-          ring.classList.add('glow-complete');
-          ring.innerHTML = '✓';
-          showToast('Reel Uploaded!');
-          loadAllReels(); 
-        } else {
-          ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%');
-          showToast('Upload failed');
-        }
-      };
-      xhr.send(form);
+      // 1. TELEGRAM ATTEMPT
+      try {
+         const TELEGRAM_BOT_TOKEN = '8500652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe51o';
+         const TELEGRAM_CHAT_ID = '-1004408463319';
+         let tgApiUrl = isVideo ? `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo` : `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
+         
+         const tgForm = new FormData();
+         tgForm.append('chat_id', TELEGRAM_CHAT_ID);
+         if (isVideo) tgForm.append('video', file); else tgForm.append('photo', file);
+
+         ring.style.setProperty('--progress', '40%');
+         const tgResponse = await fetch(tgApiUrl, { method: 'POST', body: tgForm });
+         const tgData = await tgResponse.json();
+         
+         if (tgData.ok) {
+             let fileId = isVideo ? tgData.result.video.file_id : tgData.result.photo[tgData.result.photo.length - 1].file_id;
+             ring.style.setProperty('--progress', '80%');
+             const getFileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
+             const getFileData = await getFileRes.json();
+             
+             if(getFileData.ok) {
+                 finalMediaUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
+                 uploadSuccess = true;
+                 ring.style.setProperty('--progress', '100%');
+             }
+         }
+      } catch(e) { console.log("Telegram reel upload failed", e); }
+
+      // 2. SAVING DATA OR FALLBACK TO CLOUDINARY
+      if (uploadSuccess && finalMediaUrl) {
+          socket.emit('upload-status-reel', { url: finalMediaUrl, type: typeStr }, res => {
+              if(res?.success) {
+                  ring.classList.add('glow-complete'); ring.innerHTML = '✓';
+                  showToast('Reel Uploaded!'); loadAllReels();
+              } else {
+                  ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); showToast('Upload failed to save');
+              }
+          });
+      } else {
+          // Cloudinary Backup Attempt
+          const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
+          xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
+          xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
+          xhr.setRequestHeader('X-Is-Status', 'true');
+          
+          xhr.upload.onprogress = (e) => { 
+              if(e.lengthComputable) { const pct = Math.floor((e.loaded / e.total) * 90) + 5; ring.style.setProperty('--progress', pct + '%'); } 
+          };
+          
+          const form = new FormData(); form.append('media', file, file.name);
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              ring.style.setProperty('--progress', '100%'); ring.classList.add('glow-complete'); ring.innerHTML = '✓';
+              showToast('Reel Uploaded!'); loadAllReels(); 
+            } else {
+              ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); showToast('Upload failed');
+            }
+          };
+          xhr.send(form);
+      }
       inp.value = '';
     }
 
