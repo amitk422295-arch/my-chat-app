@@ -1,1206 +1,641 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-  <title>My Chat App</title>
-  <meta name="theme-color" content="#08080c">
-  <script src="/socket.io/socket.io.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
-    html, body { width: 100%; height: 100%; height: 100dvh; background: #08080c; color: #f0f2f5; overflow: hidden; position: fixed; inset: 0; }
-    .bg-heart-pattern { position: fixed; inset: 0; pointer-events: none; opacity: 0.06; z-index: 0; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'); background-size: 54px 54px; }
-    
-    .screen-flow { position: fixed; inset: 0; background: radial-gradient(circle at top, #141420 0%, #08080c 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
-    .glass-card { width: 100%; max-width: 360px; background: rgba(22, 22, 32, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 22px; display: flex; flex-direction: column; gap: 10px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,0.6); max-height: 92vh; overflow-y: auto; position: relative; }
-    .input-box { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; color: #fff; font-size: 14px; outline: none; user-select: text; }
-    .input-box:focus { border-color: #ff3b5c; background: rgba(255,255,255,0.12); }
-    .btn-gradient { background: linear-gradient(135deg, #ff3b5c 0%, #ff6b8b 100%); color: #fff; border: none; padding: 13px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255,59,92,0.4); }
-    .dp-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto; background: #181822; border: 3px dashed #ff3b5c; cursor: pointer; }
-    
-    #mainApp { display: none; flex-direction: column; width: 100%; height: 100%; height: 100dvh; position: absolute; inset: 0; z-index: 1; overflow: hidden; }
-    .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; flex: none; }
-    .nav-tabs { display: flex; }
-    .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.3s; }
-    .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
-    .top-actions { display:flex; align-items:center; gap:8px; }
-    .icon-btn { width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:#191922;color:#fff;font-size:20px;cursor:pointer; }
-    
-    .menu-panel { position:fixed; z-index:210; display:none; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:8px; box-shadow:0 20px 60px rgba(0,0,0,.9); }
-    .menu-panel button { width:100%; border:0; background:transparent; color:#fff; padding:13px 12px; text-align:left; border-radius:12px; font-size:14px; cursor:pointer; font-weight:600; }
-    .menu-panel button:hover { background:rgba(255,255,255,.08); }
-    
-    .modal { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); backdrop-filter: blur(4px); }
-    .modal-card { width:100%; max-width:390px; max-height:88vh; overflow:auto; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:22px; box-shadow:0 20px 70px rgba(0,0,0,.85); }
-    
-    /* AI Z-Index Fix */
-    #aiModal { z-index: 10005; }
+const express = require('express');
+const http = require('http');
+const https = require('https');
+const { Server } = require('socket.io');
+const path = require('path');
+const crypto = require('crypto');
+const mongoose = require('mongoose');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+const fs = require('fs');
+const os = require('os');
 
-    /* Swipeable Tabs */
-    .panes-wrapper { flex: 1; position: relative; overflow: hidden; display: flex; width: 300%; transition: transform 0.3s ease-out; }
-    .tab-pane { width: 33.333%; height: 100%; display: flex; flex-direction: column; overflow-y: auto; background: #0c0c12; }
-    
-    .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
-    .chat-row:hover { background: rgba(255,255,255,0.02); }
-    .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-    
-    /* Zero-Refresh Chat Slide Animation */
-    #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
-    #chatRoom.active { transform: translateX(0); }
-    
-    .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex: none; }
-    .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 26px; padding: 10px 18px; }
-    .input-wrapper [contenteditable]:empty::before { content: attr(placeholder); color: #888; pointer-events: none; }
-    
-    .btn-circle { width: 46px; height: 46px; border-radius: 50%; background: #ff3b5c; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; font-size: 18px; box-shadow: 0 4px 12px rgba(255,59,92,0.4); }
-    #roomMessages { display:flex; flex-direction:column; gap:6px; background:#0b0b11; padding: 14px; flex: 1; overflow-y: auto; overflow-x: hidden; scroll-behavior: auto; }
-    
-    .msg-bubble { position:relative; max-width:78%; padding:9px 11px 5px; border-radius:12px; font-size:14px; line-height:1.4; word-break:break-word; white-space:pre-wrap; cursor:pointer; }
-    .msg-bubble.mine { align-self:flex-end; background:#ff3b5c; border-bottom-right-radius:4px; }
-    .msg-bubble.theirs { align-self:flex-start; background:#20202a; border-bottom-left-radius:4px; }
-    .msg-time { display:block; text-align:right; font-size:9px; opacity:.7; margin-top:3px; }
-    
-    #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
-    #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
+const app = express();
+const server = http.createServer(app);
 
-    /* Instagram Reels UI */
-    .reels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding-bottom: 20px; }
-    .reel-thumb { width: 100%; aspect-ratio: 9/16; background: #1c1c26; object-fit: cover; cursor: pointer; position: relative; }
-    #reelsViewerModal { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; }
-    #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; }
-    .reel-item { height: 100vh; height: 100dvh; scroll-snap-align: start; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
-    .reel-media { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .reel-overlay { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 15px; }
-    .reel-actions { position: absolute; right: 15px; bottom: 80px; display: flex; flex-direction: column; gap: 20px; pointer-events: auto; }
-    .action-btn { background: transparent; border: none; color: #fff; font-size: 28px; cursor: pointer; text-shadow: 0 2px 5px rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; gap: 5px; transition: transform 0.2s;}
-    .action-btn:active { transform: scale(0.8); }
-    .action-text { font-size: 12px; font-weight: bold; }
-    .heart-anim { position: absolute; font-size: 80px; color: #ff3b5c; opacity: 0; transform: scale(0); transition: all 0.4s ease-out; pointer-events: none; z-index: 10; }
-    .heart-anim.show { opacity: 1; transform: scale(1.2); }
+const io = new Server(server, { 
+  cors: { origin: '*' },
+  maxHttpBufferSize: 5e8 
+});
 
-    .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; cursor:pointer;}
-    
-    #callScreen { position: fixed; inset: 0; background: rgba(12,12,18,0.95); backdrop-filter: blur(20px); z-index: 900; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 20px; text-align: center; }
-    .call-avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); margin-bottom: 20px; animation: pulseCall 2s infinite; }
-    @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
-    .btn-green { background: #00ff88; box-shadow: 0 10px 25px rgba(0,255,136,0.4); }
-    .btn-red { background: #ff3b5c; box-shadow: 0 10px 25px rgba(255,59,92,0.4); }
-    .tap-btn { width: 70px; height: 70px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: transform 0.2s; }
-    .tap-btn:active { transform: scale(0.9); }
-    #localVideo, #remoteVideo { display: none; width: 100px; height: 150px; border-radius: 12px; object-fit: cover; position: absolute; }
-    #remoteVideo { width: 100%; height: 100%; top: 0; left: 0; z-index: -1; opacity: 0.3; }
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-    .mc-ai-btn { position: fixed; bottom: 85px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, #5ac8fa, #007aff); box-shadow: 0 4px 20px rgba(90,200,250,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 18px; cursor: pointer; z-index: 100; border: 2px solid rgba(255,255,255,0.2); transition: transform 0.3s; }
-    .mc-ai-btn:active { transform: scale(0.9); }
-  </style>
-</head>
-<body>
-  <div class="bg-heart-pattern"></div>
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, os.tmpdir()),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'))
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 }
+});
 
-  <!-- CENTERED ALERT MODAL -->
-  <div id="alertModal" class="modal" onclick="closeAlert()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; text-align:center;">
-       <p id="alertText" style="margin-bottom:20px; color:#fff; font-size:15px; font-weight:600;"></p>
-       <button class="btn-gradient" style="width:100%; background: #5ac8fa; color:#000;" onclick="closeAlert()">OK</button>
-    </div>
-  </div>
+let activeUploadSize = 0;
+const MAX_UPLOAD_SIZE = 400 * 1024 * 1024; 
+const uploadQueue = [];
 
-  <!-- CENTERED CONFIRM MODAL -->
-  <div id="confirmModal" class="modal" onclick="closeConfirm()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; text-align:center;">
-       <p id="confirmText" style="margin-bottom:20px; color:#fff; font-size:15px; font-weight:600;"></p>
-       <div style="display:flex; gap:10px;">
-          <button class="btn-gradient" style="flex:1; background:#333; box-shadow:none;" onclick="closeConfirm()">Cancel</button>
-          <button class="btn-gradient" style="flex:1; background:#ff3b5c;" id="confirmBtn">Confirm</button>
-       </div>
-    </div>
-  </div>
+function processUploadQueue() {
+  if (uploadQueue.length === 0) return;
+  const nextUpload = uploadQueue[0];
+  if (activeUploadSize > 0 && (activeUploadSize + nextUpload.file.size) > MAX_UPLOAD_SIZE) return; 
 
-  <div id="imageModal">
-    <button class="close-btn" onclick="closeImageModal()">✕</button>
-    <button id="deleteMediaBtn" class="close-btn" style="right: 60px; color:#ff3b5c; display:none;" onclick="deleteCurrentMedia()">🗑️</button>
-    <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%; transition: all 0.3s ease;"></div>
-  </div>
+  const { file, folder, options, resolve, reject } = uploadQueue.shift();
+  activeUploadSize += file.size;
 
-  <!-- AI MODAL -->
-  <div id="aiModal" class="modal" onclick="closeAiModal()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="display:flex; flex-direction:column; height: 60vh;">
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
-        <h3 id="aiModalTitle" style="color:#5ac8fa;">🤖 MC AI Help</h3>
-        <button class="icon-btn" onclick="closeAiModal()" style="width:30px;height:30px;font-size:14px;background:transparent;border:none;color:#fff;">✕</button>
-      </div>
-      <div id="aiChatWindow" style="flex:1; overflow-y:auto; background:rgba(255,255,255,0.05); border-radius:12px; padding:10px; margin-bottom:10px; display:flex; flex-direction:column; gap:8px;"></div>
-      <div style="display:flex; gap:8px;">
-         <input type="text" id="aiInput" class="input-box" placeholder="Ask AI..." onkeypress="if(event.key==='Enter') sendAiMessage()">
-         <button class="btn-gradient" style="background: linear-gradient(135deg, #5ac8fa, #007aff);" onclick="sendAiMessage()">➤</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="screenAuth" class="screen-flow">
-    <div class="glass-card">
-      <div style="display:flex; justify-content:space-between; width: 100%; align-items:center;">
-         <div style="font-size:34px;">💖</div>
-         <button style="color:#5ac8fa; background:rgba(90,200,250,0.1); border:1px solid #5ac8fa; padding:6px 12px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:13px;" onclick="openAiHelp(authMode)">ℹ️ Help</button>
-      </div>
-      <h3 style="color:#fff; text-align:left;" id="authTitle">Create Account</h3>
-      <div id="viewRegister" style="display:flex; flex-direction:column; gap:10px;">
-        <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDp(this)">
-        <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>" onclick="document.getElementById('dpFileInput').click()">
-        <input type="text" id="regNameInput" class="input-box" placeholder="Your Name (Optional)">
-        <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number * (Compulsory)" maxlength="13">
-        <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID * (e.g. @amit123)">
-        <input type="password" id="regPassInput" class="input-box" placeholder="Password * (8 digits)" maxlength="8">
-        <p style="font-size:11px;color:#ff9aae;margin:2px 0 0 2px;text-align:left;font-weight:600;">* Must provide at least one security answer</p>
-        <input type="text" id="regQ1Input" class="input-box" placeholder="1. Pet's name?">
-        <input type="text" id="regQ2Input" class="input-box" placeholder="2. Best friend?">
-        <button class="btn-gradient" type="button" onclick="handleRegisterCustom()" style="margin-top:4px;">Register Now ➔</button>
-      </div>
-      <div id="viewLogin" style="display:none; flex-direction:column; gap:12px;">
-        <input type="text" id="loginIdInput" class="input-box" placeholder="User ID or Mobile">
-        <input type="password" id="loginPassInput" class="input-box" placeholder="Password" maxlength="8">
-        <button class="btn-gradient" type="button" onclick="handleLogin()">Login</button>
-        <div style="display:flex; justify-content:flex-end; font-size:12px;">
-          <span style="color:#ff6b8b; cursor:pointer;" onclick="openForgotModal()">Forgot ID / Password?</span>
-        </div>
-      </div>
-      <p style="font-size:12px;color:#7e7e92;cursor:pointer;margin-top:6px;" onclick="toggleAuthMode()" id="authSwitchText">Already have an account? Login</p>
-    </div>
-  </div>
-
-  <div id="mainApp">
-    <div class="top-navbar">
-      <div style="font-size:20px;font-weight:800;display:flex;justify-content:space-between;align-items:center;">
-        <span>💖 My Chat App</span>
-        <div class="top-actions">
-          <button class="icon-btn" onclick="toggleAppMenu(event, 'appMenu')" aria-label="Menu">⋮</button>
-        </div>
-      </div>
-      <div class="nav-tabs" id="mainNavTabs">
-        <div class="nav-tab active" onclick="switchTab(0)">CHATS</div>
-        <div class="nav-tab" onclick="switchTab(1)">REELS</div>
-        <div class="nav-tab" onclick="switchTab(2); loadCalls();">CALLS</div>
-      </div>
-    </div>
-
-    <!-- Swipeable Panes -->
-    <div class="panes-wrapper" id="panesWrapper">
-      <div class="tab-pane" id="paneChats">
-        <div style="padding:12px;display:flex;gap:8px;flex:none;">
-          <input type="text" id="directSearchInput" class="input-box" placeholder="Search @userid or mobile">
-          <button class="btn-gradient" onclick="openDirectChat()">Add</button>
-        </div>
-        <div id="chatsList" style="flex:1; overflow-y:auto;"></div>
-      </div>
-
-      <div class="tab-pane" id="paneStatus">
-        <div style="padding:16px;">
-          <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
-          <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <div id="myStatusRing" class="progress-ring" onclick="document.getElementById('statusMediaInput').click()">+</div>
-            <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
-              <div style="font-weight:700; font-size:15px; color:#fff;">Post a Reel</div>
-              <div style="font-size:12px; color:#7e7e92; margin-top:2px;">Max 30s video or photo</div>
-            </div>
-          </div>
-          <div id="reelsGridArea" class="reels-grid"></div>
-        </div>
-      </div>
-
-      <div class="tab-pane" id="paneCalls">
-        <div id="callsList" style="padding:16px; display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
-    </div>
-    
-    <div class="mc-ai-btn" onclick="openAiHelp('general')">MC</div>
-  </div>
-
-  <!-- Reels Viewer -->
-  <div id="reelsViewerModal">
-     <div style="position:absolute; top:20px; left:20px; z-index:1001; font-weight:800; font-size:20px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">Reels</div>
-     <button class="icon-btn" onclick="closeReelsViewer()" style="position:absolute; top:20px; right:20px; z-index:1001; background:transparent; border:none;">✕</button>
-     <div id="reelsScrollArea"></div>
-  </div>
-
-  <div id="contactMenuModal" class="modal" onclick="closeContactMenu()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
-      <h3 id="cmName" style="margin-bottom:16px; text-align:center; color:#fff;"></h3>
-      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff9aae; color:#171720;" onclick="deleteContactAction()">🗑️ Delete Chat</button>
-      <button class="btn-gradient" style="width:100%; margin-bottom:12px; background:#ff3b5c;" onclick="blockContactAction()">🚫 Block User</button>
-      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeContactMenu()">✕</button>
-    </div>
-  </div>
-
-  <div id="msgActionModal" class="modal" onclick="closeMsgActionMenu()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
-      <h3 style="margin-bottom:16px; text-align:center; color:#fff;">Message Actions</h3>
-      <button class="btn-gradient" id="btnCopyMsg" style="width:100%; margin-bottom:12px; background:#1c1c26; border:1px solid #ff3b5c;">📋 Copy Text</button>
-      <button class="btn-gradient" id="btnDelMe" style="width:100%; margin-bottom:12px; background:#ff9aae; color:#171720;">🗑️ Delete for me</button>
-      <button class="btn-gradient" id="btnDelEveryone" style="width:100%; margin-bottom:12px; background:#ff3b5c;">🚫 Delete for everyone</button>
-      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMsgActionMenu()">✕</button>
-    </div>
-  </div>
-
-  <div id="appMenu" class="menu-panel" style="top:62px; right:12px; width:250px;">
-    <button onclick="openMyProfile()">👤 Edit Profile</button>
-    <button onclick="openBlockedModal()">🚫 Blocked Users</button>
-    <button class="danger" onclick="logoutApp()" style="color:#ff6b8b;">🚪 Logout</button>
-  </div>
-  
-  <div id="reelMenu" class="menu-panel" style="width:150px; z-index:1005;">
-     <button id="btnReelEdit" onclick="editReelAction()">✏️ Edit</button>
-     <button id="btnReelPrivacy" onclick="privacyReelAction()">🔒 Privacy</button>
-     <button id="btnReelDelete" onclick="deleteReelAction()" style="color:#ff3b5c;">🗑️ Delete</button>
-  </div>
-
-  <div id="blockedModal" class="modal" onclick="closeBlockedModal()">
-    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:350px;">
-       <h3 style="text-align:center;margin-bottom:14px;">Blocked Users</h3>
-       <div id="blockedListArea" style="display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow-y:auto;"></div>
-       <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeBlockedModal()">✕</button>
-    </div>
-  </div>
-
-  <!-- Zero Refresh Chat Room -->
-  <div id="chatRoom" style="display: none;">
-    <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
-      <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
-      <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onmousedown="startDpPress(event, this.src, currentChatTarget.userCode)" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, currentChatTarget.userCode)" ontouchend="cancelDpPress()">
-      <div style="flex:1;">
-        <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
-        <div id="roomUserStatus" style="font-size:11px;color:#7e7e92;">Connecting...</div>
-      </div>
-      
-      <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-right:8px;" onclick="startCall()">📞</button>
-
-      <div style="position:relative;">
-        <button class="icon-btn" onclick="toggleAppMenu(event, 'chatRoomMenu')" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
-        <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0; width:160px;">
-          <button onclick="clearCurrentChat()" style="color:#ff9aae;">🧹 Clear Chat</button>
-        </div>
-      </div>
-    </div>
-    
-    <div id="roomMessages"></div>
-    
-    <div class="bottom-input-bar">
-      <div class="input-wrapper">
-        <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto; word-break: break-word; white-space: pre-wrap;"></div>
-      </div>
-      
-      <div style="position:relative;">
-        <button class="icon-btn" onclick="toggleAppMenu(event, 'attachMenu')" style="background:#1c1c26;border:none;">📎</button>
-        <div id="attachMenu" class="menu-panel" style="bottom:55px; right:0; width:160px; top:auto;">
-          <button onclick="document.getElementById('chatMediaImg').click()">🖼️ Photo</button>
-          <button onclick="document.getElementById('chatMediaVid').click()">🎥 Video</button>
-          <button onclick="document.getElementById('chatMediaDoc').click()">📄 File/Doc</button>
-        </div>
-      </div>
-      
-      <button class="btn-circle" onclick="sendChatMessage()">➤</button>
-
-      <input type="file" id="chatMediaImg" style="display:none" accept="image/*" onchange="sendMediaFile(this, 'image')">
-      <input type="file" id="chatMediaVid" style="display:none" accept="video/*" onchange="sendMediaFile(this, 'video')">
-      <input type="file" id="chatMediaDoc" style="display:none" accept=".pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this, 'document')">
-    </div>
-  </div>
-
-  <div id="callScreen">
-    <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo" autoplay playsinline muted></video>
-    <h2 id="callName" style="margin-bottom: 5px; font-weight: 800; font-size: 24px;">Name</h2>
-    <p id="callStatusText" style="margin-bottom: 30px; color: #00ff88; font-weight: 600; font-size: 14px;">Calling...</p>
-    <img id="callAvatar" class="call-avatar" src="">
-    
-    <div id="callTimeDisplay" style="margin-bottom: 20px; font-size: 16px; font-weight: 600; color: #fff; display: none;">00:00</div>
-    
-    <div id="callReceiverUI" style="display: none; width:100%; max-width:250px; justify-content: space-between; margin-top: auto; margin-bottom: 40px;">
-       <button class="tap-btn btn-red" id="btnRejectCall" style="font-size:35px; transform: rotate(135deg);">📞</button>
-       <button class="tap-btn btn-green" id="btnAcceptCall" style="font-size:35px;">📞</button>
-    </div>
-
-    <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px; display:flex; justify-content:center; width:100%;">
-       <button class="tap-btn btn-red" onclick="endCall()" style="font-size:35px; transform: rotate(135deg);">📞</button>
-    </div>
-  </div>
-
-  <div id="myProfileModal" class="modal" onclick="closeMyProfile()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <h3 style="text-align:center;margin-bottom:14px;">Edit Profile</h3>
-      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="changeMyAvatar(this)">
-      
-      <div style="position:relative; width:90px; height:90px; margin:0 auto 12px;">
-        <img id="myProfileAvatar" src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid #ff3b5c;cursor:pointer;" onclick="openFullScreenImage(this.src)">
-        <div style="position:absolute; bottom:0; right:-5px; background:#ff3b5c; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:2px solid #171720; box-shadow:0 2px 10px rgba(0,0,0,0.5);" onclick="document.getElementById('profileAvatarInput').click()">📷</div>
-      </div>
-
-      <input id="myProfileName" class="input-box" placeholder="Full Name" style="margin-bottom:8px;">
-      <input id="myProfileId" class="input-box" readonly title="Cannot change User ID" style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="User ID">
-      <input id="myProfileMobile" class="input-box" readonly title="Cannot change Mobile" style="margin-bottom:8px; opacity:0.6; cursor:not-allowed;" placeholder="Mobile Number">
-      <input id="myProfileQ1" class="input-box" placeholder="1. Pet's name?" style="margin-bottom:8px;">
-      <input id="myProfileQ2" class="input-box" placeholder="2. Best friend?" style="margin-bottom:12px;">
-
-      <button class="btn-gradient" style="width:100%" onclick="saveMyProfile()">Save Profile</button>
-      <button class="icon-btn" style="margin:12px auto 0;display:block" onclick="closeMyProfile()">✕</button>
-    </div>
-  </div>
-
-  <div id="forgotModal" class="modal" onclick="closeForgotModal()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-         <h3>Recover Account</h3>
-         <button style="color:#5ac8fa; background:rgba(90,200,250,0.1); border:1px solid #5ac8fa; padding:4px 10px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:12px;" onclick="openAiHelp('forgot')">ℹ️ Help</button>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <input type="tel" id="recMobileInput" class="input-box" placeholder="Registered Mobile *">
-        <input type="text" id="recQ1Input" class="input-box" placeholder="1. Pet's name">
-        <input type="text" id="recQ2Input" class="input-box" placeholder="2. Best friend">
-        <input type="password" id="recNewPassInput" class="input-box" placeholder="New 8-digit Password" maxlength="8">
-        <input type="password" id="recConfirmPassInput" class="input-box" placeholder="Confirm New Password" maxlength="8">
-        <button class="btn-gradient" onclick="submitRecovery()">Reset & Login</button>
-      </div>
-      <button class="icon-btn" style="margin:14px auto 0; display:block;" onclick="closeForgotModal()">✕</button>
-    </div>
-  </div>
-
-  <script>
-    const socket = io({ transports: ['websocket', 'polling'], reconnection: true });
-    const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
-
-    let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
-    let unreadMap = {}; let activeContactMenuTarget = null; let globalContacts = [];
-
-    // --- ALERTS & CONFIRM MODALS ---
-    function showToast(msg) { document.getElementById('alertText').textContent = msg; document.getElementById('alertModal').style.display = 'flex'; }
-    function closeAlert() { document.getElementById('alertModal').style.display = 'none'; }
-    let confirmAction = null;
-    function showConfirm(msg, callback) { document.getElementById('confirmText').textContent = msg; document.getElementById('confirmModal').style.display = 'flex'; confirmAction = callback; }
-    function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; confirmAction = null; }
-    document.getElementById('confirmBtn').onclick = () => { if(confirmAction) confirmAction(); closeConfirm(); };
-
-    // --- MENUS: CLOSE ON OUTSIDE CLICK ---
-    document.addEventListener('click', (e) => {
-        document.querySelectorAll('.menu-panel').forEach(menu => {
-            if (menu.style.display === 'block' && !menu.contains(e.target)) {
-                if(!e.target.classList.contains('icon-btn') && !e.target.closest('.icon-btn')) {
-                    menu.style.display = 'none';
-                }
-            }
-        });
+  cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder, quality: 'auto:eco', fetch_format: 'auto', ...options })
+    .then(result => {
+      activeUploadSize -= file.size; 
+      fs.unlink(file.path, () => {}); 
+      resolve(result);
+      processUploadQueue(); 
+    })
+    .catch(err => {
+      activeUploadSize -= file.size; 
+      fs.unlink(file.path, () => {}); 
+      reject(err);
+      processUploadQueue(); 
     });
-    function toggleAppMenu(e, menuId) { 
-      e.stopPropagation(); 
-      document.querySelectorAll('.menu-panel').forEach(m => { if (m.id !== menuId) m.style.display = 'none'; });
-      const m = document.getElementById(menuId); 
-      m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
-    }
+}
 
-    // --- SWIPEABLE TABS LOGIC ---
-    let currentTabIndex = 0;
-    const panesWrapper = document.getElementById('panesWrapper');
-    const navTabs = document.querySelectorAll('#mainNavTabs .nav-tab');
-    function switchTab(index) {
-        currentTabIndex = index;
-        panesWrapper.style.transform = `translateX(-${index * 33.333}%)`;
-        navTabs.forEach((t, i) => t.classList.toggle('active', i === index));
-    }
-    let touchStartX = 0, touchEndX = 0;
-    panesWrapper.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
-    panesWrapper.addEventListener('touchend', e => {
-        touchEndX = e.changedTouches[0].screenX;
-        const delta = touchStartX - touchEndX;
-        if(delta > 60 && currentTabIndex < 2) switchTab(currentTabIndex + 1); 
-        else if(delta < -60 && currentTabIndex > 0) switchTab(currentTabIndex - 1); 
-    });
+function queuedCloudinaryUpload(file, folder, options = {}) {
+  return new Promise((resolve, reject) => {
+    uploadQueue.push({ file, folder, options, resolve, reject });
+    processUploadQueue();
+  });
+}
 
-    // --- AI LOGIC (WITH LOCAL INTERCEPTION) ---
-    let currentAiContext = 'general';
-    function openAiHelp(context) {
-       currentAiContext = context; document.getElementById('aiModal').style.display = 'flex';
-       const titles = { 'reg': 'Registration Help', 'login': 'Login Help', 'forgot': 'Recovery Help', 'general': 'My Chat AI' };
-       document.getElementById('aiModalTitle').textContent = '🤖 ' + (titles[context] || 'Help');
-       document.getElementById('aiChatWindow').innerHTML = '<div style="color:#00ff88; font-size:13px; text-align:center;">Ask your question below!</div>';
-    }
-    function closeAiModal() { document.getElementById('aiModal').style.display = 'none'; }
+const uploadTokens = new Map();
+function makeUploadToken(userCode) {
+  const token = crypto.randomBytes(32).toString('hex');
+  uploadTokens.set(token, { userCode: String(userCode).toLowerCase(), expiresAt: Date.now() + 30 * 60 * 1000 });
+  return token;
+}
+function validateUploadToken(token, userCode) {
+  const row = uploadTokens.get(String(token || ''));
+  if (!row || row.expiresAt < Date.now() || row.userCode !== String(userCode || '').toLowerCase()) return false;
+  return true;
+}
+
+function getCloudinaryPublicId(url) {
+   try {
+      const parts = url.split('/');
+      const file = parts.pop();
+      const folder = parts.pop();
+      return folder + '/' + file.split('.')[0];
+   } catch(e) { return null; }
+}
+
+app.post('/api/upload-media', upload.single('media'), async (req, res) => {
+  try {
+    const userCode = String(req.headers['x-user-code'] || '').trim().toLowerCase();
+    const token = String(req.headers['x-upload-token'] || '');
+    const isStatus = req.headers['x-is-status'] === 'true'; 
     
-    function sendAiMessage() {
-       const input = document.getElementById('aiInput');
-       const text = input.value.trim(); if(!text) return;
-       const windowEl = document.getElementById('aiChatWindow');
-       
-       windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 14px; border-radius:16px; border-bottom-right-radius:4px; max-width:85%; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.3);">${escapeHtml(text)}</div>`);
-       input.value = ''; windowEl.scrollTo(0, windowEl.scrollHeight);
-       
-       const lower = text.toLowerCase();
-       const isGreeting = /^(hi|hello|hey|namaste|kaise ho|aur batao)/.test(lower);
-
-       if (currentAiContext === 'reg') return appendAiReply("मैं आपकी अकाउंट बनाने में मदद कर सकता हूँ। कृपया 10 अंकों का मोबाइल नंबर, एक User ID (@ से शुरू), 8 अंकों का पासवर्ड और एक सिक्योरिटी सवाल भरें।");
-       if (currentAiContext === 'login') return appendAiReply("लॉगिन करने के लिए अपना User ID या रजिस्टर्ड मोबाइल नंबर और 8-अंकों का पासवर्ड दर्ज करें।");
-       if (currentAiContext === 'forgot') return appendAiReply("पासवर्ड रिसेट करने के लिए अपना मोबाइल नंबर और अपना सेट किया हुआ सिक्योरिटी सवाल (जैसे Pet's name) का सही जवाब डालें। फिर नया 8-डिजिट का पासवर्ड बनाएं।");
-       if (isGreeting) return appendAiReply("नमस्ते! मैं MC AI हूँ। मैं इस चैट ऐप के फीचर्स (Chat, Call, Reels) में आपकी क्या मदद कर सकता हूँ?");
-
-       socket.emit('ask-mc-ai', { prompt: text, context: currentAiContext }, res => {
-          if(res?.success) { appendAiReply(res.text.replace(/\n/g,'<br>')); } 
-          else { appendAiReply(res.error || 'Failed to connect to AI.', true); }
-       });
+    if (!userCode || !validateUploadToken(token, userCode)) {
+       if (req.file) fs.unlink(req.file.path, () => {});
+       return res.status(401).json({ success:false, error:'Upload session expired.' });
     }
-    function appendAiReply(htmlContent, isError = false) {
-       const windowEl = document.getElementById('aiChatWindow');
-       const color = isError ? '#ff3b5c' : '#20202a';
-       windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:${color}; border:1px solid rgba(255,255,255,0.1); padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px; max-width:85%; font-size:14px;">${htmlContent}</div>`);
-       windowEl.scrollTo(0, windowEl.scrollHeight);
+    if (!req.file) return res.status(400).json({ success:false, error:'No media file received.' });
+    
+    const user = await User.findOne({ userCode }).lean();
+    if (!user) {
+       fs.unlink(req.file.path, () => {});
+       return res.status(401).json({ success:false, error:'User not found.' });
     }
 
-    // --- IDB CACHE ---
-    const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
-    let dbPromise = null;
-    function openLocalDB() {
-      if (dbPromise) return dbPromise;
-      dbPromise = new Promise((resolve) => {
-        if (!('indexedDB' in window)) return resolve(null);
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = () => {
-          const db = req.result;
-          if (!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: 'key' });
-          if (!db.objectStoreNames.contains(APP_STORE)) db.createObjectStore(APP_STORE, { keyPath: 'key' });
-        };
-        req.onsuccess = () => resolve(req.result); req.onerror = () => resolve(null);
-      }); return dbPromise;
+    const uploadOptions = isStatus && req.file.mimetype.startsWith('video/') ? { duration: 30 } : {};
+    const result = await queuedCloudinaryUpload(req.file, isStatus ? 'chat_app_status' : 'chat_app_media', uploadOptions);
+    
+    if (isStatus) {
+       await Status.findOneAndUpdate(
+         { userCode }, 
+         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: result.secure_url, type: result.resource_type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: '', privacy: 'all' } } },
+         { upsert: true }
+       );
     }
-    async function idbPut(storeName, value) { const db = await openLocalDB(); if (!db) return; return new Promise(resolve => { const tx = db.transaction(storeName, 'readwrite'); tx.objectStore(storeName).put(value); tx.oncomplete = () => resolve(true); }); }
-    async function idbGet(storeName, key) { const db = await openLocalDB(); if (!db) return null; return new Promise(resolve => { const tx = db.transaction(storeName, 'readonly'); const req = tx.objectStore(storeName).get(key); req.onsuccess = () => resolve(req.result || null); }); }
+    
+    return res.json({ success:true, url:result.secure_url, resourceType:result.resource_type, bytes:req.file.size });
+  } catch (e) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    return res.status(500).json({ success:false, error:'Media upload failed.' });
+  }
+});
 
-    async function saveMessagesLocal(userCode, messages) { if (!currentUserData) return; await idbPut(CHAT_STORE, { key: 'messages:' + currentUserData.userCode + ':' + String(userCode).toLowerCase(), messages: Array.isArray(messages) ? messages : [] }); }
-    async function getMessagesLocal(userCode) { if (!currentUserData) return []; const row = await idbGet(CHAT_STORE, 'messages:' + currentUserData.userCode + ':' + String(userCode).toLowerCase()); return row?.messages || []; }
-    async function saveContactsLocal(contacts) { if (!currentUserData) return; await idbPut(APP_STORE, { key: 'contacts:' + currentUserData.userCode, contacts: Array.isArray(contacts) ? contacts : [] }); }
-    async function getContactsLocal() { if (!currentUserData) return []; const row = await idbGet(APP_STORE, 'contacts:' + currentUserData.userCode); return row?.contacts || []; }
+cloudinary.config({
+  cloud_name: 'gr8tp1tg',
+  api_key: '668573837891895',
+  api_secret: 'dTJqIvLUKWLJUft-FH8rpnIPlYs'
+});
 
-    // --- KEEP ALIVE ---
-    function keepAlivePing() { if (socket.connected && currentUserData) { socket.emit('ping-server'); } setTimeout(keepAlivePing, 20000); }
-    keepAlivePing(); 
-    function forceSilentSync() { if (currentUserData) { if (!socket.connected) socket.connect(); syncContacts(); if (currentChatTarget) syncCurrentChat(true); } }
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") forceSilentSync(); });
-    window.addEventListener("focus", forceSilentSync); window.addEventListener("online", forceSilentSync);
+app.get('/health', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
-    // --- AUTH LOGIC ---
-    window.addEventListener('DOMContentLoaded', async () => {
-      const savedUser = localStorage.getItem('chatAppUser');
-      if (savedUser) {
-        try {
-          currentUserData = JSON.parse(savedUser);
-          if (currentUserData?.userCode) {
-            socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
-            launchMainApp(false);
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
+mongoose.connect(MONGO_URI).then(() => console.log('MongoDB connected')).catch(e => console.error(e));
+
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
+
+const userSchema = new mongoose.Schema({
+  userCode: { type: String, unique: true, required: true, lowercase: true },
+  password: { type: String, required: true },
+  fullName: { type: String, default: 'User' },
+  mobile: { type: String, required: true },
+  avatar: { type: String, default: DEFAULT_AVATAR },
+  secQ1: { type: String, default: '' },
+  secQ2: { type: String, default: '' },
+  contacts: { type: [String], default: [] },
+  blockedUsers: { type: [String], default: [] },
+  lastSeen: { type: Date, default: Date.now }
+});
+const User = mongoose.model('User', userSchema);
+
+const messageSchema = new mongoose.Schema({
+  messageId: { type: String, unique: true, required: true, index: true },
+  senderCode: { type: String, required: true, index: true, lowercase: true },
+  receiverCode: { type: String, required: true, index: true, lowercase: true },
+  text: { type: String, default: '' },
+  media: { type: String, default: '' },
+  messageType: { type: String, default: 'text' },
+  fileName: { type: String, default: '' },
+  status: { type: String, default: 'sent' },
+  createdAt: { type: Date, default: Date.now, index: true },
+  deletedFor: { type: [String], default: [] } 
+});
+const Message = mongoose.model('Message', messageSchema);
+
+// Reels Schema 
+const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
+const statusItemSchema = new mongoose.Schema({ 
+    id: String, media: String, type: String, time: String, expiresAt: Date, 
+    viewers: [viewerSchema], likes: { type: [String], default: [] }, caption: { type: String, default: '' }, privacy: { type: String, default: 'all' } 
+}, { _id: false });
+const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
+const Status = mongoose.model('Status', statusSchema);
+
+const callLogSchema = new mongoose.Schema({
+  callerCode: { type: String, required: true, lowercase: true },
+  callerName: String,
+  receiverCode: { type: String, required: true, lowercase: true },
+  receiverName: String,
+  status: String, 
+  duration: String, 
+  timestamp: { type: Date, default: Date.now }
+});
+const CallLog = mongoose.model('CallLog', callLogSchema);
+
+const userSockets = new Map();
+const pendingCalls = new Map(); 
+
+io.on('connection', (socket) => {
+  let currentUserCode = null;
+
+  socket.on('set-socket-user', async ({ userCode }, callback) => {
+    if (userCode) {
+      currentUserCode = String(userCode).trim().toLowerCase();
+      socket.join(currentUserCode);
+      
+      if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
+      userSockets.get(currentUserCode).add(socket.id);
+      User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
+      io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
+      const pending = pendingCalls.get(currentUserCode);
+      if(pending && pending.expiry > Date.now()) {
+          const caller = await User.findOne({ userCode: pending.callerCode }).lean();
+          if(caller) {
+              io.to(currentUserCode).emit('incoming-call', { callerCode: pending.callerCode, callerName: caller.fullName, callerAvatar: caller.avatar, offer: pending.offer });
+              io.to(pending.callerCode).emit('call-status', { status: 'Ringing...', targetCode: currentUserCode });
           }
-        } catch (e) { localStorage.removeItem('chatAppUser'); }
+          pendingCalls.delete(currentUserCode);
       }
-    });
 
-    socket.on('connect', () => {
-      if (currentUserData && currentUserData.userCode) {
-        socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
-        syncContacts(); if (currentChatTarget) syncCurrentChat(true); 
+      const token = makeUploadToken(currentUserCode);
+      if (typeof callback === 'function') callback({ success: true, token });
+    }
+  });
+
+  socket.on('typing', ({ targetCode }) => { if(currentUserCode) io.to(targetCode).emit('typing', { senderCode: currentUserCode }); });
+  socket.on('stop-typing', ({ targetCode }) => { if(currentUserCode) io.to(targetCode).emit('stop-typing', { senderCode: currentUserCode }); });
+
+  socket.on('check-status', async ({ targetCode }, cb) => {
+    const isOnline = userSockets.has(targetCode);
+    if (isOnline) return cb({ isOnline: true });
+    try { const u = await User.findOne({ userCode: targetCode }, 'lastSeen').lean(); cb({ isOnline: false, lastSeen: u?.lastSeen }); } 
+    catch(e) { cb({ isOnline: false }); }
+  });
+
+  socket.on('register-custom', async (data, callback) => {
+    try {
+      const rawId = String(data.userCode || '').trim().toLowerCase();
+      const existingUser = await User.findOne({ $or: [{ userCode: rawId }, { mobile: data.mobile.trim() }] });
+      if (existingUser) return callback({ success: false, error: 'User ID or Mobile is already registered.' });
+
+      const newUser = await User.create({
+        userCode: rawId, password: data.password.trim(), fullName: data.fullName?.trim() || 'User',
+        mobile: data.mobile.trim(), avatar: DEFAULT_AVATAR, secQ1: data.q1?.trim().toLowerCase() || '', secQ2: data.q2?.trim().toLowerCase() || ''
+      });
+      
+      currentUserCode = rawId; socket.join(rawId);
+      if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
+      userSockets.get(currentUserCode).add(socket.id);
+      io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
+      callback({ success: true, user: newUser }); 
+
+      if (data.avatar && data.avatar.startsWith('data:image')) {
+        cloudinary.uploader.upload(data.avatar, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
+          .then(uploadRes => User.updateOne({ userCode: rawId }, { avatar: uploadRes.secure_url }).exec())
+          .catch(e => console.error(e));
       }
-    });
+    } catch (e) { callback({ success: false, error: 'Registration error.' }); }
+  });
 
-    function toggleAuthMode() {
-      authMode = authMode === 'login' ? 'reg' : 'login';
-      document.getElementById('viewRegister').style.display = authMode === 'reg' ? 'flex' : 'none';
-      document.getElementById('viewLogin').style.display = authMode === 'login' ? 'flex' : 'none';
-      document.getElementById('authTitle').textContent = authMode === 'reg' ? 'Create Account' : 'Welcome Back';
-      document.getElementById('authSwitchText').textContent = authMode === 'reg' ? 'Already have an account? Login' : 'New here? Register Account';
-    }
-
-    function previewDp(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; }; reader.readAsDataURL(file); }
-    function changeMyAvatar(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; }; reader.readAsDataURL(file); }
-    
-    function handleRegisterCustom() {
-      const name = document.getElementById('regNameInput').value.trim();
-      const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
-      const userId = document.getElementById('regUserIdInput').value.trim().toLowerCase();
-      const pass = document.getElementById('regPassInput').value.trim();
-      const q1 = document.getElementById('regQ1Input').value.trim();
-      const q2 = document.getElementById('regQ2Input').value.trim();
-
-      if (mobile.length < 10) return showToast('Valid mobile required');
-      if (!userId.startsWith('@') || userId.length < 5) return showToast('User ID must start with @');
-      if (pass.length !== 8) return showToast('Password must be 8 digits');
-      if (!q1 && !q2) return showToast('Provide at least one security answer');
-
-      showToast('Creating account...');
-      socket.emit('register-custom', { userCode: userId, password: pass, fullName: name, mobile, avatar: regDpBase64, q1, q2 }, res => {
-        closeAlert();
-        if (res?.success) {
-          currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          socket.emit('set-socket-user', { userCode: currentUserData.userCode }, r => { if (r?.token) uploadToken = r.token; });
-          launchMainApp(true);
-        } else showToast(res?.error || 'Failed');
-      });
-    }
-
-    function handleLogin() {
-      const id = document.getElementById('loginIdInput').value.trim();
-      const pass = document.getElementById('loginPassInput').value.trim();
-      if (!id || !pass) return showToast('Enter ID and password');
-      showToast('Logging in...');
-      socket.emit('auth-user', { userCode: id, password: pass }, res => {
-        closeAlert();
-        if (res?.success) {
-          currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-          socket.emit('set-socket-user', { userCode: currentUserData.userCode }, r => { if (r?.token) uploadToken = r.token; });
-          launchMainApp(true);
-        } else showToast(res?.error || 'Invalid credentials');
-      });
-    }
-
-    function launchMainApp(showWelcome) { 
-      document.getElementById('screenAuth').style.display = 'none'; 
-      document.getElementById('mainApp').style.display = 'flex'; 
-      if (showWelcome) showToast('Welcome to My Chat 💖');
-      loadContacts(); loadAllReels(); loadCalls();
-    }
-
-    function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-    function escapeAttr(v) { return escapeHtml(v).replace(/`/g,'&#96;'); }
-
-    // --- LONG PRESS ON CONTACT LOGIC ---
-    let pressTimer;
-    function startContactPress(e, userCode, name) {
-      pressTimer = setTimeout(() => {
-        activeContactMenuTarget = userCode;
-        document.getElementById('cmName').textContent = name;
-        document.getElementById('contactMenuModal').style.display = 'flex';
-      }, 600);
-    }
-    function cancelPress() { clearTimeout(pressTimer); }
-    function closeContactMenu() { document.getElementById('contactMenuModal').style.display = 'none'; activeContactMenuTarget = null; }
-    
-    function blockContactAction() {
-      if(!activeContactMenuTarget) return;
-      socket.emit('block-user', { targetCode: activeContactMenuTarget }, res => {
-        if(res?.success) {
-           globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
-           renderContacts(globalContacts); showToast('User Blocked'); closeContactMenu();
-        }
-      });
-    }
-    function deleteContactAction() {
-      if(!activeContactMenuTarget) return;
-      showConfirm("Delete this chat permanently?", () => {
-         socket.emit('delete-contact', { targetCode: activeContactMenuTarget }, async res => {
-           if(res?.success) {
-              await saveMessagesLocal(activeContactMenuTarget, []); 
-              globalContacts = globalContacts.filter(c => c.userCode !== activeContactMenuTarget);
-              renderContacts(globalContacts); showToast('Chat Deleted'); closeContactMenu();
-           }
-         });
-      });
-    }
-
-    // --- BLOCKED USERS LOGIC ---
-    function openBlockedModal() {
-       document.getElementById('appMenu').style.display = 'none';
-       socket.emit('get-blocked-users', {}, res => {
-          if(res?.success) {
-             const area = document.getElementById('blockedListArea');
-             area.innerHTML = res.users.map(u => `
-                <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:12px;">
-                   <img src="${escapeAttr(u.avatar)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
-                   <div style="flex:1;font-weight:bold;">${escapeHtml(u.name)}</div>
-                   <button style="background:#5ac8fa; color:#000; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="unblockUser('${u.userCode}')">Unblock</button>
-                </div>
-             `).join('') || '<p style="text-align:center;color:#888;">No blocked users.</p>';
-             document.getElementById('blockedModal').style.display = 'flex';
-          }
-       });
-    }
-    function closeBlockedModal() { document.getElementById('blockedModal').style.display = 'none'; }
-    function unblockUser(code) {
-       socket.emit('unblock-user', {targetCode: code}, res => {
-          if(res?.success) { showToast('User Unblocked'); openBlockedModal(); syncContacts(); }
-       });
-    }
-
-    // --- LONG PRESS ON DP / IMAGE LOGIC ---
-    let dpPressTimer;
-    let isLongPress = false;
-    function startDpPress(e, src, userCode) {
-      isLongPress = false;
-      dpPressTimer = setTimeout(() => { isLongPress = true; openFullScreenImage(src); }, 600);
-    }
-    function cancelDpPress() { clearTimeout(dpPressTimer); }
-    
-    function openFullScreenImage(src) { 
-      const container = document.getElementById('mediaContainer');
-      container.innerHTML = `<img src="${src}" onclick="toggleDpSize(this, event)" style="max-width:180px; max-height:180px; object-fit:cover; border-radius:50%; transition: all 0.3s; cursor:pointer; box-shadow:0 10px 40px rgba(0,0,0,0.9); border: 2px solid rgba(255,255,255,0.2);">`;
-      document.getElementById('imageModal').style.display = 'flex'; 
-    }
-    function toggleDpSize(imgEl, e) {
-       e.stopPropagation();
-       if(imgEl.style.maxWidth === '180px') {
-          imgEl.style.maxWidth = '100%'; imgEl.style.maxHeight = '100vh'; imgEl.style.borderRadius = '4px'; imgEl.style.objectFit = 'contain'; imgEl.style.border = 'none';
-       } else {
-          imgEl.style.maxWidth = '180px'; imgEl.style.maxHeight = '180px'; imgEl.style.borderRadius = '50%'; imgEl.style.objectFit = 'cover'; imgEl.style.border = '2px solid rgba(255,255,255,0.2)';
-       }
-    }
-    function closeImageModal() { document.getElementById('mediaContainer').innerHTML = ''; document.getElementById('imageModal').style.display = 'none'; }
-
-    // --- CONTACTS & ZERO-REFRESH CHAT ---
-    function renderContacts(contacts) {
-      globalContacts = Array.isArray(contacts) ? contacts : [];
-      const list = document.getElementById('chatsList');
-      const newHtml = globalContacts.length ? globalContacts.map(c => {
-        const unreadCount = unreadMap[c.userCode] || 0;
-        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;">${unreadCount} Messages</div>` : '';
-        const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
-        return `
-        <div class="chat-row" 
-             onmousedown="startContactPress(event, '${escapeAttr(c.userCode)}', '${escapeAttr(c.name)}')" onmouseup="cancelPress()" onmouseleave="cancelPress()" 
-             ontouchstart="startContactPress(event, '${escapeAttr(c.userCode)}', '${escapeAttr(c.name)}')" ontouchend="cancelPress()"
-             onclick="if(!isLongPress) openChatWith('${escapeAttr(c.userCode)}', '${escapeAttr(c.name)}', '${escapeAttr(userAvatar)}')">
-          <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'" onmousedown="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" ontouchend="cancelDpPress()">
-          <div style="flex:1; pointer-events:none;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
-          <div>${unreadBadge}</div>
-        </div>`;
-      }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet.</div>';
-      if(list.innerHTML !== newHtml) { list.innerHTML = newHtml; } 
-    }
-
-    function loadContacts() { getContactsLocal().then(l => { if(l.length) renderContacts(l); }); syncContacts(); }
-    function syncContacts() { if (currentUserData?.userCode && socket.connected) socket.emit('get-contacts'); }
-    socket.on('contact-list-data', async ({ contacts }) => { contacts.forEach(c => { unreadMap[c.userCode] = c.unreadCount || 0; }); await saveContactsLocal(contacts); renderContacts(contacts); });
-
-    function openDirectChat() {
-      const query = document.getElementById('directSearchInput').value.trim(); if (!query) return;
-      socket.emit('open-direct-chat', { targetCode: query, query }, res => {
-        if (res?.success) {
-          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0 };
-          globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
-          renderContacts(globalContacts); openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
-        } else showToast(res?.error || 'User not found');
-      });
-    }
-
-    function updateRoomStatusUI(isOnline, lastSeen) {
-       const statusEl = document.getElementById('roomUserStatus');
-       if (isOnline) { statusEl.innerHTML = '<span style="color:#00ff88;">Online</span>'; } 
-       else {
-          if (lastSeen) {
-             const date = new Date(lastSeen); const isToday = new Date().toDateString() === date.toDateString();
-             const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             statusEl.innerHTML = `<span style="color:#7e7e92;">Last seen ${isToday ? 'today at' : date.toLocaleDateString() + ' at'} ${time}</span>`;
-          } else { statusEl.innerHTML = `<span style="color:#7e7e92;">Offline</span>`; }
-       }
-    }
-    
-    function checkUserStatus(targetCode) {
-      socket.emit('check-status', { targetCode }, res => {
-         if (!currentChatTarget || currentChatTarget.userCode !== targetCode) return;
-         updateRoomStatusUI(res.isOnline, res.lastSeen);
-      });
-    }
-    socket.on('user-status-changed', ({ userCode, isOnline, lastSeen }) => {
-       if (currentChatTarget && currentChatTarget.userCode === userCode) { updateRoomStatusUI(isOnline, lastSeen); }
-    });
-
-    async function openChatWith(uCode, name, avatar) {
-      const cleanCode = String(uCode).toLowerCase();
-      currentChatTarget = { userCode: cleanCode, name: name || 'User', avatar: avatar || DEFAULT_AVATAR };
-      unreadMap[cleanCode] = 0; renderContacts(globalContacts); 
-      socket.emit('mark-all-read', { senderCode: cleanCode }); 
-
-      document.getElementById('roomUserName').textContent = currentChatTarget.name;
-      document.getElementById('roomUserAvatar').src = currentChatTarget.avatar;
+  socket.on('auth-user', async ({ userCode, password }, callback) => {
+    try {
+      const query = String(userCode || '').trim();
+      const isMobileQuery = /^\d{10,13}$/.test(query);
+      const normalizedId = isMobileQuery ? null : (query.startsWith('@') ? query.toLowerCase() : '@' + query.toLowerCase());
+      const userObj = await User.findOne({ $or: [ ...(normalizedId ? [{ userCode: normalizedId }] : []), ...(isMobileQuery ? [{ mobile: query }] : []) ] });
+      if (!userObj || userObj.password !== String(password || '').trim()) return callback({ success: false, error: 'Invalid ID or password.' });
       
-      // SPA Slide in animation
-      const cr = document.getElementById('chatRoom');
-      cr.style.display = 'flex';
-      setTimeout(()=> cr.classList.add('active'), 10);
+      currentUserCode = userObj.userCode; socket.join(currentUserCode);
+      if (!userSockets.has(currentUserCode)) userSockets.set(currentUserCode, new Set());
+      userSockets.get(currentUserCode).add(socket.id);
+      User.updateOne({ userCode: currentUserCode }, { lastSeen: new Date() }).exec();
+      io.emit('user-status-changed', { userCode: currentUserCode, isOnline: true });
+
+      callback({ success: true, user: userObj });
+    } catch (err) { callback({ success: false, error: 'Auth error.' }); }
+  });
+
+  socket.on('recover-account', async ({ mobile, q1, q2, newPassword }, callback) => {
+    try {
+      const cleanMobile = String(mobile || '').trim();
+      if (!cleanMobile || !newPassword) return callback({ success: false, error: 'Mobile and new password are required.' });
+      const user = await User.findOne({ mobile: cleanMobile });
+      if (!user) return callback({ success: false, error: 'User not found.' });
+
+      const q1Match = q1 && user.secQ1 === String(q1).trim().toLowerCase();
+      const q2Match = q2 && user.secQ2 === String(q2).trim().toLowerCase();
+
+      if (!q1Match && !q2Match) return callback({ success: false, error: 'Security answers do not match.' });
+
+      await User.updateOne({ _id: user._id }, { password: String(newPassword).trim() });
+      callback({ success: true, message: `Success! Your User ID is ${user.userCode}` });
+    } catch (err) { callback({ success: false, error: 'Recovery failed.' }); }
+  });
+
+  socket.on('get-contacts', async () => {
+    if (!currentUserCode) return;
+    try {
+      const me = await User.findOne({ userCode: currentUserCode }).lean();
+      const ids = Array.isArray(me?.contacts) ? me.contacts : [];
+      if (!ids.length) return socket.emit('contact-list-data', { contacts: [] });
+
+      const allUsers = await User.find({ userCode: { $in: ids } }).lean();
       
-      checkUserStatus(cleanCode);
-
-      const cached = await getMessagesLocal(currentChatTarget.userCode);
-      if (cached.length) renderMessages(cached, false); 
-      syncCurrentChat(false);
-      setTimeout(() => { document.getElementById('msgInputBox').focus(); }, 100);
-    }
-    
-    function closeChatRoom() { 
-        const cr = document.getElementById('chatRoom');
-        cr.classList.remove('active'); 
-        setTimeout(() => { cr.style.display = 'none'; currentChatTarget = null; loadContacts(); }, 300);
-    }
-
-    async function syncCurrentChat(silent = false) {
-      if (!currentChatTarget || !socket.connected) return;
-      const cached = await getMessagesLocal(currentChatTarget.userCode);
-      const after = cached.length ? cached[cached.length - 1]?.createdAt : null;
-      socket.emit('get-messages', { targetCode: currentChatTarget.userCode, after }, async res => {
-        if (res?.success && res.messages?.length) {
-          const merged = res.full ? res.messages : [...cached, ...res.messages];
-          await saveMessagesLocal(currentChatTarget.userCode, merged);
-          if (!silent) renderMessages(merged, false);
-        }
-      });
-    }
-
-    function scrollToBottom(smooth = false) {
-      const rm = document.getElementById('roomMessages');
-      if (smooth) rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); else rm.scrollTop = rm.scrollHeight;
-    }
-
-    function formatMessageContent(m) {
-      const timeStr = new Date(m.createdAt || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      let innerHtml = '';
-      if (m.messageType === 'image') { innerHtml = `<img src="${escapeAttr(m.media)}" onload="scrollToBottom()" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`; }
-      else if (m.messageType === 'video') { innerHtml = `<video src="${escapeAttr(m.media)}" onloadeddata="scrollToBottom()" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`; }
-      else if (m.messageType === 'document') { innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`; }
-      else { innerHtml = escapeHtml(m.text).replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank" style="color:#5ac8fa;">${url}</a>`); }
-
-      let statusIcon = (m.status === 'delivered') ? '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>' : '✓';
-      return `${innerHtml}<span class="msg-time">${timeStr} <span id="status_${m.messageId}">${(m.mine || m.senderCode===currentUserData?.userCode) ? statusIcon : ''}</span></span>`;
-    }
-
-    // --- MESSAGE LONG PRESS (DELETE / COPY) ---
-    let msgPressTimer; let activeMsgElement = null; let activeMsgId = null;
-    function startMsgPress(e, msgId, isMine) {
-      msgPressTimer = setTimeout(() => {
-        activeMsgId = msgId; activeMsgElement = document.getElementById(msgId);
-        document.getElementById('msgActionModal').style.display = 'flex';
-        document.getElementById('btnDelEveryone').style.display = isMine ? 'block' : 'none';
+      const contactsWithTime = await Promise.all(allUsers.map(async u => {
+        const lastMsg = await Message.findOne({
+          $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode }
+        }).sort({ createdAt: -1 }).lean();
         
-        document.getElementById('btnCopyMsg').onclick = () => {
-           const text = activeMsgElement.innerText.replace(/✓|🕒|[\d:]+(AM|PM)?/g, '').trim();
-           navigator.clipboard.writeText(text); showToast('Text copied!'); closeMsgActionMenu();
-        };
-        document.getElementById('btnDelMe').onclick = () => execDeleteMsg('me');
-        document.getElementById('btnDelEveryone').onclick = () => execDeleteMsg('everyone');
-      }, 600);
-    }
-    function cancelMsgPress() { clearTimeout(msgPressTimer); }
-    function closeMsgActionMenu() { document.getElementById('msgActionModal').style.display = 'none'; activeMsgId = null; }
+        const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode } });
+        
+        const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
+        // Restored hasActiveStatus for DB safety, hidden only in UI
+        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
+      }));
 
-    function execDeleteMsg(type) {
-      if(!activeMsgId) return;
-      showConfirm("Delete this message?", () => {
-         socket.emit('delete-message', { messageId: activeMsgId, type }, res => { if(res?.success) closeMsgActionMenu(); });
-      });
-    }
+      contactsWithTime.sort((a, b) => b.lastMsgTime - a.lastMsgTime);
+      socket.emit('contact-list-data', { contacts: contactsWithTime });
+    } catch (e) {}
+  });
 
-    socket.on('message-deleted-ui', async ({ messageId }) => {
-      const el = document.getElementById(messageId); if (el) el.remove();
-      if (currentChatTarget) {
-        const cached = await getMessagesLocal(currentChatTarget.userCode);
-        const updated = cached.filter(m => m.messageId !== messageId);
-        await saveMessagesLocal(currentChatTarget.userCode, updated);
+  socket.on('open-direct-chat', async ({ targetCode, query }, cb) => {
+    if (!currentUserCode) return;
+    try {
+      const raw = String(query || targetCode || '').trim().toLowerCase();
+      const clean = raw.startsWith('@') ? raw : '@' + raw;
+      const targetUser = /^\d{10,13}$/.test(raw) ? await User.findOne({ mobile: raw }) : await User.findOne({ userCode: clean });
+      if (!targetUser || targetUser.userCode === currentUserCode) return cb({ success:false, error:'Invalid user.' });
+
+      await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: targetUser.userCode } });
+      cb({ success: true, user: { userCode: targetUser.userCode, fullName: targetUser.fullName, avatar: targetUser.avatar || DEFAULT_AVATAR } });
+    } catch (e) { cb({ success: false, error: 'Error finding user.' }); }
+  });
+
+  socket.on('update-profile', async (data, callback) => {
+    if (!currentUserCode) return callback({ success: false });
+    try {
+      let avatarUrl = data.avatar;
+      const update = { fullName: data.fullName?.trim() || 'User', secQ1: data.secQ1?.trim().toLowerCase(), secQ2: data.secQ2?.trim().toLowerCase() };
+      const user = await User.findOneAndUpdate({ userCode: currentUserCode }, { $set: update }, { new: true });
+      callback({ success: true, user: user.toObject() });
+
+      if (avatarUrl && avatarUrl.startsWith('data:image')) {
+         cloudinary.uploader.upload(avatarUrl, { folder: 'chat_app_avatars', width: 400, crop: "scale", quality: "auto:eco", fetch_format: "auto" })
+          .then(uploadRes => User.updateOne({ userCode: currentUserCode }, { avatar: uploadRes.secure_url }).exec())
+          .catch(e => socket.emit('profile-upload-error', { error: 'DP upload failed.' }));
       }
-    });
+    } catch (e) { callback({ success: false }); }
+  });
 
-    async function clearCurrentChat() {
-      if (!currentChatTarget) return;
-      document.getElementById('chatRoomMenu').style.display = 'none';
-      showConfirm("Clear entire chat history?", () => {
-         socket.emit('clear-chat', { targetCode: currentChatTarget.userCode }, async res => {
-            if(res?.success) {
-               await saveMessagesLocal(currentChatTarget.userCode, []); renderMessages([]); showToast('Chat cleared entirely!');
-            }
-         });
+  socket.on('get-messages', async ({ targetCode, after }, callback) => {
+    if (!currentUserCode) return;
+    try {
+      const clean = String(targetCode || '').toLowerCase();
+      const base = { $or: [{ senderCode: currentUserCode, receiverCode: clean }, { senderCode: clean, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode } };
+      const messages = await Message.find(after ? { $and: [base, { createdAt: {$gt: new Date(after) } }] } : base).sort({ createdAt: 1 }).limit(500).lean();
+      callback({ success: true, messages, full: !after });
+    } catch (e) { callback({ success: false }); }
+  });
+
+  socket.on('send-message', async (data, callback) => {
+    if (!currentUserCode) return;
+    try {
+      const receiver = await User.findOne({ userCode: data.targetCode });
+      if (receiver?.blockedUsers?.includes(currentUserCode)) return callback({ success: true, message: { ...data, status: 'sent', senderCode: currentUserCode, receiverCode: data.targetCode } });
+
+      await User.updateOne({ userCode: currentUserCode }, { $addToSet: { contacts: data.targetCode } });
+      await User.updateOne({ userCode: data.targetCode }, { $addToSet: { contacts: currentUserCode } });
+
+      const msg = await Message.create({
+        messageId: data.clientMessageId || ('msg_' + Date.now()), senderCode: currentUserCode, receiverCode: data.targetCode, 
+        text: data.text || '', media: data.media || '', messageType: data.messageType || 'text', fileName: data.fileName || '', status: 'sent'
       });
-    }
-
-    function renderMessages(messages, smooth = false) {
-      const rm = document.getElementById('roomMessages');
-      rm.innerHTML = messages.map(m => {
-        const mine = m.mine || (currentUserData && m.senderCode === currentUserData.userCode);
-        return `<div class="msg-bubble ${mine ? 'mine' : 'theirs'}" id="${m.messageId}" 
-                onmousedown="startMsgPress(event, '${m.messageId}', ${mine})" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" 
-                ontouchstart="startMsgPress(event, '${m.messageId}', ${mine})" ontouchend="cancelMsgPress()">
-                ${formatMessageContent(m)}</div>`;
-      }).join('');
-      setTimeout(() => scrollToBottom(smooth), 10);
-    }
-
-    function promoteChatToTop(userCode) {
-        const idx = globalContacts.findIndex(c => c.userCode === userCode);
-        if (idx !== -1) { const c = globalContacts.splice(idx, 1)[0]; globalContacts.unshift(c); renderContacts(globalContacts); } 
-        else { socket.emit('get-contacts'); }
-    }
-
-    // --- TYPING LOGIC ---
-    const chatInputBox = document.getElementById('msgInputBox');
-    let typingTimer; let isTyping = false;
-    chatInputBox.addEventListener('input', () => {
-      if (!currentChatTarget) return;
-      if (!isTyping) { isTyping = true; socket.emit('typing', { targetCode: currentChatTarget.userCode }); }
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => { isTyping = false; socket.emit('stop-typing', { targetCode: currentChatTarget.userCode }); }, 1500);
-    });
-    socket.on('typing', ({ senderCode }) => { if (currentChatTarget && currentChatTarget.userCode === senderCode) { document.getElementById('roomUserStatus').innerHTML = '<span style="color:#00ff88;font-style:italic;">typing...</span>'; } });
-    socket.on('stop-typing', ({ senderCode }) => { if (currentChatTarget && currentChatTarget.userCode === senderCode) checkUserStatus(senderCode); });
-    chatInputBox.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
-
-    // --- SINGLE MESSAGE REAL-TIME UPDATE (OPTIMISTIC UI) ---
-    function sendChatMessage() {
-      const box = document.getElementById('msgInputBox'); 
-      const val = box.innerText.trim();
-      if (!val || !currentChatTarget) return;
-      const clientMsgId = 'msg_' + Date.now();
       
-      const tempMsg = { messageId: clientMsgId, text: val, mine: true, status: 'sent', messageType: 'text', createdAt: Date.now() };
-      // Single Append directly to DOM (No full refresh)
-      document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
-      scrollToBottom(true);
-      box.innerText = ''; box.focus(); 
-      promoteChatToTop(currentChatTarget.userCode);
-      
-      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId: clientMsgId }, async res => {
-        if (res?.success) {
-          const cached = await getMessagesLocal(currentChatTarget.userCode);
-          await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
+      io.to(data.targetCode).emit('new-message', msg.toObject());
+      callback({ success: true, message: msg.toObject() });
+    } catch (e) { callback({ success: false }); }
+  });
+
+  socket.on('clear-chat', async ({ targetCode }, cb) => {
+    if (!currentUserCode) return;
+    try {
+      await Message.updateMany(
+        { $or: [{senderCode: currentUserCode, receiverCode: targetCode}, {senderCode: targetCode, receiverCode: currentUserCode}] },
+        { $addToSet: { deletedFor: currentUserCode } }
+      );
+      cb({ success: true });
+    } catch(e) { cb({ success: false }); }
+  });
+
+  socket.on('delete-message', async ({ messageId, type }, cb) => {
+    if (!currentUserCode) return;
+    try {
+      const msg = await Message.findOne({ messageId });
+      if (!msg) return cb({ success: false });
+
+      if (type === 'everyone' && msg.senderCode === currentUserCode) {
+        await Message.deleteOne({ messageId });
+        if(msg.media) {
+           const publicId = getCloudinaryPublicId(msg.media);
+           if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
         }
-      });
-    }
-
-    async function sendMediaFile(inp, forcedType) {
-      const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
-      document.getElementById('attachMenu').style.display = 'none';
-      
-      try {
-        const clientMsgId = 'msg_' + Date.now();
-        const tempUrl = URL.createObjectURL(file);
-        
-        const tempMsg = { messageId: clientMsgId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
-        document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
-        scrollToBottom(true); promoteChatToTop(currentChatTarget.userCode);
-
-        const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
-        xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-        const form = new FormData(); form.append('media', file, file.name);
-        
-        xhr.onload = () => {
-          const result = JSON.parse(xhr.responseText || '{}');
-          if (result.success) {
-            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId: clientMsgId }, async res => {
-              const el = document.getElementById(clientMsgId);
-              if (res?.success && el) {
-                el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
-                const cached = await getMessagesLocal(currentChatTarget.userCode);
-                await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
-              }
-            });
-          }
-        }; xhr.send(form);
-      } catch (e) { showToast('Upload failed'); }
-      inp.value = '';
-    }
-
-    socket.on('new-message', async m => {
-      if (!currentUserData) return;
-      const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
-
-      if (currentChatTarget && currentChatTarget.userCode === otherCode) {
-        // Single Append for incoming message
-        if (!document.getElementById(m.messageId)) {
-          document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble theirs" id="${m.messageId}" onmousedown="startMsgPress(event, '${m.messageId}', false)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${m.messageId}', false)" ontouchend="cancelMsgPress()">${formatMessageContent(m)}</div>`);
-          scrollToBottom(true);
-        }
-        const cached = await getMessagesLocal(currentChatTarget.userCode);
-        if (!cached.find(x => x.messageId === m.messageId)) await saveMessagesLocal(currentChatTarget.userCode, [...cached, m]);
-        socket.emit('mark-message-read', { messageId: m.messageId, senderCode: m.senderCode });
+        io.to(msg.senderCode).emit('message-deleted-ui', { messageId });
+        io.to(msg.receiverCode).emit('message-deleted-ui', { messageId });
       } else {
-        unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
-        promoteChatToTop(otherCode); showToast(`New message from ${otherCode}`);
+        await Message.updateOne({ messageId }, { $addToSet: { deletedFor: currentUserCode } });
+        socket.emit('message-deleted-ui', { messageId });
       }
-    });
+      cb({ success: true });
+    } catch(e) { cb({ success: false }); }
+  });
 
-    socket.on('message-status-update', ({ messageId, status }) => {
-      const statusSpan = document.getElementById(`status_${messageId}`);
-      if (statusSpan && status === 'delivered') { statusSpan.innerHTML = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>'; }
-    });
+  socket.on('get-blocked-users', async (data, cb) => {
+    if(!currentUserCode) return;
+    try {
+      const me = await User.findOne({ userCode: currentUserCode }).lean();
+      if(!me.blockedUsers || me.blockedUsers.length === 0) return cb({success:true, users:[]});
+      const blocked = await User.find({ userCode: { $in: me.blockedUsers } }).lean();
+      cb({success:true, users: blocked.map(u => ({userCode: u.userCode, name: u.fullName, avatar: u.avatar}))});
+    } catch(e) { cb({success:false}); }
+  });
 
-    // --- INSTAGRAM STYLE REELS LOGIC ---
-    let activeReelsData = []; let currentReelIdForMenu = null;
-    function loadAllReels() {
-       socket.emit('get-all-active-reels', { myContacts: currentUserData?.contacts || [] }, res => {
-          if(res?.success) {
-             activeReelsData = res.reels;
-             const grid = document.getElementById('reelsGridArea');
-             grid.innerHTML = activeReelsData.map((r, index) => {
-                 const bg = r.type.includes('video') ? '#000' : `url(${r.media}) center/cover`;
-                 return `<div class="reel-thumb" style="background:${bg};" onclick="openReelsViewer(${index})">
-                     ${r.type.includes('video') ? `<video src="${r.media}#t=0.1" style="width:100%;height:100%;object-fit:cover;"></video>` : ''}
-                     <div style="position:absolute;bottom:5px;left:5px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:2px 4px;border-radius:4px;">${escapeHtml(r.name.split(' ')[0])}</div>
-                 </div>`;
-             }).join('');
-          }
-       });
-    }
+  socket.on('unblock-user', async ({ targetCode }, cb) => {
+    if(!currentUserCode) return;
+    await User.updateOne({ userCode: currentUserCode }, { $pull: { blockedUsers: targetCode } });
+    cb({ success: true });
+  });
 
-    function openReelsViewer(startIndex) {
-       const viewer = document.getElementById('reelsViewerModal');
-       const scrollArea = document.getElementById('reelsScrollArea');
-       
-       scrollArea.innerHTML = activeReelsData.map((r, i) => `
-          <div class="reel-item" data-id="${r.id}" onclick="handleReelTap(event, '${r.id}', '${r.userCode}')">
-             ${r.type.includes('video') ? `<video src="${r.media}" loop playsinline autoplay class="reel-media"></video>` : `<img src="${r.media}" class="reel-media">`}
-             <div id="heart_${r.id}" class="heart-anim">❤️</div>
-             <div class="reel-overlay">
-                 <div style="display:flex;align-items:center;gap:10px;">
-                     <img src="${r.avatar}" style="width:36px;height:36px;border-radius:50%;border:2px solid #ff3b5c;object-fit:cover;">
-                     <span style="font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.name)}</span>
-                 </div>
-                 <div style="text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.caption)}</div>
-             </div>
-             <div class="reel-actions">
-                 <button class="action-btn" onclick="event.stopPropagation(); toggleLike('${r.id}', '${r.userCode}')">
-                     <span id="likeIcon_${r.id}" style="color:${r.likes.includes(currentUserData.userCode) ? '#ff3b5c' : '#fff'}">${r.likes.includes(currentUserData.userCode) ? '❤️' : '🤍'}</span>
-                     <span class="action-text" id="likeCount_${r.id}">${r.likes.length}</span>
-                 </button>
-                 <button class="action-btn" onclick="event.stopPropagation(); nativeShare('${r.media}')">↗️<span class="action-text">Share</span></button>
-                 <button class="action-btn" onclick="event.stopPropagation(); repostReel('${r.media}', '${r.type}')">🔄<span class="action-text">Repost</span></button>
-                 ${r.userCode === currentUserData.userCode ? `<button class="action-btn" onclick="event.stopPropagation(); openReelMenu(event, '${r.id}')">⋮</button>` : ''}
-             </div>
-          </div>
-       `).join('');
+  socket.on('block-user', async ({ targetCode }, cb) => {
+    if (!currentUserCode) return;
+    await User.updateOne({ userCode: currentUserCode }, { $addToSet: { blockedUsers: targetCode },$pull: { contacts: targetCode } });
+    cb({ success: true });
+  });
 
-       viewer.style.display = 'flex';
-       setTimeout(() => { const items = document.querySelectorAll('.reel-item'); if(items[startIndex]) items[startIndex].scrollIntoView(); }, 50);
-    }
+  socket.on('delete-contact', async ({ targetCode }, cb) => {
+    if (!currentUserCode) return;
+    await User.updateOne({ userCode: currentUserCode }, { $pull: { contacts: targetCode, blockedUsers: targetCode } }); 
+    await Message.updateMany(
+        { $or: [{senderCode: currentUserCode, receiverCode: targetCode}, {senderCode: targetCode, receiverCode: currentUserCode}] },
+        { $addToSet: { deletedFor: currentUserCode } }
+    );
+    cb({ success: true });
+  });
+
+  socket.on('mark-message-read', async ({ messageId, senderCode }) => {
+    await Message.updateOne({ messageId }, { status: 'delivered' });
+    io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
+  });
+
+  socket.on('mark-all-read', async ({ senderCode }) => {
+    if (!currentUserCode) return;
+    await Message.updateMany({ senderCode: senderCode, receiverCode: currentUserCode, status: 'sent' }, { status: 'delivered' });
+  });
+
+  socket.on('call-user', async (data) => {
+    if(!currentUserCode) return;
+    const isOnline = userSockets.has(data.targetCode);
+    socket.emit('call-status', { status: isOnline ? 'Ringing...' : 'Calling...', targetCode: data.targetCode });
     
-    function closeReelsViewer() { document.getElementById('reelsViewerModal').style.display = 'none'; document.getElementById('reelsScrollArea').innerHTML = ''; }
-
-    let lastTap = 0;
-    function handleReelTap(e, reelId, authorCode) {
-        const now = Date.now();
-        if(now - lastTap < 300) { 
-            toggleLike(reelId, authorCode, true);
-            const heart = document.getElementById('heart_' + reelId);
-            heart.style.left = (e.clientX - 40) + 'px'; heart.style.top = (e.clientY - 40) + 'px';
-            heart.classList.add('show'); setTimeout(() => heart.classList.remove('show'), 600);
-        }
-        lastTap = now;
+    if(isOnline) {
+      const caller = await User.findOne({ userCode: currentUserCode }).lean();
+      io.to(data.targetCode).emit('incoming-call', { callerCode: currentUserCode, callerName: caller.fullName, callerAvatar: caller.avatar, offer: data.offer });
+    } else {
+      pendingCalls.set(data.targetCode, { callerCode: currentUserCode, offer: data.offer, expiry: Date.now() + 30000 });
     }
+  });
 
-    function toggleLike(reelId, userCode, forceLike = false) {
-        socket.emit('like-reel', { reelId, userCode });
-        const r = activeReelsData.find(x => x.id === reelId);
-        if(r) {
-            const idx = r.likes.indexOf(currentUserData.userCode);
-            if(idx > -1 && !forceLike) r.likes.splice(idx, 1);
-            else if(idx === -1) r.likes.push(currentUserData.userCode);
-            document.getElementById('likeCount_' + reelId).textContent = r.likes.length;
-            document.getElementById('likeIcon_' + reelId).textContent = r.likes.includes(currentUserData.userCode) ? '❤️' : '🤍';
-            document.getElementById('likeIcon_' + reelId).style.color = r.likes.includes(currentUserData.userCode) ? '#ff3b5c' : '#fff';
-        }
-    }
+  socket.on('answer-call', (data) => { io.to(data.callerCode).emit('call-answered', { answer: data.answer }); });
+  socket.on('reject-call', (data) => { io.to(data.callerCode).emit('call-rejected'); });
+  socket.on('end-call', (data) => { io.to(data.targetCode).emit('call-ended'); });
+  socket.on('ice-candidate', (data) => { io.to(data.targetCode).emit('ice-candidate', { candidate: data.candidate }); });
 
-    socket.on('reel-like-updated', ({ reelId, likes }) => {
-        const r = activeReelsData.find(x => x.id === reelId);
-        if(r) { r.likes = likes; const cntEl = document.getElementById('likeCount_' + reelId); if(cntEl) cntEl.textContent = likes.length; }
-    });
-
-    function nativeShare(mediaUrl) { if (navigator.share) { navigator.share({ title: 'My Chat Reel', text: 'Check out this reel!', url: mediaUrl }).catch(()=>{}); } else { showToast('Sharing not supported.'); } }
-    function repostReel(mediaUrl, type) { showConfirm("Repost this to your own Reels?", () => { socket.emit('repost-reel', { media: mediaUrl, type }, res => { if(res?.success) { showToast('Reposted!'); loadAllReels(); } }); }); }
-
-    function openReelMenu(e, reelId) {
-       e.stopPropagation(); currentReelIdForMenu = reelId;
-       const menu = document.getElementById('reelMenu');
-       menu.style.top = (e.clientY - 120) + 'px'; menu.style.right = '20px'; menu.style.display = 'block';
-    }
-
-    function editReelAction() {
-       document.getElementById('reelMenu').style.display = 'none';
-       const caption = prompt("Enter new caption:");
-       if(caption !== null) { socket.emit('edit-reel', { reelId: currentReelIdForMenu, caption, privacy: 'all' }, res => { if(res?.success) { showToast('Updated'); loadAllReels(); closeReelsViewer(); } }); }
-    }
-    function privacyReelAction() {
-       document.getElementById('reelMenu').style.display = 'none';
-       showConfirm("Make this Reel visible to Contacts Only?", () => { socket.emit('edit-reel', { reelId: currentReelIdForMenu, caption: '', privacy: 'contacts' }, res => { if(res?.success) { showToast('Privacy updated to Contacts'); } }); });
-    }
-    function deleteReelAction() {
-       document.getElementById('reelMenu').style.display = 'none';
-       showConfirm("Delete this Reel?", () => { socket.emit('delete-my-media', { type: 'reel', id: currentReelIdForMenu }, res => { if(res?.success) { showToast('Deleted'); loadAllReels(); closeReelsViewer(); } }); });
-    }
-
-    function uploadStatusMedia(inp) {
-      const file = inp.files?.[0]; if (!file) return;
-      showToast('Uploading Reel...');
-      const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
-      xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
-      xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-      xhr.setRequestHeader('X-Is-Status', 'true');
-      const form = new FormData(); form.append('media', file, file.name);
-      xhr.onload = () => { if (xhr.status === 200) { showToast('Reel Uploaded!'); loadAllReels(); } else { showToast('Upload failed'); } };
-      xhr.send(form); inp.value = '';
-    }
-
-    // --- CALLING LOGIC (RESTORED) ---
-    let localStream, peerConnection, callInterval; let callTargetCode = null, callTargetName = null; let callRole = null; let callStartTime = 0;
-    const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-
-    function loadCalls() { socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); }); }
-    
-    function renderCalls(calls) {
-       const list = document.getElementById('callsList');
-       if(!calls || calls.length===0) { list.innerHTML = '<div style="padding:20px;color:#7e7e92;text-align:center;">Call history empty.</div>'; return; }
-       
-       list.innerHTML = calls.map(c => {
-          const isCaller = c.callerCode === currentUserData.userCode;
-          const otherName = isCaller ? c.receiverName : c.callerName;
-          const otherCode = isCaller ? c.receiverCode : c.callerCode;
-          const statusColor = c.status === 'missed' || c.status === 'declined' ? '#ff3b5c' : '#00ff88';
-          const icon = isCaller ? '↗' : '↙';
-          const timeStr = new Date(c.timestamp).toLocaleString([], {hour:'2-digit', minute:'2-digit', month:'short', day:'numeric'});
-          return `
-             <div class="chat-row">
-                <div style="flex:1;">
-                   <div style="font-weight:700;">${escapeHtml(otherName)}</div>
-                   <div style="font-size:12px;color:#7e7e92;"><span style="color:${statusColor};font-weight:bold;font-size:16px;">${icon}</span> ${c.status} • ${timeStr}</div>
-                </div>
-                <div style="font-size:12px;color:#fff;background:rgba(255,255,255,0.08);padding:6px 10px;border-radius:12px;font-weight:bold;">${c.duration || '--'}</div>
-                <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-left:10px;" onclick="openChatWith('${otherCode}', '${escapeAttr(otherName)}', ''); startCall();">📞</button>
-             </div>
-          `;
-       }).join('');
-    }
-
-    function startCall() {
-      if(!currentChatTarget) return;
-      callTargetCode = currentChatTarget.userCode; callTargetName = currentChatTarget.name; callRole = 'caller';
-      document.getElementById('callName').textContent = currentChatTarget.name; document.getElementById('callAvatar').src = currentChatTarget.avatar;
-      document.getElementById('callStatusText').textContent = "Connecting..."; document.getElementById('callTimeDisplay').style.display = 'none';
-      document.getElementById('callScreen').style.display = 'flex'; document.getElementById('callReceiverUI').style.display = 'none';
-      document.getElementById('callCallerUI').style.display = 'flex';
-
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-        localStream = stream; document.getElementById('localVideo').srcObject = stream;
-        peerConnection = new RTCPeerConnection(servers);
-        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-        peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
-        peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
-
-        peerConnection.createOffer().then(offer => { peerConnection.setLocalDescription(offer); socket.emit('call-user', { targetCode: callTargetCode, offer: offer }); });
-      }).catch(err => { showToast('Camera/Mic permission denied'); cleanupCall(false); });
-    }
-
-    socket.on('call-status', data => { if(callRole === 'caller' && !callStartTime) document.getElementById('callStatusText').textContent = data.status; });
-
-    socket.on('incoming-call', async (data) => {
-      callTargetCode = data.callerCode; callTargetName = data.callerName; callRole = 'receiver';
-      document.getElementById('callName').textContent = data.callerName; document.getElementById('callAvatar').src = data.callerAvatar || DEFAULT_AVATAR;
-      document.getElementById('callStatusText').textContent = "Incoming Call..."; document.getElementById('callTimeDisplay').style.display = 'none';
-      document.getElementById('callScreen').style.display = 'flex'; document.getElementById('callReceiverUI').style.display = 'flex';
-      document.getElementById('callCallerUI').style.display = 'none';
-
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-        localStream = stream; document.getElementById('localVideo').srcObject = stream;
-        peerConnection = new RTCPeerConnection(servers);
-        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-        peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
-        peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+  socket.on('save-call-log', async (data) => {
+    try {
+      await CallLog.create({
+        callerCode: data.callerCode, callerName: data.callerName,
+        receiverCode: data.receiverCode, receiverName: data.receiverName,
+        status: data.status, duration: data.duration
       });
-    });
+    } catch(e) {}
+  });
 
-    document.getElementById('btnAcceptCall').onclick = () => {
-      if(!peerConnection) return; startCallTimer();
-      document.getElementById('callReceiverUI').style.display = 'none'; document.getElementById('callCallerUI').style.display = 'flex'; 
-      peerConnection.createAnswer().then(answer => { peerConnection.setLocalDescription(answer); socket.emit('answer-call', { callerCode: callTargetCode, answer }); });
-    };
+  socket.on('get-calls', async (data, cb) => {
+    if(!currentUserCode) return;
+    try {
+       const calls = await CallLog.find({ $or: [{callerCode: currentUserCode}, {receiverCode: currentUserCode}] })
+                                  .sort({ timestamp: -1 }).limit(50).lean();
+       cb({ success: true, calls });
+    } catch(e) { cb({ success: false }); }
+  });
 
-    document.getElementById('btnRejectCall').onclick = () => { socket.emit('reject-call', { callerCode: callTargetCode }); cleanupCall(false); };
-    socket.on('call-rejected', () => { showToast('Call Declined'); saveCallLog('declined', '0s'); cleanupCall(false); });
-    socket.on('call-answered', data => { startCallTimer(); peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); });
-    socket.on('ice-candidate', data => { if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)); });
-    
-    function endCall() { 
-      if(callTargetCode) socket.emit('end-call', { targetCode: callTargetCode }); 
-      let finalStatus = callStartTime ? 'completed' : 'missed';
-      let durationStr = '0s';
-      if(callStartTime) {
-         const diff = Math.floor((Date.now() - callStartTime)/1000);
-         const m = Math.floor(diff/60); const s = diff%60;
-         durationStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
-      }
-      if(callRole === 'caller') saveCallLog(finalStatus, durationStr);
-      cleanupCall(true); 
-    }
-
-    socket.on('call-ended', () => { showToast('Call Ended'); cleanupCall(false); });
-
-    function startCallTimer() {
-      callStartTime = Date.now();
-      document.getElementById('callStatusText').style.display = 'none';
-      const timeDisplay = document.getElementById('callTimeDisplay'); timeDisplay.style.display = 'block';
-      callInterval = setInterval(() => {
-         const diff = Math.floor((Date.now() - callStartTime)/1000);
-         const m = String(Math.floor(diff/60)).padStart(2,'0'); const s = String(diff%60).padStart(2,'0');
-         timeDisplay.textContent = `${m}:${s}`;
-      }, 1000);
-    }
-
-    function saveCallLog(status, duration) {
-       if(!currentUserData || !callTargetCode) return;
-       socket.emit('save-call-log', { callerCode: currentUserData.userCode, callerName: currentUserData.fullName, receiverCode: callTargetCode, receiverName: callTargetName, status, duration });
-    }
-
-    function cleanupCall(isSelf) {
-      document.getElementById('callScreen').style.display = 'none'; document.getElementById('callStatusText').style.display = 'block';
-      clearInterval(callInterval);
-      if(localStream) localStream.getTracks().forEach(track => track.stop());
-      if(peerConnection) peerConnection.close();
-      localStream = null; peerConnection = null; callTargetCode = null; callRole = null; callStartTime = 0; callTargetName = null; loadCalls(); 
-    }
-
-    // --- OTHER UI UTILS (Profile, Recovery, etc.) ---
-    function openMyProfile() { 
-      document.getElementById('myProfileName').value = currentUserData.fullName || '';
-      document.getElementById('myProfileId').value = currentUserData.userCode || '';
-      document.getElementById('myProfileMobile').value = currentUserData.mobile || '';
-      document.getElementById('myProfileQ1').value = currentUserData.secQ1 || '';
-      document.getElementById('myProfileQ2').value = currentUserData.secQ2 || '';
-      document.getElementById('myProfileAvatar').src = currentUserData.avatar || DEFAULT_AVATAR;
-      document.getElementById('myProfileModal').style.display = 'flex'; document.getElementById('appMenu').style.display = 'none'; 
-    }
-    
-    function closeMyProfile() { document.getElementById('myProfileModal').style.display = 'none'; }
-    
-    function saveMyProfile() {
-      const fullName = document.getElementById('myProfileName').value.trim();
-      const avatar = document.getElementById('myProfileAvatar').src;
-      const secQ1 = document.getElementById('myProfileQ1').value.trim();
-      const secQ2 = document.getElementById('myProfileQ2').value.trim();
-      closeMyProfile(); showToast('Profile Saved Successfully!'); 
-      if (currentUserData) { currentUserData.fullName = fullName; currentUserData.secQ1 = secQ1; currentUserData.secQ2 = secQ2; if (avatar) currentUserData.avatar = avatar; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); }
-      socket.emit('update-profile', { fullName, avatar, secQ1, secQ2 }, res => { if (res?.success) { currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); } });
-    }
-
-    function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
-    function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
-    
-    function submitRecovery() {
-      const mobile = document.getElementById('recMobileInput').value.trim(); const q1 = document.getElementById('recQ1Input').value.trim();
-      const q2 = document.getElementById('recQ2Input').value.trim(); const newPassword = document.getElementById('recNewPassInput').value.trim();
-      const confirmPassword = document.getElementById('recConfirmPassInput').value.trim();
+  // --- Instagram Reels Backend Logic ---
+  socket.on('get-all-active-reels', async (data, cb) => {
+    try {
+      const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
+      let reels = [];
+      const myContacts = data.myContacts || [];
       
-      if(!mobile || !newPassword) return showToast('Mobile and New Password are required');
-      if(newPassword.length !== 8) return showToast('Password must be 8 digits');
-      if(newPassword !== confirmPassword) return showToast('Passwords do not match!');
-
-      socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
-        if (res?.success) { 
-          showToast("Recovery successful! Logging in..."); closeForgotModal();
-          if (authMode === 'reg') { toggleAuthMode(); }
-          document.getElementById('loginIdInput').value = mobile; document.getElementById('loginPassInput').value = newPassword; 
-          document.getElementById('recMobileInput').value = ''; document.getElementById('recQ1Input').value = '';
-          document.getElementById('recQ2Input').value = ''; document.getElementById('recNewPassInput').value = ''; document.getElementById('recConfirmPassInput').value = '';
-          setTimeout(() => { handleLogin(); }, 1500); 
-        } else showToast(res?.error || 'Failed');
+      allStatuses.forEach(s => {
+         s.items.forEach(item => {
+            if(item.expiresAt > new Date()) {
+                if(item.privacy === 'contacts' && s.userCode !== currentUserCode && !myContacts.includes(s.userCode)) return;
+                reels.push({ 
+                    id: item.id, userCode: s.userCode, name: s.name, avatar: s.avatar, 
+                    media: item.media, type: item.type, likes: item.likes || [], caption: item.caption || '', privacy: item.privacy || 'all' 
+                });
+            }
+         });
       });
-    }
+      reels.sort((a,b) => parseInt(b.id) - parseInt(a.id));
+      cb({ success: true, reels });
+    } catch (e) { cb({ success: false }); }
+  });
 
-    function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
-  </script>
-</body>
-</html>
+  socket.on('like-reel', async ({ userCode, reelId }) => {
+      if(!currentUserCode) return;
+      try {
+          const statusDoc = await Status.findOne({ userCode });
+          if(statusDoc) {
+             const item = statusDoc.items.find(i => i.id === reelId);
+             if(item) {
+                 const hasLiked = item.likes.includes(currentUserCode);
+                 if(hasLiked) { item.likes = item.likes.filter(u => u !== currentUserCode); } 
+                 else { item.likes.push(currentUserCode); }
+                 await statusDoc.save();
+                 io.emit('reel-like-updated', { reelId, likes: item.likes });
+             }
+          }
+      } catch(e) {}
+  });
+
+  socket.on('repost-reel', async ({ media, type }, cb) => {
+      if(!currentUserCode) return cb({success:false});
+      try {
+          const user = await User.findOne({ userCode: currentUserCode }).lean();
+          await Status.findOneAndUpdate(
+             { userCode: currentUserCode }, 
+             { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media, type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: 'Reposted', privacy: 'all' } } },
+             { upsert: true }
+          );
+          cb({success:true});
+      } catch(e) { cb({success:false}); }
+  });
+
+  socket.on('edit-reel', async ({ reelId, caption, privacy }, cb) => {
+      if(!currentUserCode) return cb({success:false});
+      try {
+          await Status.updateOne(
+              { userCode: currentUserCode, "items.id": reelId },
+              { $set: { "items.$.caption": caption, "items.$.privacy": privacy } }
+          );
+          cb({success:true});
+      } catch(e) { cb({success:false}); }
+  });
+
+  socket.on('delete-my-media', async ({ type, url, id }, cb) => {
+    if(!currentUserCode) return cb({success:false});
+    try {
+       const publicId = getCloudinaryPublicId(url);
+       if(publicId) cloudinary.uploader.destroy(publicId).catch(()=>{});
+
+       if(type === 'dp') {
+          await User.updateOne({ userCode: currentUserCode }, { avatar: DEFAULT_AVATAR });
+          cb({success:true, avatar: DEFAULT_AVATAR});
+       } else if(type === 'reel') {
+          await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: id } } });
+          cb({success:true});
+       }
+    } catch(e) { cb({success:false}); }
+  });
+
+  // --- Groq / Meta AI Logic ---
+  socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
+    try {
+      const rawKey = process.env.GROQ_API_KEY || "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";
+      const apiKey = String(rawKey).trim();
+      
+      let systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Answer strictly in Hindi or English mix. Your ONLY features are: 1. Text/Photo/Video Chat. 2. Audio/Video Calling. 3. 24h Instagram-style Reels (swipe, double tap like, repost). 4. Message Delete (Everyone/Me). 5. Password recovery via Security Questions. 6. Block/Unblock users. Do NOT invent any other features like groups or channels. Keep answers short and polite.";
+
+      const postData = JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: prompt }
+        ]
+      });
+
+      const options = {
+        hostname: 'api.groq.com',
+        port: 443,
+        path: '/openai/v1/chat/completions',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
+
+      const req = https.request(options, (resAPI) => {
+        let body = '';
+        resAPI.on('data', (chunk) => body += chunk);
+        resAPI.on('end', () => {
+           try {
+              const data = JSON.parse(body);
+              if(data.error) {
+                 return cb({ success: false, error: "AI API Error: " + (data.error.message || "Unknown error") });
+              }
+              if(data.choices && data.choices.length > 0) {
+                 cb({ success: true, text: data.choices[0].message.content });
+              } else {
+                 cb({ success: false, error: 'AI gave no response' });
+              }
+           } catch(err) { cb({ success: false, error: 'JSON Parse error' }); }
+        });
+      });
+      
+      req.on('error', (e) => cb({ success: false, error: 'Connection Error: ' + e.message }));
+      req.write(postData);
+      req.end();
+      
+    } catch (e) {
+      console.error("AI Catch Block Error:", e);
+      cb({ success: false, error: 'Internal AI Error' });
+    }
+  });
+
+  socket.on('ping-server', () => {});
+
+  socket.on('disconnect', () => {
+    if (currentUserCode && userSockets.has(currentUserCode)) {
+      userSockets.get(currentUserCode).delete(socket.id);
+      if (userSockets.get(currentUserCode).size === 0) {
+        userSockets.delete(currentUserCode);
+        const now = new Date();
+        User.updateOne({ userCode: currentUserCode }, { lastSeen: now }).exec();
+        io.emit('user-status-changed', { userCode: currentUserCode, isOnline: false, lastSeen: now });
+      }
+    }
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+setInterval(() => {
+  const client = APP_URL.startsWith('https') ? https : http;
+  client.get(APP_URL + '/health', () => {}).on("error", () => {});
+}, 14 * 60 * 1000); 
