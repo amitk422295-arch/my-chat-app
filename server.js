@@ -130,7 +130,8 @@ cloudinary.config({
 app.get('/health', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chat-app';
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).then(() => console.log('MongoDB connected')).catch(e => console.error(e));
+// Removed deprecated options to fix MongoDB warnings
+mongoose.connect(MONGO_URI).then(() => console.log('MongoDB connected')).catch(e => console.error(e));
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
 
@@ -506,9 +507,11 @@ io.on('connection', (socket) => {
     } catch(e) { cb({success:false}); }
   });
 
+  // ========== UPDATED GROQ AI LOGIC ==========
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
-      const apiKey = "AQ.Ab8RN6JGarhUT4UnDEiMZIIYifH91dSOovQfKzqOGC1sVRFzSw"; 
+      // Use Environment variable on Render, with fallback to hardcoded key
+      const apiKey = process.env.GROQ_API_KEY || "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"; 
       
       let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
       if(context === 'register') systemInstruction = "Only help the user with creating a new account (like 8-digit password, security questions). Keep it very short.";
@@ -517,18 +520,21 @@ io.on('connection', (socket) => {
       if(context === 'general') systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Be polite and helpful. Answer clearly in Hindi/English.";
 
       const postData = JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        systemInstruction: { parts: [{ text: systemInstruction }] }
+        model: "openai/gpt-oss-20b",
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: prompt }
+        ]
       });
 
       const options = {
-        hostname: 'generativelanguage.googleapis.com',
+        hostname: 'api.groq.com',
         port: 443,
-        path: '/v1beta/models/gemini-1.5-flash:generateContent',
+        path: '/openai/v1/chat/completions',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Length': Buffer.byteLength(postData)
         }
       };
@@ -540,10 +546,10 @@ io.on('connection', (socket) => {
            try {
               const data = JSON.parse(body);
               if(data.error) {
-                 return cb({ success: false, error: "Google API Error: " + data.error.message });
+                 return cb({ success: false, error: "AI API Error: " + (data.error.message || "Unknown error") });
               }
-              if(data.candidates && data.candidates.length > 0) {
-                 cb({ success: true, text: data.candidates[0].content.parts[0].text });
+              if(data.choices && data.choices.length > 0) {
+                 cb({ success: true, text: data.choices[0].message.content });
               } else {
                  cb({ success: false, error: 'AI gave no response' });
               }
@@ -559,6 +565,7 @@ io.on('connection', (socket) => {
       cb({ success: false, error: 'Internal AI Error' });
     }
   });
+  // ===========================================
 
   socket.on('ping-server', () => {});
 
