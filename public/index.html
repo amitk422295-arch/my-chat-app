@@ -22,7 +22,7 @@
     #mainApp { display: none; flex-direction: column; width: 100%; height: 100%; height: 100dvh; position: absolute; inset: 0; z-index: 1; overflow: hidden; }
     .top-navbar { background: rgba(16,16,24,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 10px; flex: none; }
     .nav-tabs { display: flex; }
-    .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; }
+    .nav-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; color: #7e7e92; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.3s; }
     .nav-tab.active { color: #ff3b5c; border-bottom-color: #ff3b5c; }
     .top-actions { display:flex; align-items:center; gap:8px; }
     .icon-btn { width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:#191922;color:#fff;font-size:20px;cursor:pointer; }
@@ -30,19 +30,25 @@
     .menu-panel { position:fixed; z-index:210; display:none; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:8px; box-shadow:0 20px 60px rgba(0,0,0,.9); }
     .menu-panel button { width:100%; border:0; background:transparent; color:#fff; padding:13px 12px; text-align:left; border-radius:12px; font-size:14px; cursor:pointer; font-weight:600; }
     .menu-panel button:hover { background:rgba(255,255,255,.08); }
+    
     .modal { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); backdrop-filter: blur(4px); }
     .modal-card { width:100%; max-width:390px; max-height:88vh; overflow:auto; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:22px; box-shadow:0 20px 70px rgba(0,0,0,.85); }
     
-    .panes-wrapper { flex: 1; position: relative; overflow: hidden; }
-    .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; background: #0c0c12; }
-    .tab-pane.active { display: flex; }
+    /* AI Z-Index Fix */
+    #aiModal { z-index: 10005; }
+
+    /* Swipeable Tabs */
+    .panes-wrapper { flex: 1; position: relative; overflow: hidden; display: flex; width: 300%; transition: transform 0.3s ease-out; }
+    .tab-pane { width: 33.333%; height: 100%; display: flex; flex-direction: column; overflow-y: auto; background: #0c0c12; }
     
     .chat-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
     .chat-row:hover { background: rgba(255,255,255,0.02); }
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-    .chat-row img.status-active { border: 3px solid #00ff88; padding: 2px; } 
     
-    #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; }
+    /* Zero-Refresh Chat Slide Animation */
+    #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+    #chatRoom.active { transform: translateX(0); }
+    
     .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex: none; }
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 26px; padding: 10px 18px; }
     .input-wrapper [contenteditable]:empty::before { content: attr(placeholder); color: #888; pointer-events: none; }
@@ -58,11 +64,23 @@
     #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
 
-    .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; cursor:pointer;}
-    .progress-ring::before { content:''; position:absolute; inset:0; border-radius:50%; padding:3px; background: conic-gradient(#ff3b5c var(--progress, 0%), transparent 0); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
-    .glow-complete { animation: glowPulse 1.5s infinite; box-shadow: 0 0 10px #ff3b5c; border-radius:50%; }
-    @keyframes glowPulse { 0% { box-shadow: 0 0 5px #ff3b5c; } 50% { box-shadow: 0 0 20px #ff3b5c; } 100% { box-shadow: 0 0 5px #ff3b5c; } }
+    /* Instagram Reels UI */
+    .reels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding-bottom: 20px; }
+    .reel-thumb { width: 100%; aspect-ratio: 9/16; background: #1c1c26; object-fit: cover; cursor: pointer; position: relative; }
+    #reelsViewerModal { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; }
+    #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; }
+    .reel-item { height: 100vh; height: 100dvh; scroll-snap-align: start; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+    .reel-media { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .reel-overlay { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 15px; }
+    .reel-actions { position: absolute; right: 15px; bottom: 80px; display: flex; flex-direction: column; gap: 20px; pointer-events: auto; }
+    .action-btn { background: transparent; border: none; color: #fff; font-size: 28px; cursor: pointer; text-shadow: 0 2px 5px rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; gap: 5px; transition: transform 0.2s;}
+    .action-btn:active { transform: scale(0.8); }
+    .action-text { font-size: 12px; font-weight: bold; }
+    .heart-anim { position: absolute; font-size: 80px; color: #ff3b5c; opacity: 0; transform: scale(0); transition: all 0.4s ease-out; pointer-events: none; z-index: 10; }
+    .heart-anim.show { opacity: 1; transform: scale(1.2); }
 
+    .progress-ring { width:56px; height:56px; border-radius:50%; background:#1c1c26; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff3b5c; flex:none; padding:2px; position:relative; cursor:pointer;}
+    
     #callScreen { position: fixed; inset: 0; background: rgba(12,12,18,0.95); backdrop-filter: blur(20px); z-index: 900; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 20px; text-align: center; }
     .call-avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); margin-bottom: 20px; animation: pulseCall 2s infinite; }
     @keyframes pulseCall { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(255,255,255,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
@@ -94,7 +112,7 @@
        <p id="confirmText" style="margin-bottom:20px; color:#fff; font-size:15px; font-weight:600;"></p>
        <div style="display:flex; gap:10px;">
           <button class="btn-gradient" style="flex:1; background:#333; box-shadow:none;" onclick="closeConfirm()">Cancel</button>
-          <button class="btn-gradient" style="flex:1; background:#ff3b5c;" id="confirmBtn">Delete</button>
+          <button class="btn-gradient" style="flex:1; background:#ff3b5c;" id="confirmBtn">Confirm</button>
        </div>
     </div>
   </div>
@@ -105,6 +123,7 @@
     <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%; transition: all 0.3s ease;"></div>
   </div>
 
+  <!-- AI MODAL -->
   <div id="aiModal" class="modal" onclick="closeAiModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="display:flex; flex-direction:column; height: 60vh;">
       <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
@@ -158,47 +177,50 @@
           <button class="icon-btn" onclick="toggleAppMenu(event, 'appMenu')" aria-label="Menu">⋮</button>
         </div>
       </div>
-      <div class="nav-tabs">
-        <div class="nav-tab active" onclick="switchTab('paneChats', this)">CHATS</div>
-        <div class="nav-tab" onclick="switchTab('paneStatus', this)">REELS</div>
-        <div class="nav-tab" onclick="switchTab('paneCalls', this); loadCalls();">CALLS</div>
+      <div class="nav-tabs" id="mainNavTabs">
+        <div class="nav-tab active" onclick="switchTab(0)">CHATS</div>
+        <div class="nav-tab" onclick="switchTab(1)">REELS</div>
+        <div class="nav-tab" onclick="switchTab(2); loadCalls();">CALLS</div>
       </div>
     </div>
 
-    <div class="panes-wrapper">
-      <div class="tab-pane active" id="paneChats">
-        <div style="padding:12px;display:flex;gap:8px;">
+    <!-- Swipeable Panes -->
+    <div class="panes-wrapper" id="panesWrapper">
+      <div class="tab-pane" id="paneChats">
+        <div style="padding:12px;display:flex;gap:8px;flex:none;">
           <input type="text" id="directSearchInput" class="input-box" placeholder="Search @userid or mobile">
           <button class="btn-gradient" onclick="openDirectChat()">Add</button>
         </div>
-        <div id="chatsList"></div>
+        <div id="chatsList" style="flex:1; overflow-y:auto;"></div>
       </div>
 
       <div class="tab-pane" id="paneStatus">
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
-          
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <div style="display:flex; align-items:center; gap:14px; width:100%;">
-              <div id="myStatusRing" class="progress-ring" onclick="handleRingClick(event)">+</div>
-              <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
-                <div style="font-weight:700; font-size:15px; color:#fff;">My Reel</div>
-                <div style="font-size:12px; color:#7e7e92; margin-top:2px;">Tap to post a reel (Max 30s)</div>
-              </div>
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <div id="myStatusRing" class="progress-ring" onclick="document.getElementById('statusMediaInput').click()">+</div>
+            <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
+              <div style="font-weight:700; font-size:15px; color:#fff;">Post a Reel</div>
+              <div style="font-size:12px; color:#7e7e92; margin-top:2px;">Max 30s video or photo</div>
             </div>
           </div>
-
-          <div id="contactStatusesArea">
-            <p style="text-align:center;color:#7e7e92;font-size:13px;margin-top:20px;">Tap green rings on chat avatars to view reels!</p>
-          </div>
+          <div id="reelsGridArea" class="reels-grid"></div>
         </div>
       </div>
+
       <div class="tab-pane" id="paneCalls">
         <div id="callsList" style="padding:16px; display:flex; flex-direction:column; gap:8px;"></div>
       </div>
     </div>
     
     <div class="mc-ai-btn" onclick="openAiHelp('general')">MC</div>
+  </div>
+
+  <!-- Reels Viewer -->
+  <div id="reelsViewerModal">
+     <div style="position:absolute; top:20px; left:20px; z-index:1001; font-weight:800; font-size:20px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">Reels</div>
+     <button class="icon-btn" onclick="closeReelsViewer()" style="position:absolute; top:20px; right:20px; z-index:1001; background:transparent; border:none;">✕</button>
+     <div id="reelsScrollArea"></div>
   </div>
 
   <div id="contactMenuModal" class="modal" onclick="closeContactMenu()">
@@ -225,6 +247,12 @@
     <button onclick="openBlockedModal()">🚫 Blocked Users</button>
     <button class="danger" onclick="logoutApp()" style="color:#ff6b8b;">🚪 Logout</button>
   </div>
+  
+  <div id="reelMenu" class="menu-panel" style="width:150px; z-index:1005;">
+     <button id="btnReelEdit" onclick="editReelAction()">✏️ Edit</button>
+     <button id="btnReelPrivacy" onclick="privacyReelAction()">🔒 Privacy</button>
+     <button id="btnReelDelete" onclick="deleteReelAction()" style="color:#ff3b5c;">🗑️ Delete</button>
+  </div>
 
   <div id="blockedModal" class="modal" onclick="closeBlockedModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:350px;">
@@ -234,7 +262,8 @@
     </div>
   </div>
 
-  <div id="chatRoom">
+  <!-- Zero Refresh Chat Room -->
+  <div id="chatRoom" style="display: none;">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
       <img id="roomUserAvatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" onmousedown="startDpPress(event, this.src, currentChatTarget.userCode)" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, currentChatTarget.userCode)" ontouchend="cancelDpPress()">
@@ -253,7 +282,7 @@
       </div>
     </div>
     
-    <div id="roomMessages" style="flex:1;overflow-y:auto;"></div>
+    <div id="roomMessages"></div>
     
     <div class="bottom-input-bar">
       <div class="input-wrapper">
@@ -291,7 +320,6 @@
        <button class="tap-btn btn-green" id="btnAcceptCall" style="font-size:35px;">📞</button>
     </div>
 
-    <!-- CENTERED RED BUTTON -->
     <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px; display:flex; justify-content:center; width:100%;">
        <button class="tap-btn btn-red" onclick="endCall()" style="font-size:35px; transform: rotate(135deg);">📞</button>
     </div>
@@ -341,72 +369,90 @@
     const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>";
 
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
-    let unreadMap = {}; let activeContactMenuTarget = null;
-    let hasMyActiveStatus = false;
+    let unreadMap = {}; let activeContactMenuTarget = null; let globalContacts = [];
 
-    // --- ALERT & CONFIRM MODALS ---
-    function showToast(msg) { 
-       document.getElementById('alertText').textContent = msg;
-       document.getElementById('alertModal').style.display = 'flex';
-    }
+    // --- ALERTS & CONFIRM MODALS ---
+    function showToast(msg) { document.getElementById('alertText').textContent = msg; document.getElementById('alertModal').style.display = 'flex'; }
     function closeAlert() { document.getElementById('alertModal').style.display = 'none'; }
-
     let confirmAction = null;
-    function showConfirm(msg, callback) {
-       document.getElementById('confirmText').textContent = msg;
-       document.getElementById('confirmModal').style.display = 'flex';
-       confirmAction = callback;
-    }
+    function showConfirm(msg, callback) { document.getElementById('confirmText').textContent = msg; document.getElementById('confirmModal').style.display = 'flex'; confirmAction = callback; }
     function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; confirmAction = null; }
     document.getElementById('confirmBtn').onclick = () => { if(confirmAction) confirmAction(); closeConfirm(); };
 
-    // --- AI HELP BOT LOGIC ---
+    // --- MENUS: CLOSE ON OUTSIDE CLICK ---
+    document.addEventListener('click', (e) => {
+        document.querySelectorAll('.menu-panel').forEach(menu => {
+            if (menu.style.display === 'block' && !menu.contains(e.target)) {
+                if(!e.target.classList.contains('icon-btn') && !e.target.closest('.icon-btn')) {
+                    menu.style.display = 'none';
+                }
+            }
+        });
+    });
+    function toggleAppMenu(e, menuId) { 
+      e.stopPropagation(); 
+      document.querySelectorAll('.menu-panel').forEach(m => { if (m.id !== menuId) m.style.display = 'none'; });
+      const m = document.getElementById(menuId); 
+      m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
+    }
+
+    // --- SWIPEABLE TABS LOGIC ---
+    let currentTabIndex = 0;
+    const panesWrapper = document.getElementById('panesWrapper');
+    const navTabs = document.querySelectorAll('#mainNavTabs .nav-tab');
+    function switchTab(index) {
+        currentTabIndex = index;
+        panesWrapper.style.transform = `translateX(-${index * 33.333}%)`;
+        navTabs.forEach((t, i) => t.classList.toggle('active', i === index));
+    }
+    let touchStartX = 0, touchEndX = 0;
+    panesWrapper.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
+    panesWrapper.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        const delta = touchStartX - touchEndX;
+        if(delta > 60 && currentTabIndex < 2) switchTab(currentTabIndex + 1); 
+        else if(delta < -60 && currentTabIndex > 0) switchTab(currentTabIndex - 1); 
+    });
+
+    // --- AI LOGIC (WITH LOCAL INTERCEPTION) ---
     let currentAiContext = 'general';
     function openAiHelp(context) {
-       currentAiContext = context;
-       document.getElementById('aiModal').style.display = 'flex';
+       currentAiContext = context; document.getElementById('aiModal').style.display = 'flex';
        const titles = { 'reg': 'Registration Help', 'login': 'Login Help', 'forgot': 'Recovery Help', 'general': 'My Chat AI' };
        document.getElementById('aiModalTitle').textContent = '🤖 ' + (titles[context] || 'Help');
-       document.getElementById('aiChatWindow').innerHTML = '<div style="color:#00ff88; font-size:13px; text-align:center;">Ask your question below! I am here to help.</div>';
+       document.getElementById('aiChatWindow').innerHTML = '<div style="color:#00ff88; font-size:13px; text-align:center;">Ask your question below!</div>';
     }
     function closeAiModal() { document.getElementById('aiModal').style.display = 'none'; }
+    
     function sendAiMessage() {
        const input = document.getElementById('aiInput');
-       const text = input.value.trim();
-       if(!text) return;
+       const text = input.value.trim(); if(!text) return;
        const windowEl = document.getElementById('aiChatWindow');
-       windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 14px; border-radius:16px; border-bottom-right-radius:4px; max-width:85%; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.3);">${escapeHtml(text)}</div>`);
-       input.value = '';
-       windowEl.scrollTo(0, windowEl.scrollHeight);
        
+       windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 14px; border-radius:16px; border-bottom-right-radius:4px; max-width:85%; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.3);">${escapeHtml(text)}</div>`);
+       input.value = ''; windowEl.scrollTo(0, windowEl.scrollHeight);
+       
+       const lower = text.toLowerCase();
+       const isGreeting = /^(hi|hello|hey|namaste|kaise ho|aur batao)/.test(lower);
+
+       if (currentAiContext === 'reg') return appendAiReply("मैं आपकी अकाउंट बनाने में मदद कर सकता हूँ। कृपया 10 अंकों का मोबाइल नंबर, एक User ID (@ से शुरू), 8 अंकों का पासवर्ड और एक सिक्योरिटी सवाल भरें।");
+       if (currentAiContext === 'login') return appendAiReply("लॉगिन करने के लिए अपना User ID या रजिस्टर्ड मोबाइल नंबर और 8-अंकों का पासवर्ड दर्ज करें।");
+       if (currentAiContext === 'forgot') return appendAiReply("पासवर्ड रिसेट करने के लिए अपना मोबाइल नंबर और अपना सेट किया हुआ सिक्योरिटी सवाल (जैसे Pet's name) का सही जवाब डालें। फिर नया 8-डिजिट का पासवर्ड बनाएं।");
+       if (isGreeting) return appendAiReply("नमस्ते! मैं MC AI हूँ। मैं इस चैट ऐप के फीचर्स (Chat, Call, Reels) में आपकी क्या मदद कर सकता हूँ?");
+
        socket.emit('ask-mc-ai', { prompt: text, context: currentAiContext }, res => {
-          if(res?.success) {
-             windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:#20202a; border:1px solid rgba(255,255,255,0.1); padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px; max-width:85%; font-size:14px;">${escapeHtml(res.text).replace(/\n/g,'<br>')}</div>`);
-             windowEl.scrollTo(0, windowEl.scrollHeight);
-          } else {
-             windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; color:#ff3b5c; font-size:12px;">${res.error || 'Failed to connect to AI.'}</div>`);
-          }
+          if(res?.success) { appendAiReply(res.text.replace(/\n/g,'<br>')); } 
+          else { appendAiReply(res.error || 'Failed to connect to AI.', true); }
        });
     }
-
-    function keepAlivePing() {
-       if (socket.connected && currentUserData) { socket.emit('ping-server'); }
-       setTimeout(keepAlivePing, 20000); 
-    }
-    keepAlivePing(); 
-
-    function forceSilentSync() {
-      if (currentUserData) {
-         if (!socket.connected) socket.connect();
-         syncContacts(); 
-         if (currentChatTarget) syncCurrentChat(true); 
-      }
+    function appendAiReply(htmlContent, isError = false) {
+       const windowEl = document.getElementById('aiChatWindow');
+       const color = isError ? '#ff3b5c' : '#20202a';
+       windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:${color}; border:1px solid rgba(255,255,255,0.1); padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px; max-width:85%; font-size:14px;">${htmlContent}</div>`);
+       windowEl.scrollTo(0, windowEl.scrollHeight);
     }
 
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") forceSilentSync(); });
-    window.addEventListener("focus", forceSilentSync);
-    window.addEventListener("online", forceSilentSync);
-
+    // --- IDB CACHE ---
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
     let dbPromise = null;
     function openLocalDB() {
@@ -425,35 +471,19 @@
     async function idbPut(storeName, value) { const db = await openLocalDB(); if (!db) return; return new Promise(resolve => { const tx = db.transaction(storeName, 'readwrite'); tx.objectStore(storeName).put(value); tx.oncomplete = () => resolve(true); }); }
     async function idbGet(storeName, key) { const db = await openLocalDB(); if (!db) return null; return new Promise(resolve => { const tx = db.transaction(storeName, 'readonly'); const req = tx.objectStore(storeName).get(key); req.onsuccess = () => resolve(req.result || null); }); }
 
-    async function saveMessagesLocal(userCode, messages) { 
-      if (!currentUserData) return;
-      await idbPut(CHAT_STORE, { key: 'messages:' + currentUserData.userCode + ':' + String(userCode).toLowerCase(), messages: Array.isArray(messages) ? messages : [] }); 
-    }
-    async function getMessagesLocal(userCode) { 
-      if (!currentUserData) return [];
-      const row = await idbGet(CHAT_STORE, 'messages:' + currentUserData.userCode + ':' + String(userCode).toLowerCase()); 
-      return row?.messages || []; 
-    }
-    async function saveContactsLocal(contacts) { 
-      if (!currentUserData) return;
-      await idbPut(APP_STORE, { key: 'contacts:' + currentUserData.userCode, contacts: Array.isArray(contacts) ? contacts : [] }); 
-    }
-    async function getContactsLocal() { 
-      if (!currentUserData) return [];
-      const row = await idbGet(APP_STORE, 'contacts:' + currentUserData.userCode); 
-      return row?.contacts || []; 
-    }
+    async function saveMessagesLocal(userCode, messages) { if (!currentUserData) return; await idbPut(CHAT_STORE, { key: 'messages:' + currentUserData.userCode + ':' + String(userCode).toLowerCase(), messages: Array.isArray(messages) ? messages : [] }); }
+    async function getMessagesLocal(userCode) { if (!currentUserData) return []; const row = await idbGet(CHAT_STORE, 'messages:' + currentUserData.userCode + ':' + String(userCode).toLowerCase()); return row?.messages || []; }
+    async function saveContactsLocal(contacts) { if (!currentUserData) return; await idbPut(APP_STORE, { key: 'contacts:' + currentUserData.userCode, contacts: Array.isArray(contacts) ? contacts : [] }); }
+    async function getContactsLocal() { if (!currentUserData) return []; const row = await idbGet(APP_STORE, 'contacts:' + currentUserData.userCode); return row?.contacts || []; }
 
-    socket.on('connect', () => {
-      if (currentUserData && currentUserData.userCode) {
-        socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => {
-          if (res?.token) uploadToken = res.token;
-        });
-        syncContacts();
-        if (currentChatTarget) syncCurrentChat(true); 
-      }
-    });
+    // --- KEEP ALIVE ---
+    function keepAlivePing() { if (socket.connected && currentUserData) { socket.emit('ping-server'); } setTimeout(keepAlivePing, 20000); }
+    keepAlivePing(); 
+    function forceSilentSync() { if (currentUserData) { if (!socket.connected) socket.connect(); syncContacts(); if (currentChatTarget) syncCurrentChat(true); } }
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") forceSilentSync(); });
+    window.addEventListener("focus", forceSilentSync); window.addEventListener("online", forceSilentSync);
 
+    // --- AUTH LOGIC ---
     window.addEventListener('DOMContentLoaded', async () => {
       const savedUser = localStorage.getItem('chatAppUser');
       if (savedUser) {
@@ -467,12 +497,12 @@
       }
     });
 
-    function toggleAppMenu(e, menuId) { 
-      e.stopPropagation(); 
-      document.querySelectorAll('.menu-panel').forEach(m => { if (m.id !== menuId) m.style.display = 'none'; });
-      const m = document.getElementById(menuId); 
-      m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
-    }
+    socket.on('connect', () => {
+      if (currentUserData && currentUserData.userCode) {
+        socket.emit('set-socket-user', { userCode: currentUserData.userCode }, res => { if (res?.token) uploadToken = res.token; });
+        syncContacts(); if (currentChatTarget) syncCurrentChat(true); 
+      }
+    });
 
     function toggleAuthMode() {
       authMode = authMode === 'login' ? 'reg' : 'login';
@@ -484,7 +514,7 @@
 
     function previewDp(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { regDpBase64 = e.target.result; document.getElementById('dpViewer').src = regDpBase64; }; reader.readAsDataURL(file); }
     function changeMyAvatar(inp) { const file = inp.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('myProfileAvatar').src = e.target.result; }; reader.readAsDataURL(file); }
-
+    
     function handleRegisterCustom() {
       const name = document.getElementById('regNameInput').value.trim();
       const mobile = document.getElementById('regMobileInput').value.trim().replace(/[\s-+]/g, '');
@@ -528,15 +558,13 @@
       document.getElementById('screenAuth').style.display = 'none'; 
       document.getElementById('mainApp').style.display = 'flex'; 
       if (showWelcome) showToast('Welcome to My Chat 💖');
-      loadContacts(); 
-    }
-    
-    function switchTab(paneId, tabEl) {
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      document.getElementById(paneId).classList.add('active'); tabEl.classList.add('active');
+      loadContacts(); loadAllReels(); loadCalls();
     }
 
+    function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function escapeAttr(v) { return escapeHtml(v).replace(/`/g,'&#96;'); }
+
+    // --- LONG PRESS ON CONTACT LOGIC ---
     let pressTimer;
     function startContactPress(e, userCode, name) {
       pressTimer = setTimeout(() => {
@@ -594,90 +622,20 @@
        });
     }
 
-    let msgPressTimer;
-    let activeMsgElement = null;
-    let activeMsgId = null;
-
-    function startMsgPress(e, msgId, isMine) {
-      msgPressTimer = setTimeout(() => {
-        activeMsgId = msgId;
-        activeMsgElement = document.getElementById(msgId);
-        document.getElementById('msgActionModal').style.display = 'flex';
-        document.getElementById('btnDelEveryone').style.display = isMine ? 'block' : 'none';
-        
-        document.getElementById('btnCopyMsg').onclick = () => {
-           const text = activeMsgElement.innerText.replace(/✓|🕒|[\d:]+(AM|PM)?/g, '').trim();
-           navigator.clipboard.writeText(text);
-           showToast('Text copied!');
-           closeMsgActionMenu();
-        };
-
-        document.getElementById('btnDelMe').onclick = () => execDeleteMsg('me');
-        document.getElementById('btnDelEveryone').onclick = () => execDeleteMsg('everyone');
-      }, 600);
-    }
-    function cancelMsgPress() { clearTimeout(msgPressTimer); }
-    function closeMsgActionMenu() { document.getElementById('msgActionModal').style.display = 'none'; activeMsgId = null; }
-
-    function execDeleteMsg(type) {
-      if(!activeMsgId) return;
-      showConfirm("Delete this message?", () => {
-         socket.emit('delete-message', { messageId: activeMsgId, type }, res => {
-            if(res?.success) closeMsgActionMenu();
-         });
-      });
-    }
-
-    socket.on('message-deleted-ui', async ({ messageId }) => {
-      const el = document.getElementById(messageId);
-      if (el) el.remove();
-      if (currentChatTarget) {
-        const cached = await getMessagesLocal(currentChatTarget.userCode);
-        const updated = cached.filter(m => m.messageId !== messageId);
-        await saveMessagesLocal(currentChatTarget.userCode, updated);
-      }
-    });
-
+    // --- LONG PRESS ON DP / IMAGE LOGIC ---
     let dpPressTimer;
     let isLongPress = false;
     function startDpPress(e, src, userCode) {
       isLongPress = false;
-      dpPressTimer = setTimeout(() => {
-         isLongPress = true;
-         openFullScreenImage(src);
-      }, 600);
+      dpPressTimer = setTimeout(() => { isLongPress = true; openFullScreenImage(src); }, 600);
     }
     function cancelDpPress() { clearTimeout(dpPressTimer); }
     
-    function handleDpClick(e, src, userCode, hasActiveStatus) {
-      e.stopPropagation();
-      if(isLongPress) return; 
-      if (hasActiveStatus) { playUserStatus(userCode); } 
-      else { openFullScreenImage(src); }
-    }
-
-    function handleRingClick(e) {
-      e.stopPropagation();
-      if (hasMyActiveStatus && currentUserData) {
-         playUserStatus(currentUserData.userCode);
-      } else {
-         document.getElementById('statusMediaInput').click();
-      }
-    }
-
-    let activeReels = [];
-    let currentReelIndex = -1;
-    let currentMediaType = ''; 
-    let currentMediaUrl = '';
-
     function openFullScreenImage(src) { 
-      currentMediaType = 'dp'; currentMediaUrl = src;
       const container = document.getElementById('mediaContainer');
       container.innerHTML = `<img src="${src}" onclick="toggleDpSize(this, event)" style="max-width:180px; max-height:180px; object-fit:cover; border-radius:50%; transition: all 0.3s; cursor:pointer; box-shadow:0 10px 40px rgba(0,0,0,0.9); border: 2px solid rgba(255,255,255,0.2);">`;
       document.getElementById('imageModal').style.display = 'flex'; 
-      checkDeleteButton();
     }
-
     function toggleDpSize(imgEl, e) {
        e.stopPropagation();
        if(imgEl.style.maxWidth === '180px') {
@@ -686,161 +644,62 @@
           imgEl.style.maxWidth = '180px'; imgEl.style.maxHeight = '180px'; imgEl.style.borderRadius = '50%'; imgEl.style.objectFit = 'cover'; imgEl.style.border = '2px solid rgba(255,255,255,0.2)';
        }
     }
+    function closeImageModal() { document.getElementById('mediaContainer').innerHTML = ''; document.getElementById('imageModal').style.display = 'none'; }
 
-    function playUserStatus(userCode) {
-      socket.emit('get-all-active-reels', {}, res => {
-         if(res?.success && res.reels.length > 0) {
-            activeReels = res.reels;
-            currentReelIndex = activeReels.findIndex(r => r.userCode === userCode);
-            if(currentReelIndex === -1) currentReelIndex = 0;
-            showReel(currentReelIndex);
-         } else { showToast('Status expired.'); }
-      });
-    }
-
-    function showReel(index) {
-       if(index < 0 || index >= activeReels.length) { closeImageModal(); return; }
-       currentReelIndex = index;
-       const status = activeReels[index];
-       currentMediaType = 'reel'; currentMediaUrl = status.media;
-       const container = document.getElementById('mediaContainer');
-       
-       let html = '';
-       if (status.type && status.type.includes('video')) {
-          html = `<video src="${status.media}" playsinline autoplay style="max-width:100%; max-height:100vh; border-radius:4px;" onclick="event.stopPropagation()"></video>`;
-       } else {
-          html = `<img src="${status.media}" onclick="event.stopPropagation()" style="max-width:100%; max-height:100vh; object-fit:contain; border-radius:4px;">`;
-       }
-       
-       container.innerHTML = `<div style="position:absolute; top:20px; left:20px; z-index:1002; display:flex; align-items:center; gap:10px;"><img src="${status.avatar}" style="width:40px;height:40px;border-radius:50\%;border:2px solid #ff3b5c;object-fit:cover;"><span style="color:#fff;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.8);">${status.name}</span></div>` + html;
-       document.getElementById('imageModal').style.display = 'flex';
-       checkDeleteButton();
-    }
-
-    let touchStartY = 0;
-    document.getElementById('imageModal').addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; });
-    document.getElementById('imageModal').addEventListener('touchend', e => {
-       if(currentMediaType !== 'reel') return;
-       const touchEndY = e.changedTouches[0].screenY;
-       if(touchStartY - touchEndY > 50) showReel(currentReelIndex + 1); 
-       if(touchEndY - touchStartY > 50) showReel(currentReelIndex - 1); 
-    });
-
-    function checkDeleteButton() {
-       const btn = document.getElementById('deleteMediaBtn');
-       if((currentMediaType === 'dp' && currentMediaUrl === currentUserData?.avatar) || 
-          (currentMediaType === 'reel' && activeReels[currentReelIndex]?.userCode === currentUserData?.userCode)) {
-          btn.style.display = 'block';
-       } else {
-          btn.style.display = 'none';
-       }
-    }
-
-    function deleteCurrentMedia() {
-       showConfirm("Permanently delete this media?", () => {
-          socket.emit('delete-my-media', { type: currentMediaType, url: currentMediaUrl }, res => {
-             if(res?.success) {
-                showToast('Deleted successfully');
-                if(currentMediaType === 'dp') { 
-                   currentUserData.avatar = res.avatar; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
-                   document.getElementById('myProfileAvatar').src = res.avatar; 
-                }
-                closeImageModal();
-                socket.emit('get-contacts');
-             }
-          });
-       });
-    }
-
-    function closeImageModal() { 
-      document.getElementById('mediaContainer').innerHTML = ''; 
-      document.getElementById('imageModal').style.display = 'none'; 
-      document.getElementById('deleteMediaBtn').style.display = 'none';
-      currentMediaType = ''; currentMediaUrl = ''; activeReels = []; currentReelIndex = -1;
-    }
-
-    let globalContacts = [];
+    // --- CONTACTS & ZERO-REFRESH CHAT ---
     function renderContacts(contacts) {
       globalContacts = Array.isArray(contacts) ? contacts : [];
       const list = document.getElementById('chatsList');
-      
       const newHtml = globalContacts.length ? globalContacts.map(c => {
         const unreadCount = unreadMap[c.userCode] || 0;
-        let badgeText = '';
-        if(unreadCount === 1) badgeText = '1 Message';
-        else if(unreadCount > 1) badgeText = `${unreadCount} Messages`;
-
-        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;box-shadow:0 2px 10px rgba(255,59,92,0.4);">${badgeText}</div>` : '';
+        const unreadBadge = unreadCount > 0 ? `<div style="background:#ff3b5c;color:#fff;font-size:10px;font-weight:800;padding:4px 8px;border-radius:12px;">${unreadCount} Messages</div>` : '';
         const userAvatar = c.avatar ? c.avatar : DEFAULT_AVATAR;
-        const statusClass = c.hasActiveStatus ? 'status-active' : '';
-        
-        if (c.userCode === currentUserData?.userCode) {
-            hasMyActiveStatus = c.hasActiveStatus;
-            const ring = document.getElementById('myStatusRing');
-            if(hasMyActiveStatus) { ring.classList.add('glow-complete'); ring.innerHTML = '✓'; }
-            else { ring.classList.remove('glow-complete'); ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); }
-        }
-
         return `
-        <div class="chat-row" data-usercode="${escapeAttr(c.userCode)}" data-name="${escapeAttr(c.name)}" data-avatar="${escapeAttr(userAvatar)}" 
-             onclick="openChatWith(this.dataset.usercode, this.dataset.name, this.dataset.avatar)"
-             onmousedown="startContactPress(event, this.dataset.usercode, this.dataset.name)" onmouseup="cancelPress()" onmouseleave="cancelPress()" 
-             ontouchstart="startContactPress(event, this.dataset.usercode, this.dataset.name)" ontouchend="cancelPress()">
-          <img src="${escapeAttr(userAvatar)}" class="${statusClass}" onerror="this.src='${DEFAULT_AVATAR}'" 
-               onmousedown="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" ontouchend="cancelDpPress()"
-               onclick="handleDpClick(event, this.src, '${escapeAttr(c.userCode)}',${c.hasActiveStatus})">
-          <div style="flex:1;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
+        <div class="chat-row" 
+             onmousedown="startContactPress(event, '${escapeAttr(c.userCode)}', '${escapeAttr(c.name)}')" onmouseup="cancelPress()" onmouseleave="cancelPress()" 
+             ontouchstart="startContactPress(event, '${escapeAttr(c.userCode)}', '${escapeAttr(c.name)}')" ontouchend="cancelPress()"
+             onclick="if(!isLongPress) openChatWith('${escapeAttr(c.userCode)}', '${escapeAttr(c.name)}', '${escapeAttr(userAvatar)}')">
+          <img src="${escapeAttr(userAvatar)}" onerror="this.src='${DEFAULT_AVATAR}'" onmousedown="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" onmouseup="cancelDpPress()" ontouchstart="startDpPress(event, this.src, '${escapeAttr(c.userCode)}')" ontouchend="cancelDpPress()">
+          <div style="flex:1; pointer-events:none;"><div style="font-weight:700;">${escapeHtml(c.name)}</div><div style="font-size:12px;color:#7e7e92;">${escapeHtml(c.userCode)}</div></div>
           <div>${unreadBadge}</div>
         </div>`;
       }).join('') : '<div style="padding:20px;color:#7e7e92;text-align:center;">No chats yet.</div>';
-
       if(list.innerHTML !== newHtml) { list.innerHTML = newHtml; } 
     }
 
     function loadContacts() { getContactsLocal().then(l => { if(l.length) renderContacts(l); }); syncContacts(); }
     function syncContacts() { if (currentUserData?.userCode && socket.connected) socket.emit('get-contacts'); }
-    
-    socket.on('contact-list-data', async ({ contacts }) => { 
-      contacts.forEach(c => { unreadMap[c.userCode] = c.unreadCount || 0; });
-      await saveContactsLocal(contacts); 
-      renderContacts(contacts); 
-    });
+    socket.on('contact-list-data', async ({ contacts }) => { contacts.forEach(c => { unreadMap[c.userCode] = c.unreadCount || 0; }); await saveContactsLocal(contacts); renderContacts(contacts); });
 
     function openDirectChat() {
       const query = document.getElementById('directSearchInput').value.trim(); if (!query) return;
       socket.emit('open-direct-chat', { targetCode: query, query }, res => {
         if (res?.success) {
-          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0, hasActiveStatus: false };
+          const newContact = { userCode: res.user.userCode, name: res.user.fullName, avatar: res.user.avatar, unreadCount: 0 };
           globalContacts = [newContact, ...globalContacts.filter(c => c.userCode !== res.user.userCode)];
-          renderContacts(globalContacts);
-          openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
+          renderContacts(globalContacts); openChatWith(res.user.userCode, res.user.fullName, res.user.avatar);
         } else showToast(res?.error || 'User not found');
       });
     }
 
     function updateRoomStatusUI(isOnline, lastSeen) {
        const statusEl = document.getElementById('roomUserStatus');
-       if (isOnline) {
-          statusEl.innerHTML = '<span style="color:#00ff88;">Online</span>';
-       } else {
+       if (isOnline) { statusEl.innerHTML = '<span style="color:#00ff88;">Online</span>'; } 
+       else {
           if (lastSeen) {
-             const date = new Date(lastSeen);
-             const isToday = new Date().toDateString() === date.toDateString();
+             const date = new Date(lastSeen); const isToday = new Date().toDateString() === date.toDateString();
              const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
              statusEl.innerHTML = `<span style="color:#7e7e92;">Last seen ${isToday ? 'today at' : date.toLocaleDateString() + ' at'} ${time}</span>`;
-          } else {
-             statusEl.innerHTML = `<span style="color:#7e7e92;">Offline</span>`;
-          }
+          } else { statusEl.innerHTML = `<span style="color:#7e7e92;">Offline</span>`; }
        }
     }
-
+    
     function checkUserStatus(targetCode) {
       socket.emit('check-status', { targetCode }, res => {
          if (!currentChatTarget || currentChatTarget.userCode !== targetCode) return;
          updateRoomStatusUI(res.isOnline, res.lastSeen);
       });
     }
-
     socket.on('user-status-changed', ({ userCode, isOnline, lastSeen }) => {
        if (currentChatTarget && currentChatTarget.userCode === userCode) { updateRoomStatusUI(isOnline, lastSeen); }
     });
@@ -848,22 +707,29 @@
     async function openChatWith(uCode, name, avatar) {
       const cleanCode = String(uCode).toLowerCase();
       currentChatTarget = { userCode: cleanCode, name: name || 'User', avatar: avatar || DEFAULT_AVATAR };
-      
-      unreadMap[cleanCode] = 0; 
-      renderContacts(globalContacts); 
+      unreadMap[cleanCode] = 0; renderContacts(globalContacts); 
       socket.emit('mark-all-read', { senderCode: cleanCode }); 
 
       document.getElementById('roomUserName').textContent = currentChatTarget.name;
       document.getElementById('roomUserAvatar').src = currentChatTarget.avatar;
-      document.getElementById('chatRoom').style.display = 'flex';
       
-      checkUserStatus(cleanCode); 
+      // SPA Slide in animation
+      const cr = document.getElementById('chatRoom');
+      cr.style.display = 'flex';
+      setTimeout(()=> cr.classList.add('active'), 10);
+      
+      checkUserStatus(cleanCode);
 
       const cached = await getMessagesLocal(currentChatTarget.userCode);
       if (cached.length) renderMessages(cached, false); 
-      
       syncCurrentChat(false);
       setTimeout(() => { document.getElementById('msgInputBox').focus(); }, 100);
+    }
+    
+    function closeChatRoom() { 
+        const cr = document.getElementById('chatRoom');
+        cr.classList.remove('active'); 
+        setTimeout(() => { cr.style.display = 'none'; currentChatTarget = null; loadContacts(); }, 300);
     }
 
     async function syncCurrentChat(silent = false) {
@@ -879,45 +745,68 @@
       });
     }
 
-    function closeChatRoom() { document.getElementById('chatRoom').style.display = 'none'; currentChatTarget = null; loadContacts(); }
-    function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-    function escapeAttr(v) { return escapeHtml(v).replace(/`/g,'&#96;'); }
-    
     function scrollToBottom(smooth = false) {
       const rm = document.getElementById('roomMessages');
-      if (smooth) { rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); } 
-      else { rm.scrollTop = rm.scrollHeight; }
+      if (smooth) rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); else rm.scrollTop = rm.scrollHeight;
     }
 
     function formatMessageContent(m) {
       const timeStr = new Date(m.createdAt || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       let innerHtml = '';
-      
-      if (m.messageType === 'image') {
-        innerHtml = `<img src="${escapeAttr(m.media)}" onload="scrollToBottom()" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`;
-      }
-      else if (m.messageType === 'video') {
-        innerHtml = `<video src="${escapeAttr(m.media)}" onloadeddata="scrollToBottom()" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`;
-      }
-      else if (m.messageType === 'document') {
-        innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`;
-      }
-      else {
-        let escapedText = escapeHtml(m.text);
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        innerHtml = escapedText.replace(urlRegex, function(url) {
-          return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#5ac8fa; text-decoration:underline;" onclick="event.stopPropagation()">${url}</a>`;
-        });
-      }
+      if (m.messageType === 'image') { innerHtml = `<img src="${escapeAttr(m.media)}" onload="scrollToBottom()" onclick="openFullScreenImage(this.src)" style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer;">`; }
+      else if (m.messageType === 'video') { innerHtml = `<video src="${escapeAttr(m.media)}" onloadeddata="scrollToBottom()" controls style="max-width:100%;max-height:280px;border-radius:8px;display:block;margin-bottom:4px;"></video>`; }
+      else if (m.messageType === 'document') { innerHtml = `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; gap:10px; border:1px solid rgba(255,255,255,0.1); margin-bottom:4px;">📄 <a href="${escapeAttr(m.media)}" target="_blank" style="color:#5ac8fa;text-decoration:none;font-weight:600;">${escapeHtml(m.fileName||'File')}</a></div>`; }
+      else { innerHtml = escapeHtml(m.text).replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank" style="color:#5ac8fa;">${url}</a>`); }
 
-      let statusIcon = '';
-      if (m.senderCode === currentUserData?.userCode || m.mine) {
-        if (m.status === 'pending') statusIcon = '🕒';
-        else if (m.status === 'sent') statusIcon = '✓';
-        else if (m.status === 'delivered') statusIcon = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>';
-        else statusIcon = '✓'; 
+      let statusIcon = (m.status === 'delivered') ? '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>' : '✓';
+      return `${innerHtml}<span class="msg-time">${timeStr} <span id="status_${m.messageId}">${(m.mine || m.senderCode===currentUserData?.userCode) ? statusIcon : ''}</span></span>`;
+    }
+
+    // --- MESSAGE LONG PRESS (DELETE / COPY) ---
+    let msgPressTimer; let activeMsgElement = null; let activeMsgId = null;
+    function startMsgPress(e, msgId, isMine) {
+      msgPressTimer = setTimeout(() => {
+        activeMsgId = msgId; activeMsgElement = document.getElementById(msgId);
+        document.getElementById('msgActionModal').style.display = 'flex';
+        document.getElementById('btnDelEveryone').style.display = isMine ? 'block' : 'none';
+        
+        document.getElementById('btnCopyMsg').onclick = () => {
+           const text = activeMsgElement.innerText.replace(/✓|🕒|[\d:]+(AM|PM)?/g, '').trim();
+           navigator.clipboard.writeText(text); showToast('Text copied!'); closeMsgActionMenu();
+        };
+        document.getElementById('btnDelMe').onclick = () => execDeleteMsg('me');
+        document.getElementById('btnDelEveryone').onclick = () => execDeleteMsg('everyone');
+      }, 600);
+    }
+    function cancelMsgPress() { clearTimeout(msgPressTimer); }
+    function closeMsgActionMenu() { document.getElementById('msgActionModal').style.display = 'none'; activeMsgId = null; }
+
+    function execDeleteMsg(type) {
+      if(!activeMsgId) return;
+      showConfirm("Delete this message?", () => {
+         socket.emit('delete-message', { messageId: activeMsgId, type }, res => { if(res?.success) closeMsgActionMenu(); });
+      });
+    }
+
+    socket.on('message-deleted-ui', async ({ messageId }) => {
+      const el = document.getElementById(messageId); if (el) el.remove();
+      if (currentChatTarget) {
+        const cached = await getMessagesLocal(currentChatTarget.userCode);
+        const updated = cached.filter(m => m.messageId !== messageId);
+        await saveMessagesLocal(currentChatTarget.userCode, updated);
       }
-      return `${innerHtml}<span class="msg-time">${timeStr} <span id="status_${m.messageId}">${statusIcon}</span></span>`;
+    });
+
+    async function clearCurrentChat() {
+      if (!currentChatTarget) return;
+      document.getElementById('chatRoomMenu').style.display = 'none';
+      showConfirm("Clear entire chat history?", () => {
+         socket.emit('clear-chat', { targetCode: currentChatTarget.userCode }, async res => {
+            if(res?.success) {
+               await saveMessagesLocal(currentChatTarget.userCode, []); renderMessages([]); showToast('Chat cleared entirely!');
+            }
+         });
+      });
     }
 
     function renderMessages(messages, smooth = false) {
@@ -929,107 +818,61 @@
                 ontouchstart="startMsgPress(event, '${m.messageId}', ${mine})" ontouchend="cancelMsgPress()">
                 ${formatMessageContent(m)}</div>`;
       }).join('');
-      setTimeout(() => { scrollToBottom(smooth); }, 10);
+      setTimeout(() => scrollToBottom(smooth), 10);
     }
 
     function promoteChatToTop(userCode) {
         const idx = globalContacts.findIndex(c => c.userCode === userCode);
-        if (idx !== -1) {
-            const c = globalContacts.splice(idx, 1)[0];
-            globalContacts.unshift(c);
-            renderContacts(globalContacts);
-        } else {
-            socket.emit('get-contacts');
-        }
+        if (idx !== -1) { const c = globalContacts.splice(idx, 1)[0]; globalContacts.unshift(c); renderContacts(globalContacts); } 
+        else { socket.emit('get-contacts'); }
     }
 
-    async function clearCurrentChat() {
-      if (!currentChatTarget) return;
-      document.getElementById('chatRoomMenu').style.display = 'none';
-      showConfirm("Clear entire chat history?", () => {
-         socket.emit('clear-chat', { targetCode: currentChatTarget.userCode }, async res => {
-            if(res?.success) {
-               await saveMessagesLocal(currentChatTarget.userCode, []);
-               renderMessages([]);
-               showToast('Chat cleared entirely!');
-            }
-         });
-      });
-    }
-
+    // --- TYPING LOGIC ---
     const chatInputBox = document.getElementById('msgInputBox');
-    chatInputBox.addEventListener('focus', () => { setTimeout(() => scrollToBottom(false), 300); });
-    chatInputBox.addEventListener('click', () => { setTimeout(() => scrollToBottom(false), 300); });
-    const handleKeyboardResize = () => { if (document.getElementById('chatRoom').style.display === 'flex') scrollToBottom(false); };
-    if (window.visualViewport) { window.visualViewport.addEventListener('resize', handleKeyboardResize); } 
-    else { window.addEventListener('resize', handleKeyboardResize); }
-
-    let typingTimer;
-    let isTyping = false;
+    let typingTimer; let isTyping = false;
     chatInputBox.addEventListener('input', () => {
       if (!currentChatTarget) return;
-      if (!isTyping) {
-        isTyping = true;
-        socket.emit('typing', { targetCode: currentChatTarget.userCode });
-      }
+      if (!isTyping) { isTyping = true; socket.emit('typing', { targetCode: currentChatTarget.userCode }); }
       clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => {
-        isTyping = false;
-        socket.emit('stop-typing', { targetCode: currentChatTarget.userCode });
-      }, 1500);
+      typingTimer = setTimeout(() => { isTyping = false; socket.emit('stop-typing', { targetCode: currentChatTarget.userCode }); }, 1500);
     });
+    socket.on('typing', ({ senderCode }) => { if (currentChatTarget && currentChatTarget.userCode === senderCode) { document.getElementById('roomUserStatus').innerHTML = '<span style="color:#00ff88;font-style:italic;">typing...</span>'; } });
+    socket.on('stop-typing', ({ senderCode }) => { if (currentChatTarget && currentChatTarget.userCode === senderCode) checkUserStatus(senderCode); });
+    chatInputBox.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
 
-    socket.on('typing', ({ senderCode }) => {
-      if (currentChatTarget && currentChatTarget.userCode === senderCode) { document.getElementById('roomUserStatus').innerHTML = '<span style="color:#00ff88;font-style:italic;">typing...</span>'; }
-    });
-
-    socket.on('stop-typing', ({ senderCode }) => {
-      if (currentChatTarget && currentChatTarget.userCode === senderCode) checkUserStatus(senderCode);
-    });
-
+    // --- SINGLE MESSAGE REAL-TIME UPDATE (OPTIMISTIC UI) ---
     function sendChatMessage() {
-      const box = chatInputBox; 
+      const box = document.getElementById('msgInputBox'); 
       const val = box.innerText.trim();
       if (!val || !currentChatTarget) return;
-      const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      const clientMsgId = 'msg_' + Date.now();
       
-      const tempMsg = { messageId: clientMessageId, text: val, mine: true, status: 'pending', messageType: 'text', createdAt: Date.now() };
-      document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}" onmousedown="startMsgPress(event, '${clientMessageId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMessageId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
+      const tempMsg = { messageId: clientMsgId, text: val, mine: true, status: 'sent', messageType: 'text', createdAt: Date.now() };
+      // Single Append directly to DOM (No full refresh)
+      document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
       scrollToBottom(true);
-      
       box.innerText = ''; box.focus(); 
       promoteChatToTop(currentChatTarget.userCode);
       
-      clearTimeout(typingTimer);
-      isTyping = false;
-      socket.emit('stop-typing', { targetCode: currentChatTarget.userCode });
-
-      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId }, async res => {
-        const el = document.getElementById(clientMessageId);
-        if (res?.success && el) {
-          el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
+      socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: val, messageType: 'text', clientMessageId: clientMsgId }, async res => {
+        if (res?.success) {
           const cached = await getMessagesLocal(currentChatTarget.userCode);
           await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
         }
       });
     }
 
-    chatInputBox.addEventListener('keydown', e => { 
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } 
-    });
-
     async function sendMediaFile(inp, forcedType) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
       document.getElementById('attachMenu').style.display = 'none';
       
       try {
-        const clientMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+        const clientMsgId = 'msg_' + Date.now();
         const tempUrl = URL.createObjectURL(file);
         
-        const tempMsg = { messageId: clientMessageId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
-        document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMessageId}" onmousedown="startMsgPress(event, '${clientMessageId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMessageId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
-        scrollToBottom(true);
-        promoteChatToTop(currentChatTarget.userCode);
+        const tempMsg = { messageId: clientMsgId, text: file.name, media: tempUrl, mine: true, status: 'pending', messageType: forcedType, createdAt: Date.now(), fileName: file.name };
+        document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
+        scrollToBottom(true); promoteChatToTop(currentChatTarget.userCode);
 
         const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
         xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
@@ -1038,8 +881,8 @@
         xhr.onload = () => {
           const result = JSON.parse(xhr.responseText || '{}');
           if (result.success) {
-            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId }, async res => {
-              const el = document.getElementById(clientMessageId);
+            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId: clientMsgId }, async res => {
+              const el = document.getElementById(clientMsgId);
               if (res?.success && el) {
                 el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
                 const cached = await getMessagesLocal(currentChatTarget.userCode);
@@ -1047,46 +890,8 @@
               }
             });
           }
-        };
-        xhr.send(form);
+        }; xhr.send(form);
       } catch (e) { showToast('Upload failed'); }
-      inp.value = '';
-    }
-
-    function uploadStatusMedia(inp) {
-      const file = inp.files?.[0]; if (!file) return;
-      const ring = document.getElementById('myStatusRing');
-      ring.innerHTML = ''; ring.classList.remove('glow-complete'); 
-      ring.style.setProperty('--progress', '5%');
-      showToast('Uploading Status... You can chat while it uploads.');
-
-      const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
-      xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
-      xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-      xhr.setRequestHeader('X-Is-Status', 'true');
-      
-      xhr.upload.onprogress = (e) => {
-         if(e.lengthComputable) {
-            const pct = Math.floor((e.loaded / e.total) * 90) + 5; 
-            ring.style.setProperty('--progress', pct + '%');
-         }
-      };
-
-      const form = new FormData(); form.append('media', file, file.name);
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          ring.style.setProperty('--progress', '100%');
-          ring.classList.add('glow-complete');
-          ring.innerHTML = '✓';
-          hasMyActiveStatus = true;
-          showToast('Status Uploaded Successfully!');
-          socket.emit('get-contacts'); 
-        } else {
-          ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%');
-          showToast('Upload failed');
-        }
-      };
-      xhr.send(form);
       inp.value = '';
     }
 
@@ -1095,20 +900,17 @@
       const otherCode = m.senderCode === currentUserData.userCode ? m.receiverCode : m.senderCode;
 
       if (currentChatTarget && currentChatTarget.userCode === otherCode) {
+        // Single Append for incoming message
         if (!document.getElementById(m.messageId)) {
           document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble theirs" id="${m.messageId}" onmousedown="startMsgPress(event, '${m.messageId}', false)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${m.messageId}', false)" ontouchend="cancelMsgPress()">${formatMessageContent(m)}</div>`);
           scrollToBottom(true);
         }
         const cached = await getMessagesLocal(currentChatTarget.userCode);
         if (!cached.find(x => x.messageId === m.messageId)) await saveMessagesLocal(currentChatTarget.userCode, [...cached, m]);
-        
         socket.emit('mark-message-read', { messageId: m.messageId, senderCode: m.senderCode });
       } else {
         unreadMap[otherCode] = (unreadMap[otherCode] || 0) + 1;
-        let exists = globalContacts.find(c => c.userCode === otherCode);
-        if (!exists) { socket.emit('get-contacts'); } 
-        else { promoteChatToTop(otherCode); }
-        showToast(`New message from ${otherCode}`);
+        promoteChatToTop(otherCode); showToast(`New message from ${otherCode}`);
       }
     });
 
@@ -1116,93 +918,128 @@
       const statusSpan = document.getElementById(`status_${messageId}`);
       if (statusSpan && status === 'delivered') { statusSpan.innerHTML = '<span style="color:#5ac8fa; font-weight:bold;">✓✓</span>'; }
     });
-    
-    function openMyProfile() {
-      document.getElementById('myProfileName').value = currentUserData.fullName || '';
-      document.getElementById('myProfileId').value = currentUserData.userCode || '';
-      document.getElementById('myProfileMobile').value = currentUserData.mobile || '';
-      document.getElementById('myProfileQ1').value = currentUserData.secQ1 || '';
-      document.getElementById('myProfileQ2').value = currentUserData.secQ2 || '';
-      document.getElementById('myProfileAvatar').src = currentUserData.avatar || DEFAULT_AVATAR;
-      document.getElementById('myProfileModal').style.display = 'flex';
-      document.getElementById('appMenu').style.display = 'none'; 
+
+    // --- INSTAGRAM STYLE REELS LOGIC ---
+    let activeReelsData = []; let currentReelIdForMenu = null;
+    function loadAllReels() {
+       socket.emit('get-all-active-reels', { myContacts: currentUserData?.contacts || [] }, res => {
+          if(res?.success) {
+             activeReelsData = res.reels;
+             const grid = document.getElementById('reelsGridArea');
+             grid.innerHTML = activeReelsData.map((r, index) => {
+                 const bg = r.type.includes('video') ? '#000' : `url(${r.media}) center/cover`;
+                 return `<div class="reel-thumb" style="background:${bg};" onclick="openReelsViewer(${index})">
+                     ${r.type.includes('video') ? `<video src="${r.media}#t=0.1" style="width:100%;height:100%;object-fit:cover;"></video>` : ''}
+                     <div style="position:absolute;bottom:5px;left:5px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:2px 4px;border-radius:4px;">${escapeHtml(r.name.split(' ')[0])}</div>
+                 </div>`;
+             }).join('');
+          }
+       });
+    }
+
+    function openReelsViewer(startIndex) {
+       const viewer = document.getElementById('reelsViewerModal');
+       const scrollArea = document.getElementById('reelsScrollArea');
+       
+       scrollArea.innerHTML = activeReelsData.map((r, i) => `
+          <div class="reel-item" data-id="${r.id}" onclick="handleReelTap(event, '${r.id}', '${r.userCode}')">
+             ${r.type.includes('video') ? `<video src="${r.media}" loop playsinline autoplay class="reel-media"></video>` : `<img src="${r.media}" class="reel-media">`}
+             <div id="heart_${r.id}" class="heart-anim">❤️</div>
+             <div class="reel-overlay">
+                 <div style="display:flex;align-items:center;gap:10px;">
+                     <img src="${r.avatar}" style="width:36px;height:36px;border-radius:50%;border:2px solid #ff3b5c;object-fit:cover;">
+                     <span style="font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.name)}</span>
+                 </div>
+                 <div style="text-shadow:0 1px 3px rgba(0,0,0,0.9);">${escapeHtml(r.caption)}</div>
+             </div>
+             <div class="reel-actions">
+                 <button class="action-btn" onclick="event.stopPropagation(); toggleLike('${r.id}', '${r.userCode}')">
+                     <span id="likeIcon_${r.id}" style="color:${r.likes.includes(currentUserData.userCode) ? '#ff3b5c' : '#fff'}">${r.likes.includes(currentUserData.userCode) ? '❤️' : '🤍'}</span>
+                     <span class="action-text" id="likeCount_${r.id}">${r.likes.length}</span>
+                 </button>
+                 <button class="action-btn" onclick="event.stopPropagation(); nativeShare('${r.media}')">↗️<span class="action-text">Share</span></button>
+                 <button class="action-btn" onclick="event.stopPropagation(); repostReel('${r.media}', '${r.type}')">🔄<span class="action-text">Repost</span></button>
+                 ${r.userCode === currentUserData.userCode ? `<button class="action-btn" onclick="event.stopPropagation(); openReelMenu(event, '${r.id}')">⋮</button>` : ''}
+             </div>
+          </div>
+       `).join('');
+
+       viewer.style.display = 'flex';
+       setTimeout(() => { const items = document.querySelectorAll('.reel-item'); if(items[startIndex]) items[startIndex].scrollIntoView(); }, 50);
     }
     
-    function closeMyProfile() { document.getElementById('myProfileModal').style.display = 'none'; }
-    
-    function saveMyProfile() {
-      const fullName = document.getElementById('myProfileName').value.trim();
-      const avatar = document.getElementById('myProfileAvatar').src;
-      const secQ1 = document.getElementById('myProfileQ1').value.trim();
-      const secQ2 = document.getElementById('myProfileQ2').value.trim();
-      
-      closeMyProfile(); 
-      showToast('Profile Saved Successfully!'); 
+    function closeReelsViewer() { document.getElementById('reelsViewerModal').style.display = 'none'; document.getElementById('reelsScrollArea').innerHTML = ''; }
 
-      if (currentUserData) {
-        currentUserData.fullName = fullName;
-        currentUserData.secQ1 = secQ1;
-        currentUserData.secQ2 = secQ2;
-        if (avatar) currentUserData.avatar = avatar;
-        localStorage.setItem('chatAppUser', JSON.stringify(currentUserData));
-      }
-      
-      socket.emit('update-profile', { fullName, avatar, secQ1, secQ2 }, res => {
-        if (res?.success) { 
-          currentUserData = res.user; 
-          localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); 
+    let lastTap = 0;
+    function handleReelTap(e, reelId, authorCode) {
+        const now = Date.now();
+        if(now - lastTap < 300) { 
+            toggleLike(reelId, authorCode, true);
+            const heart = document.getElementById('heart_' + reelId);
+            heart.style.left = (e.clientX - 40) + 'px'; heart.style.top = (e.clientY - 40) + 'px';
+            heart.classList.add('show'); setTimeout(() => heart.classList.remove('show'), 600);
         }
-      });
+        lastTap = now;
     }
 
-    socket.on('profile-upload-error', (data) => { showToast(data.error || 'DP upload failed.'); });
-
-    function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
-    function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
-    
-    function submitRecovery() {
-      const mobile = document.getElementById('recMobileInput').value.trim();
-      const q1 = document.getElementById('recQ1Input').value.trim();
-      const q2 = document.getElementById('recQ2Input').value.trim();
-      const newPassword = document.getElementById('recNewPassInput').value.trim();
-      const confirmPassword = document.getElementById('recConfirmPassInput').value.trim();
-      
-      if(!mobile || !newPassword) return showToast('Mobile and New Password are required');
-      if(newPassword.length !== 8) return showToast('Password must be 8 digits');
-      if(newPassword !== confirmPassword) return showToast('Passwords do not match!');
-
-      socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
-        if (res?.success) { 
-          showToast("Recovery successful! Logging in..."); 
-          closeForgotModal();
-          if (authMode === 'reg') { toggleAuthMode(); }
-          
-          document.getElementById('loginIdInput').value = mobile;
-          document.getElementById('loginPassInput').value = newPassword; 
-          
-          document.getElementById('recMobileInput').value = '';
-          document.getElementById('recQ1Input').value = '';
-          document.getElementById('recQ2Input').value = '';
-          document.getElementById('recNewPassInput').value = '';
-          document.getElementById('recConfirmPassInput').value = '';
-          
-          setTimeout(() => { handleLogin(); }, 1500); 
-        } else showToast(res?.error || 'Failed');
-      });
+    function toggleLike(reelId, userCode, forceLike = false) {
+        socket.emit('like-reel', { reelId, userCode });
+        const r = activeReelsData.find(x => x.id === reelId);
+        if(r) {
+            const idx = r.likes.indexOf(currentUserData.userCode);
+            if(idx > -1 && !forceLike) r.likes.splice(idx, 1);
+            else if(idx === -1) r.likes.push(currentUserData.userCode);
+            document.getElementById('likeCount_' + reelId).textContent = r.likes.length;
+            document.getElementById('likeIcon_' + reelId).textContent = r.likes.includes(currentUserData.userCode) ? '❤️' : '🤍';
+            document.getElementById('likeIcon_' + reelId).style.color = r.likes.includes(currentUserData.userCode) ? '#ff3b5c' : '#fff';
+        }
     }
 
-    function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
+    socket.on('reel-like-updated', ({ reelId, likes }) => {
+        const r = activeReelsData.find(x => x.id === reelId);
+        if(r) { r.likes = likes; const cntEl = document.getElementById('likeCount_' + reelId); if(cntEl) cntEl.textContent = likes.length; }
+    });
 
-    let localStream, peerConnection, callInterval;
-    let callTargetCode = null, callTargetName = null;
-    let callRole = null; 
-    let callStartTime = 0;
+    function nativeShare(mediaUrl) { if (navigator.share) { navigator.share({ title: 'My Chat Reel', text: 'Check out this reel!', url: mediaUrl }).catch(()=>{}); } else { showToast('Sharing not supported.'); } }
+    function repostReel(mediaUrl, type) { showConfirm("Repost this to your own Reels?", () => { socket.emit('repost-reel', { media: mediaUrl, type }, res => { if(res?.success) { showToast('Reposted!'); loadAllReels(); } }); }); }
 
+    function openReelMenu(e, reelId) {
+       e.stopPropagation(); currentReelIdForMenu = reelId;
+       const menu = document.getElementById('reelMenu');
+       menu.style.top = (e.clientY - 120) + 'px'; menu.style.right = '20px'; menu.style.display = 'block';
+    }
+
+    function editReelAction() {
+       document.getElementById('reelMenu').style.display = 'none';
+       const caption = prompt("Enter new caption:");
+       if(caption !== null) { socket.emit('edit-reel', { reelId: currentReelIdForMenu, caption, privacy: 'all' }, res => { if(res?.success) { showToast('Updated'); loadAllReels(); closeReelsViewer(); } }); }
+    }
+    function privacyReelAction() {
+       document.getElementById('reelMenu').style.display = 'none';
+       showConfirm("Make this Reel visible to Contacts Only?", () => { socket.emit('edit-reel', { reelId: currentReelIdForMenu, caption: '', privacy: 'contacts' }, res => { if(res?.success) { showToast('Privacy updated to Contacts'); } }); });
+    }
+    function deleteReelAction() {
+       document.getElementById('reelMenu').style.display = 'none';
+       showConfirm("Delete this Reel?", () => { socket.emit('delete-my-media', { type: 'reel', id: currentReelIdForMenu }, res => { if(res?.success) { showToast('Deleted'); loadAllReels(); closeReelsViewer(); } }); });
+    }
+
+    function uploadStatusMedia(inp) {
+      const file = inp.files?.[0]; if (!file) return;
+      showToast('Uploading Reel...');
+      const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
+      xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
+      xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
+      xhr.setRequestHeader('X-Is-Status', 'true');
+      const form = new FormData(); form.append('media', file, file.name);
+      xhr.onload = () => { if (xhr.status === 200) { showToast('Reel Uploaded!'); loadAllReels(); } else { showToast('Upload failed'); } };
+      xhr.send(form); inp.value = '';
+    }
+
+    // --- CALLING LOGIC (RESTORED) ---
+    let localStream, peerConnection, callInterval; let callTargetCode = null, callTargetName = null; let callRole = null; let callStartTime = 0;
     const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-    function loadCalls() {
-      socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); });
-    }
+    function loadCalls() { socket.emit('get-calls', {}, res => { if(res?.success) renderCalls(res.calls); }); }
     
     function renderCalls(calls) {
        const list = document.getElementById('callsList');
@@ -1230,92 +1067,55 @@
 
     function startCall() {
       if(!currentChatTarget) return;
-      callTargetCode = currentChatTarget.userCode;
-      callTargetName = currentChatTarget.name;
-      callRole = 'caller';
-      document.getElementById('callName').textContent = currentChatTarget.name;
-      document.getElementById('callAvatar').src = currentChatTarget.avatar;
-      document.getElementById('callStatusText').textContent = "Connecting...";
-      document.getElementById('callTimeDisplay').style.display = 'none';
-      document.getElementById('callScreen').style.display = 'flex';
-      document.getElementById('callReceiverUI').style.display = 'none';
+      callTargetCode = currentChatTarget.userCode; callTargetName = currentChatTarget.name; callRole = 'caller';
+      document.getElementById('callName').textContent = currentChatTarget.name; document.getElementById('callAvatar').src = currentChatTarget.avatar;
+      document.getElementById('callStatusText').textContent = "Connecting..."; document.getElementById('callTimeDisplay').style.display = 'none';
+      document.getElementById('callScreen').style.display = 'flex'; document.getElementById('callReceiverUI').style.display = 'none';
       document.getElementById('callCallerUI').style.display = 'flex';
 
       navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-        localStream = stream;
-        document.getElementById('localVideo').srcObject = stream;
-        
+        localStream = stream; document.getElementById('localVideo').srcObject = stream;
         peerConnection = new RTCPeerConnection(servers);
         stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
         peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
         peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
 
-        peerConnection.createOffer().then(offer => {
-          peerConnection.setLocalDescription(offer);
-          socket.emit('call-user', { targetCode: callTargetCode, offer: offer });
-        });
+        peerConnection.createOffer().then(offer => { peerConnection.setLocalDescription(offer); socket.emit('call-user', { targetCode: callTargetCode, offer: offer }); });
       }).catch(err => { showToast('Camera/Mic permission denied'); cleanupCall(false); });
     }
 
     socket.on('call-status', data => { if(callRole === 'caller' && !callStartTime) document.getElementById('callStatusText').textContent = data.status; });
 
     socket.on('incoming-call', async (data) => {
-      callTargetCode = data.callerCode;
-      callTargetName = data.callerName;
-      callRole = 'receiver';
-      document.getElementById('callName').textContent = data.callerName;
-      document.getElementById('callAvatar').src = data.callerAvatar || DEFAULT_AVATAR;
-      document.getElementById('callStatusText').textContent = "Incoming Call...";
-      document.getElementById('callTimeDisplay').style.display = 'none';
-      document.getElementById('callScreen').style.display = 'flex';
-      document.getElementById('callReceiverUI').style.display = 'flex';
+      callTargetCode = data.callerCode; callTargetName = data.callerName; callRole = 'receiver';
+      document.getElementById('callName').textContent = data.callerName; document.getElementById('callAvatar').src = data.callerAvatar || DEFAULT_AVATAR;
+      document.getElementById('callStatusText').textContent = "Incoming Call..."; document.getElementById('callTimeDisplay').style.display = 'none';
+      document.getElementById('callScreen').style.display = 'flex'; document.getElementById('callReceiverUI').style.display = 'flex';
       document.getElementById('callCallerUI').style.display = 'none';
 
       navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-        localStream = stream;
-        document.getElementById('localVideo').srcObject = stream;
-        
+        localStream = stream; document.getElementById('localVideo').srcObject = stream;
         peerConnection = new RTCPeerConnection(servers);
         stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
         peerConnection.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; };
         peerConnection.onicecandidate = event => { if(event.candidate) socket.emit('ice-candidate', { targetCode: callTargetCode, candidate: event.candidate }); };
-
         peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
       });
     });
 
     document.getElementById('btnAcceptCall').onclick = () => {
-      if(!peerConnection) return;
-      startCallTimer();
-      document.getElementById('callReceiverUI').style.display = 'none';
-      document.getElementById('callCallerUI').style.display = 'flex'; 
-      peerConnection.createAnswer().then(answer => {
-        peerConnection.setLocalDescription(answer);
-        socket.emit('answer-call', { callerCode: callTargetCode, answer });
-      });
+      if(!peerConnection) return; startCallTimer();
+      document.getElementById('callReceiverUI').style.display = 'none'; document.getElementById('callCallerUI').style.display = 'flex'; 
+      peerConnection.createAnswer().then(answer => { peerConnection.setLocalDescription(answer); socket.emit('answer-call', { callerCode: callTargetCode, answer }); });
     };
 
-    document.getElementById('btnRejectCall').onclick = () => { 
-      socket.emit('reject-call', { callerCode: callTargetCode }); 
-      cleanupCall(false); 
-    };
-
-    socket.on('call-rejected', () => { 
-      showToast('Call Declined'); 
-      saveCallLog('declined', '0s');
-      cleanupCall(false); 
-    });
-
-    socket.on('call-answered', data => {
-      startCallTimer();
-      peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-    });
-
+    document.getElementById('btnRejectCall').onclick = () => { socket.emit('reject-call', { callerCode: callTargetCode }); cleanupCall(false); };
+    socket.on('call-rejected', () => { showToast('Call Declined'); saveCallLog('declined', '0s'); cleanupCall(false); });
+    socket.on('call-answered', data => { startCallTimer(); peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); });
     socket.on('ice-candidate', data => { if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)); });
     
     function endCall() { 
       if(callTargetCode) socket.emit('end-call', { targetCode: callTargetCode }); 
-      
       let finalStatus = callStartTime ? 'completed' : 'missed';
       let durationStr = '0s';
       if(callStartTime) {
@@ -1332,36 +1132,75 @@
     function startCallTimer() {
       callStartTime = Date.now();
       document.getElementById('callStatusText').style.display = 'none';
-      const timeDisplay = document.getElementById('callTimeDisplay');
-      timeDisplay.style.display = 'block';
+      const timeDisplay = document.getElementById('callTimeDisplay'); timeDisplay.style.display = 'block';
       callInterval = setInterval(() => {
          const diff = Math.floor((Date.now() - callStartTime)/1000);
-         const m = String(Math.floor(diff/60)).padStart(2,'0');
-         const s = String(diff%60).padStart(2,'0');
+         const m = String(Math.floor(diff/60)).padStart(2,'0'); const s = String(diff%60).padStart(2,'0');
          timeDisplay.textContent = `${m}:${s}`;
       }, 1000);
     }
 
     function saveCallLog(status, duration) {
        if(!currentUserData || !callTargetCode) return;
-       socket.emit('save-call-log', {
-          callerCode: currentUserData.userCode, 
-          callerName: currentUserData.fullName,
-          receiverCode: callTargetCode, 
-          receiverName: callTargetName,
-          status, duration
-       });
+       socket.emit('save-call-log', { callerCode: currentUserData.userCode, callerName: currentUserData.fullName, receiverCode: callTargetCode, receiverName: callTargetName, status, duration });
     }
 
     function cleanupCall(isSelf) {
-      document.getElementById('callScreen').style.display = 'none';
-      document.getElementById('callStatusText').style.display = 'block';
+      document.getElementById('callScreen').style.display = 'none'; document.getElementById('callStatusText').style.display = 'block';
       clearInterval(callInterval);
       if(localStream) localStream.getTracks().forEach(track => track.stop());
       if(peerConnection) peerConnection.close();
-      localStream = null; peerConnection = null; callTargetCode = null; callRole = null; callStartTime = 0; callTargetName = null;
-      loadCalls(); 
+      localStream = null; peerConnection = null; callTargetCode = null; callRole = null; callStartTime = 0; callTargetName = null; loadCalls(); 
     }
+
+    // --- OTHER UI UTILS (Profile, Recovery, etc.) ---
+    function openMyProfile() { 
+      document.getElementById('myProfileName').value = currentUserData.fullName || '';
+      document.getElementById('myProfileId').value = currentUserData.userCode || '';
+      document.getElementById('myProfileMobile').value = currentUserData.mobile || '';
+      document.getElementById('myProfileQ1').value = currentUserData.secQ1 || '';
+      document.getElementById('myProfileQ2').value = currentUserData.secQ2 || '';
+      document.getElementById('myProfileAvatar').src = currentUserData.avatar || DEFAULT_AVATAR;
+      document.getElementById('myProfileModal').style.display = 'flex'; document.getElementById('appMenu').style.display = 'none'; 
+    }
+    
+    function closeMyProfile() { document.getElementById('myProfileModal').style.display = 'none'; }
+    
+    function saveMyProfile() {
+      const fullName = document.getElementById('myProfileName').value.trim();
+      const avatar = document.getElementById('myProfileAvatar').src;
+      const secQ1 = document.getElementById('myProfileQ1').value.trim();
+      const secQ2 = document.getElementById('myProfileQ2').value.trim();
+      closeMyProfile(); showToast('Profile Saved Successfully!'); 
+      if (currentUserData) { currentUserData.fullName = fullName; currentUserData.secQ1 = secQ1; currentUserData.secQ2 = secQ2; if (avatar) currentUserData.avatar = avatar; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); }
+      socket.emit('update-profile', { fullName, avatar, secQ1, secQ2 }, res => { if (res?.success) { currentUserData = res.user; localStorage.setItem('chatAppUser', JSON.stringify(currentUserData)); } });
+    }
+
+    function openForgotModal() { document.getElementById('forgotModal').style.display = 'flex'; }
+    function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
+    
+    function submitRecovery() {
+      const mobile = document.getElementById('recMobileInput').value.trim(); const q1 = document.getElementById('recQ1Input').value.trim();
+      const q2 = document.getElementById('recQ2Input').value.trim(); const newPassword = document.getElementById('recNewPassInput').value.trim();
+      const confirmPassword = document.getElementById('recConfirmPassInput').value.trim();
+      
+      if(!mobile || !newPassword) return showToast('Mobile and New Password are required');
+      if(newPassword.length !== 8) return showToast('Password must be 8 digits');
+      if(newPassword !== confirmPassword) return showToast('Passwords do not match!');
+
+      socket.emit('recover-account', { mobile, q1, q2, newPassword }, res => {
+        if (res?.success) { 
+          showToast("Recovery successful! Logging in..."); closeForgotModal();
+          if (authMode === 'reg') { toggleAuthMode(); }
+          document.getElementById('loginIdInput').value = mobile; document.getElementById('loginPassInput').value = newPassword; 
+          document.getElementById('recMobileInput').value = ''; document.getElementById('recQ1Input').value = '';
+          document.getElementById('recQ2Input').value = ''; document.getElementById('recNewPassInput').value = ''; document.getElementById('recConfirmPassInput').value = '';
+          setTimeout(() => { handleLogin(); }, 1500); 
+        } else showToast(res?.error || 'Failed');
+      });
+    }
+
+    function logoutApp() { localStorage.removeItem('chatAppUser'); location.reload(); }
   </script>
 </body>
 </html>
