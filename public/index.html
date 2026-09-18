@@ -34,10 +34,7 @@
     .modal { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); backdrop-filter: blur(4px); }
     .modal-card { width:100%; max-width:390px; max-height:88vh; overflow:auto; background:#171720; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:22px; box-shadow:0 20px 70px rgba(0,0,0,.85); }
     
-    /* AI Z-Index Fix */
     #aiModal { z-index: 10005; }
-
-    /* Pull to refresh fix & Smooth Swipeable Tabs */
     .panes-wrapper { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-y: none; }
     .panes-wrapper::-webkit-scrollbar { display: none; }
     .tab-pane { min-width: 100%; scroll-snap-align: start; display: flex; flex-direction: column; overflow-y: auto; background: #0c0c12; overscroll-behavior-y: none; }
@@ -47,7 +44,6 @@
     .chat-row img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
     
     #chatRoom { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; background: #09090e; z-index: 60; display: none; flex-direction: column; overflow: hidden; }
-    
     .bottom-input-bar { background: #121218; border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex: none; }
     .input-wrapper { flex: 1; display: flex; align-items: center; background: #1c1c26; border-radius: 26px; padding: 10px 18px; }
     .input-wrapper [contenteditable]:empty::before { content: attr(placeholder); color: #888; pointer-events: none; }
@@ -63,12 +59,10 @@
     #imageModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 10px; }
     #imageModal .close-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; background: transparent; border: none; cursor: pointer; z-index:1001; }
 
-    /* Instagram Reels UI - CSS Scroll Snapping Enhanced */
+    /* Instagram Reels UI */
     .reels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding-bottom: 20px; }
     .reel-thumb { width: 100%; aspect-ratio: 9/16; background: #1c1c26; object-fit: cover; cursor: pointer; position: relative; }
     #reelsViewerModal { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; }
-    
-    /* Enhanced Reel Scroll Area */
     #reelsScrollArea { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; display: flex; flex-direction: column; scroll-behavior: smooth; }
     .reel-item { height: 100vh; height: 100dvh; width: 100%; scroll-snap-align: start; scroll-snap-stop: always; position: relative; display: flex; align-items: center; justify-content: center; background: #000; flex: none; }
     
@@ -120,7 +114,7 @@
     </div>
   </div>
   
-  <!-- NEW REGISTRATION DP POPUP (Exit, Save, Delete) -->
+  <!-- NEW REGISTRATION DP POPUP -->
   <div id="regDpModal" class="modal" onclick="closeRegDpModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:320px; text-align:center;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -138,14 +132,12 @@
     </div>
   </div>
 
-  <!-- Image Modal (For DP and Chat Images) -->
   <div id="imageModal">
     <button class="close-btn" onclick="closeImageModal()">✕</button>
     <button id="deleteMediaBtn" class="close-btn" style="right: 60px; color:#ff3b5c; display:none;" onclick="deleteCurrentMedia()">🗑️</button>
     <div id="mediaContainer" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%; transition: all 0.3s ease;"></div>
   </div>
 
-  <!-- AI MODAL -->
   <div id="aiModal" class="modal" onclick="closeAiModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="display:flex; flex-direction:column; height: 60vh;">
       <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
@@ -169,9 +161,7 @@
       <h3 style="color:#fff; text-align:left;" id="authTitle">Create Account</h3>
       <div id="viewRegister" style="display:flex; flex-direction:column; gap:10px;">
         <input type="file" id="dpFileInput" accept="image/*" style="display:none;" onchange="previewDpInput(this)">
-        <!-- DP VIEWER NOW OPENS THE REG DP POPUP -->
         <img id="dpViewer" class="dp-circle" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%239ca3af' d='M256 288c79.5 0 144-64.5 144-144S335.5 0 256 0 112 64.5 112 144s64.5 144 144 144zm128 32h-55.1c-22.2 10.2-47.5 16-72.9 16s-50.6-5.8-72.9-16H128C57.3 320 0 377.3 0 448v16c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48v-16c0-70.7-57.3-128-128-128z'/></svg>" onclick="openRegDpModal()">
-        
         <input type="text" id="regNameInput" class="input-box" placeholder="Your Name (Optional)">
         <input type="tel" id="regMobileInput" class="input-box" placeholder="Mobile Number * (Compulsory)" maxlength="13">
         <input type="text" id="regUserIdInput" class="input-box" placeholder="User ID * (e.g. @amit123)">
@@ -208,7 +198,6 @@
       </div>
     </div>
 
-    <!-- Native Smooth Swipeable Panes -->
     <div class="panes-wrapper" id="panesWrapper">
       <div class="tab-pane" id="paneChats">
         <div style="padding:12px;display:flex;gap:8px;flex:none;">
@@ -222,7 +211,6 @@
         <div style="padding:16px;">
           <input type="file" id="statusMediaInput" accept="image/*,video/*" style="display:none;" onchange="uploadStatusMedia(this)">
           <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <!-- Uploading Ring Restored -->
             <div id="myStatusRing" class="progress-ring" onclick="document.getElementById('statusMediaInput').click()">+</div>
             <div style="flex:1; cursor:pointer;" onclick="document.getElementById('statusMediaInput').click()">
               <div style="font-weight:700; font-size:15px; color:#fff;">Post a Reel</div>
@@ -241,14 +229,12 @@
     <div class="mc-ai-btn" onclick="openAiHelp('general')">MC</div>
   </div>
 
-  <!-- Reels Viewer -->
   <div id="reelsViewerModal">
      <div style="position:absolute; top:20px; left:20px; z-index:1001; font-weight:800; font-size:20px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">Reels</div>
      <button class="icon-btn" onclick="closeReelsViewer()" style="position:absolute; top:20px; right:20px; z-index:1001; background:transparent; border:none;">✕</button>
      <div id="reelsScrollArea"></div>
   </div>
 
-  <!-- Menus & Modals -->
   <div id="contactMenuModal" class="modal" onclick="closeContactMenu()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:300px; padding:18px;">
       <h3 id="cmName" style="margin-bottom:16px; text-align:center; color:#fff;"></h3>
@@ -288,7 +274,6 @@
     </div>
   </div>
 
-  <!-- Chat Room -->
   <div id="chatRoom">
     <div style="padding:14px;background:#121218;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">
       <button onclick="closeChatRoom()" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">←</button>
@@ -297,9 +282,7 @@
         <div id="roomUserName" style="font-weight:700;font-size:15px;">User</div>
         <div id="roomUserStatus" style="font-size:11px;color:#7e7e92;">Connecting...</div>
       </div>
-      
       <button class="icon-btn" style="background:transparent; border:none; color:#00ff88; font-size:22px; margin-right:8px;" onclick="startCall()">📞</button>
-
       <div style="position:relative;">
         <button class="icon-btn" onclick="toggleAppMenu(event, 'chatRoomMenu')" style="background:transparent; border:none; color:#fff; font-size:20px;">⋮</button>
         <div id="chatRoomMenu" class="menu-panel" style="top:40px; right:0; width:160px;">
@@ -314,7 +297,6 @@
       <div class="input-wrapper">
         <div id="msgInputBox" contenteditable="true" placeholder="Type a message..." style="flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; min-height:20px; max-height:100px; overflow-y:auto; word-break: break-word; white-space: pre-wrap;"></div>
       </div>
-      
       <div style="position:relative;">
         <button class="icon-btn" onclick="toggleAppMenu(event, 'attachMenu')" style="background:#1c1c26;border:none;">📎</button>
         <div id="attachMenu" class="menu-panel" style="bottom:55px; right:0; width:160px; top:auto;">
@@ -323,9 +305,7 @@
           <button onclick="document.getElementById('chatMediaDoc').click()">📄 File/Doc</button>
         </div>
       </div>
-      
       <button class="btn-circle" onclick="sendChatMessage()">➤</button>
-
       <input type="file" id="chatMediaImg" style="display:none" accept="image/*" onchange="sendMediaFile(this, 'image')">
       <input type="file" id="chatMediaVid" style="display:none" accept="video/*" onchange="sendMediaFile(this, 'video')">
       <input type="file" id="chatMediaDoc" style="display:none" accept=".pdf,.doc,.docx,.txt,.zip" onchange="sendMediaFile(this, 'document')">
@@ -345,7 +325,6 @@
        <button class="tap-btn btn-red" id="btnRejectCall" style="font-size:35px; transform: rotate(135deg);">📞</button>
        <button class="tap-btn btn-green" id="btnAcceptCall" style="font-size:35px;">📞</button>
     </div>
-
     <div id="callCallerUI" style="margin-top: auto; margin-bottom: 40px; display:flex; justify-content:center; width:100%;">
        <button class="tap-btn btn-red" onclick="endCall()" style="font-size:35px; transform: rotate(135deg);">📞</button>
     </div>
@@ -397,7 +376,6 @@
     let authMode = 'reg'; let regDpBase64 = ''; let currentUserData = null; let currentChatTarget = null; let uploadToken = '';
     let unreadMap = {}; let activeContactMenuTarget = null; let globalContacts = [];
 
-    // --- ALERTS & CONFIRM MODALS ---
     function showToast(msg) { document.getElementById('alertText').textContent = msg; document.getElementById('alertModal').style.display = 'flex'; }
     function closeAlert() { document.getElementById('alertModal').style.display = 'none'; }
     let confirmAction = null;
@@ -405,13 +383,10 @@
     function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; confirmAction = null; }
     document.getElementById('confirmBtn').onclick = () => { if(confirmAction) confirmAction(); closeConfirm(); };
 
-    // --- MENUS: CLOSE ON OUTSIDE CLICK ---
     document.addEventListener('click', (e) => {
         document.querySelectorAll('.menu-panel').forEach(menu => {
             if (menu.style.display === 'block' && !menu.contains(e.target)) {
-                if(!e.target.classList.contains('icon-btn') && !e.target.closest('.icon-btn')) {
-                    menu.style.display = 'none';
-                }
+                if(!e.target.classList.contains('icon-btn') && !e.target.closest('.icon-btn')) { menu.style.display = 'none'; }
             }
         });
     });
@@ -422,7 +397,6 @@
       m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
     }
 
-    // --- REGISTRATION DP LOGIC (NEW MODAL) ---
     let tempRegDpBase64 = '';
     function openRegDpModal() {
        document.getElementById('regDpPreview').src = regDpBase64 || DEFAULT_AVATAR;
@@ -449,7 +423,6 @@
        reader.readAsDataURL(file); 
     }
 
-    // --- NATIVE SCROLL SNAPPING TABS ---
     const panesWrapper = document.getElementById('panesWrapper');
     const navTabs = document.querySelectorAll('#mainNavTabs .nav-tab');
     function scrollToPane(index) {
@@ -462,7 +435,6 @@
         if(index === 2) loadCalls();
     });
 
-    // --- AI LOGIC (WITH LOCAL INTERCEPTION) ---
     let currentAiContext = 'general';
     function openAiHelp(context) {
        currentAiContext = context; document.getElementById('aiModal').style.display = 'flex';
@@ -500,7 +472,6 @@
        windowEl.scrollTo(0, windowEl.scrollHeight);
     }
 
-    // --- IDB CACHE ---
     const DB_NAME = 'MyChatLocalDB'; const DB_VERSION = 2; const CHAT_STORE = 'chats'; const APP_STORE = 'app';
     let dbPromise = null;
     function openLocalDB() {
@@ -524,14 +495,12 @@
     async function saveContactsLocal(contacts) { if (!currentUserData) return; await idbPut(APP_STORE, { key: 'contacts:' + currentUserData.userCode, contacts: Array.isArray(contacts) ? contacts : [] }); }
     async function getContactsLocal() { if (!currentUserData) return []; const row = await idbGet(APP_STORE, 'contacts:' + currentUserData.userCode); return row?.contacts || []; }
 
-    // --- KEEP ALIVE ---
     function keepAlivePing() { if (socket.connected && currentUserData) { socket.emit('ping-server'); } setTimeout(keepAlivePing, 20000); }
     keepAlivePing(); 
     function forceSilentSync() { if (currentUserData) { if (!socket.connected) socket.connect(); syncContacts(); if (currentChatTarget) syncCurrentChat(true); } }
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") forceSilentSync(); });
     window.addEventListener("focus", forceSilentSync); window.addEventListener("online", forceSilentSync);
 
-    // --- AUTH LOGIC ---
     window.addEventListener('DOMContentLoaded', async () => {
       const savedUser = localStorage.getItem('chatAppUser');
       if (savedUser) {
@@ -611,7 +580,6 @@
     function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function escapeAttr(v) { return escapeHtml(v).replace(/`/g,'&#96;'); }
 
-    // --- ORIGINAL LONG PRESS LOGIC RESTORED ---
     let pressTimer;
     function startContactPress(e, userCode, name) {
       pressTimer = setTimeout(() => {
@@ -645,7 +613,6 @@
       });
     }
 
-    // --- BLOCKED USERS LOGIC ---
     function openBlockedModal() {
        document.getElementById('appMenu').style.display = 'none';
        socket.emit('get-blocked-users', {}, res => {
@@ -663,13 +630,8 @@
        });
     }
     function closeBlockedModal() { document.getElementById('blockedModal').style.display = 'none'; }
-    function unblockUser(code) {
-       socket.emit('unblock-user', {targetCode: code}, res => {
-          if(res?.success) { showToast('User Unblocked'); openBlockedModal(); syncContacts(); }
-       });
-    }
+    function unblockUser(code) { socket.emit('unblock-user', {targetCode: code}, res => { if(res?.success) { showToast('User Unblocked'); openBlockedModal(); syncContacts(); } }); }
 
-    // --- PERFECT CIRCLE DP LOGIC ---
     let dpPressTimer;
     let isLongPress = false;
     function startDpPress(e, src, userCode) {
@@ -700,7 +662,6 @@
     }
     function closeImageModal() { document.getElementById('mediaContainer').innerHTML = ''; document.getElementById('imageModal').style.display = 'none'; }
 
-    // --- CONTACTS ---
     function renderContacts(contacts) {
       globalContacts = Array.isArray(contacts) ? contacts : [];
       const list = document.getElementById('chatsList');
@@ -760,7 +721,6 @@
        if (currentChatTarget && currentChatTarget.userCode === userCode) { updateRoomStatusUI(isOnline, lastSeen); }
     });
 
-    // --- CHAT ROOM LOGIC ---
     async function openChatWith(uCode, name, avatar) {
       const cleanCode = String(uCode).toLowerCase();
       currentChatTarget = { userCode: cleanCode, name: name || 'User', avatar: avatar || DEFAULT_AVATAR };
@@ -798,13 +758,11 @@
       });
     }
 
-    // AUTO SCROLL FIX
     function scrollToBottom(smooth = false) {
       const rm = document.getElementById('roomMessages');
       if (smooth) rm.scrollTo({ top: rm.scrollHeight, behavior: 'smooth' }); else rm.scrollTop = rm.scrollHeight;
     }
 
-    // TICKS LOGIC FIX (🕒, ✓, ✓✓, Glowing ✓✓)
     function formatMessageContent(m) {
       const timeStr = new Date(m.createdAt || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       let innerHtml = '';
@@ -864,9 +822,7 @@
       document.getElementById('chatRoomMenu').style.display = 'none';
       showConfirm("Clear entire chat history?", () => {
          socket.emit('clear-chat', { targetCode: currentChatTarget.userCode }, async res => {
-            if(res?.success) {
-               await saveMessagesLocal(currentChatTarget.userCode, []); renderMessages([]); showToast('Chat cleared entirely!');
-            }
+            if(res?.success) { await saveMessagesLocal(currentChatTarget.userCode, []); renderMessages([]); showToast('Chat cleared entirely!'); }
          });
       });
     }
@@ -901,7 +857,6 @@
     socket.on('stop-typing', ({ senderCode }) => { if (currentChatTarget && currentChatTarget.userCode === senderCode) checkUserStatus(senderCode); });
     chatInputBox.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
 
-    // --- ZERO-REFRESH MESSAGE & AUTO SCROLL ---
     function sendChatMessage() {
       const box = document.getElementById('msgInputBox'); 
       const val = box.innerText.trim();
@@ -911,7 +866,7 @@
       const tempMsg = { messageId: clientMsgId, text: val, mine: true, status: 'pending', messageType: 'text', createdAt: Date.now() };
       document.getElementById('roomMessages').insertAdjacentHTML('beforeend', `<div class="msg-bubble mine" id="${clientMsgId}" onmousedown="startMsgPress(event, '${clientMsgId}', true)" onmouseup="cancelMsgPress()" onmouseleave="cancelMsgPress()" ontouchstart="startMsgPress(event, '${clientMsgId}', true)" ontouchend="cancelMsgPress()">${formatMessageContent(tempMsg)}</div>`);
       
-      scrollToBottom(true); // Force scroll
+      scrollToBottom(true);
       box.innerText = ''; box.focus(); 
       promoteChatToTop(currentChatTarget.userCode);
       
@@ -925,7 +880,7 @@
       });
     }
 
-    // --- NEW DUAL-ENGINE MEDIA UPLOAD (TELEGRAM + CLOUDINARY FALLBACK) ---
+    // --- SECURE UPLOAD (Moved strictly to Backend) ---
     async function sendMediaFile(inp, forcedType) {
       const file = inp.files?.[0]; if (!file || !currentChatTarget) return;
       if (file.size > 50 * 1024 * 1024) { showToast('50 MB Limit Exceeded!'); inp.value = ''; return; }
@@ -941,63 +896,15 @@
         scrollToBottom(true);
         promoteChatToTop(currentChatTarget.userCode);
 
-        // 1. TELEGRAM DIRECT UPLOAD ATTEMPT
-        const TELEGRAM_BOT_TOKEN = '8500652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe51o'; 
-        const TELEGRAM_CHAT_ID = '-1004408463319';
-        let tgApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`;
-        if (forcedType === 'image') tgApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
-        else if (forcedType === 'video') tgApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo`;
-
-        const tgForm = new FormData();
-        tgForm.append('chat_id', TELEGRAM_CHAT_ID);
-        if(forcedType === 'image') tgForm.append('photo', file);
-        else if (forcedType === 'video') tgForm.append('video', file);
-        else tgForm.append('document', file);
-
-        let uploadSuccess = false;
-        let finalMediaUrl = '';
-
-        try {
-            const tgResponse = await fetch(tgApiUrl, { method: 'POST', body: tgForm });
-            const tgData = await tgResponse.json();
-            if (tgData.ok) {
-               let fileId = '';
-               if (forcedType === 'image') fileId = tgData.result.photo[tgData.result.photo.length - 1].file_id;
-               else if (forcedType === 'video') fileId = tgData.result.video.file_id;
-               else fileId = tgData.result.document.file_id;
-
-               const getFileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
-               const getFileData = await getFileRes.json();
-               
-               if(getFileData.ok) {
-                   finalMediaUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
-                   uploadSuccess = true;
-               }
-            }
-        } catch(e) { console.log('Telegram API Error, routing to Cloudinary', e); }
-
-        // 2. CLOUDINARY FALLBACK (If Telegram Fails)
-        if (!uploadSuccess) {
-            const xhr = new XMLHttpRequest();
-            await new Promise((resolve, reject) => {
-                xhr.open('POST', '/api/upload-media');
-                xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
-                xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-                const form = new FormData(); form.append('media', file, file.name);
-                
-                xhr.onload = () => {
-                  const result = JSON.parse(xhr.responseText || '{}');
-                  if (result.success) { finalMediaUrl = result.url; uploadSuccess = true; resolve(); }
-                  else reject();
-                };
-                xhr.onerror = reject;
-                xhr.send(form);
-            });
-        }
-
-        // 3. FINALIZE AND SAVE
-        if (uploadSuccess && finalMediaUrl) {
-            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: finalMediaUrl, messageType: forcedType, fileName: file.name, clientMessageId: clientMsgId }, async res => {
+        // Upload to Backend (Backend will securely handle Telegram/Cloudinary logic using ENV Variables)
+        const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
+        xhr.setRequestHeader('X-User-Code', currentUserData.userCode); xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
+        const form = new FormData(); form.append('media', file, file.name);
+        
+        xhr.onload = () => {
+          const result = JSON.parse(xhr.responseText || '{}');
+          if (result.success) {
+            socket.emit('send-message', { targetCode: currentChatTarget.userCode, text: file.name, media: result.url, messageType: forcedType, fileName: file.name, clientMessageId: clientMsgId }, async res => {
               const el = document.getElementById(clientMsgId);
               if (res?.success && el) {
                 el.innerHTML = formatMessageContent({...res.message, mine: true, status: 'sent'});
@@ -1005,9 +912,11 @@
                 await saveMessagesLocal(currentChatTarget.userCode, [...cached, res.message]);
               }
             });
-        } else {
-            showToast('Media upload failed entirely');
-        }
+          } else {
+             showToast('Upload failed');
+             const el = document.getElementById(clientMsgId); if (el) el.remove();
+          }
+        }; xhr.send(form);
       } catch (e) { showToast('Upload failed'); }
       inp.value = '';
     }
@@ -1040,7 +949,6 @@
       }
     });
 
-    // --- REELS AUDIO INTERSECTION OBSERVER FIX ---
     const reelObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const video = entry.target.querySelector('video');
@@ -1051,7 +959,6 @@
         });
     }, { threshold: 0.6 }); 
 
-    // --- INSTAGRAM STYLE REELS LOGIC ---
     let activeReelsData = []; let currentReelIdForMenu = null;
     function loadAllReels() {
        socket.emit('get-all-active-reels', { myContacts: currentUserData?.contacts || [] }, res => {
@@ -1161,8 +1068,7 @@
        showConfirm("Delete this Reel?", () => { socket.emit('delete-my-media', { type: 'reel', id: currentReelIdForMenu }, res => { if(res?.success) { showToast('Deleted'); loadAllReels(); closeReelsViewer(); } }); });
     }
 
-    // --- NEW DUAL-ENGINE REELS UPLOAD (TELEGRAM + CLOUDINARY) ---
-    async function uploadStatusMedia(inp) {
+    function uploadStatusMedia(inp) {
       const file = inp.files?.[0]; if (!file) return;
       if (file.size > 50 * 1024 * 1024) { showToast('50 MB Limit Exceeded!'); inp.value = ''; return; }
       
@@ -1171,75 +1077,28 @@
       ring.style.setProperty('--progress', '5%');
       showToast('Uploading Reel...');
 
-      let uploadSuccess = false;
-      let finalMediaUrl = '';
-      const isVideo = file.type.startsWith('video');
-      const typeStr = isVideo ? 'video' : 'image';
-
-      // 1. TELEGRAM ATTEMPT
-      try {
-         const TELEGRAM_BOT_TOKEN = '8500652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe51o';
-         const TELEGRAM_CHAT_ID = '-1004408463319';
-         let tgApiUrl = isVideo ? `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo` : `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
-         
-         const tgForm = new FormData();
-         tgForm.append('chat_id', TELEGRAM_CHAT_ID);
-         if (isVideo) tgForm.append('video', file); else tgForm.append('photo', file);
-
-         ring.style.setProperty('--progress', '40%');
-         const tgResponse = await fetch(tgApiUrl, { method: 'POST', body: tgForm });
-         const tgData = await tgResponse.json();
-         
-         if (tgData.ok) {
-             let fileId = isVideo ? tgData.result.video.file_id : tgData.result.photo[tgData.result.photo.length - 1].file_id;
-             ring.style.setProperty('--progress', '80%');
-             const getFileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
-             const getFileData = await getFileRes.json();
-             
-             if(getFileData.ok) {
-                 finalMediaUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
-                 uploadSuccess = true;
-                 ring.style.setProperty('--progress', '100%');
-             }
-         }
-      } catch(e) { console.log("Telegram reel upload failed", e); }
-
-      // 2. SAVING DATA OR FALLBACK TO CLOUDINARY
-      if (uploadSuccess && finalMediaUrl) {
-          socket.emit('upload-status-reel', { url: finalMediaUrl, type: typeStr }, res => {
-              if(res?.success) {
-                  ring.classList.add('glow-complete'); ring.innerHTML = '✓';
-                  showToast('Reel Uploaded!'); loadAllReels();
-              } else {
-                  ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); showToast('Upload failed to save');
-              }
-          });
-      } else {
-          // Cloudinary Backup Attempt
-          const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
-          xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
-          xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
-          xhr.setRequestHeader('X-Is-Status', 'true');
-          
-          xhr.upload.onprogress = (e) => { 
-              if(e.lengthComputable) { const pct = Math.floor((e.loaded / e.total) * 90) + 5; ring.style.setProperty('--progress', pct + '%'); } 
-          };
-          
-          const form = new FormData(); form.append('media', file, file.name);
-          xhr.onload = () => {
-            if (xhr.status === 200) {
-              ring.style.setProperty('--progress', '100%'); ring.classList.add('glow-complete'); ring.innerHTML = '✓';
-              showToast('Reel Uploaded!'); loadAllReels(); 
-            } else {
-              ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); showToast('Upload failed');
-            }
-          };
-          xhr.send(form);
-      }
+      const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload-media');
+      xhr.setRequestHeader('X-User-Code', currentUserData.userCode); 
+      xhr.setRequestHeader('X-Upload-Token', uploadToken || '');
+      xhr.setRequestHeader('X-Is-Status', 'true');
+      
+      xhr.upload.onprogress = (e) => { 
+          if(e.lengthComputable) { const pct = Math.floor((e.loaded / e.total) * 90) + 5; ring.style.setProperty('--progress', pct + '%'); } 
+      };
+      
+      const form = new FormData(); form.append('media', file, file.name);
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          ring.style.setProperty('--progress', '100%'); ring.classList.add('glow-complete'); ring.innerHTML = '✓';
+          showToast('Reel Uploaded!'); loadAllReels(); 
+        } else {
+          ring.innerHTML = '+'; ring.style.setProperty('--progress', '0%'); showToast('Upload failed');
+        }
+      };
+      xhr.send(form);
       inp.value = '';
     }
 
-    // --- CALLING LOGIC (RESTORED) ---
     let localStream, peerConnection, callInterval; let callTargetCode = null, callTargetName = null; let callRole = null; let callStartTime = 0;
     const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -1357,7 +1216,6 @@
       localStream = null; peerConnection = null; callTargetCode = null; callRole = null; callStartTime = 0; callTargetName = null; loadCalls(); 
     }
 
-    // --- OTHER UI UTILS (Profile, Recovery, etc.) ---
     function openMyProfile() { 
       document.getElementById('myProfileName').value = currentUserData.fullName || '';
       document.getElementById('myProfileId').value = currentUserData.userCode || '';
