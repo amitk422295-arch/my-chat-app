@@ -109,7 +109,7 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
     if (isStatus) {
        await Status.findOneAndUpdate(
          { userCode }, 
-         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: result.secure_url, type: result.resource_type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [] } } },
+         { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media: result.secure_url, type: result.resource_type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: '', privacy: 'all' } } },
          { upsert: true }
        );
     }
@@ -162,8 +162,12 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', messageSchema);
 
+// Updated Reels Schema
 const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
-const statusItemSchema = new mongoose.Schema({ id: String, media: String, type: String, time: String, expiresAt: Date, viewers: [viewerSchema] }, { _id: false });
+const statusItemSchema = new mongoose.Schema({ 
+    id: String, media: String, type: String, time: String, expiresAt: Date, 
+    viewers: [viewerSchema], likes: { type: [String], default: [] }, caption: { type: String, default: '' }, privacy: { type: String, default: 'all' } 
+}, { _id: false });
 const statusSchema = new mongoose.Schema({ userCode: { type: String, unique: true, lowercase: true }, name: String, avatar: String, items: [statusItemSchema] });
 const Status = mongoose.model('Status', statusSchema);
 
@@ -295,10 +299,7 @@ io.on('connection', (socket) => {
         }).sort({ createdAt: -1 }).lean();
         
         const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode } });
-        
-        const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
-
-        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
+        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount };
       }));
 
       contactsWithTime.sort((a, b) => b.lastMsgTime - a.lastMsgTime);
@@ -467,30 +468,72 @@ io.on('connection', (socket) => {
     } catch(e) {}
   });
 
-  socket.on('get-calls', async (data, cb) => {
-    if(!currentUserCode) return;
-    try {
-       const calls = await CallLog.find({ $or: [{callerCode: currentUserCode}, {receiverCode: currentUserCode}] })
-                                  .sort({ timestamp: -1 }).limit(50).lean();
-       cb({ success: true, calls });
-    } catch(e) { cb({ success: false }); }
-  });
-
+  // Updated Reels Logic
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
       let reels = [];
+      const myContacts = data.myContacts || [];
+      
       allStatuses.forEach(s => {
-         const latest = s.items[s.items.length-1];
-         if(latest && latest.expiresAt > new Date()) {
-            reels.push({ userCode: s.userCode, name: s.name, avatar: s.avatar, media: latest.media, type: latest.type });
-         }
+         s.items.forEach(item => {
+            if(item.expiresAt > new Date()) {
+                if(item.privacy === 'contacts' && s.userCode !== currentUserCode && !myContacts.includes(s.userCode)) return;
+                reels.push({ 
+                    id: item.id, userCode: s.userCode, name: s.name, avatar: s.avatar, 
+                    media: item.media, type: item.type, likes: item.likes || [], caption: item.caption || '', privacy: item.privacy || 'all' 
+                });
+            }
+         });
       });
+      // Sort by newest first
+      reels.sort((a,b) => parseInt(b.id) - parseInt(a.id));
       cb({ success: true, reels });
     } catch (e) { cb({ success: false }); }
   });
 
-  socket.on('delete-my-media', async ({ type, url }, cb) => {
+  socket.on('like-reel', async ({ userCode, reelId }) => {
+      if(!currentUserCode) return;
+      try {
+          const statusDoc = await Status.findOne({ userCode });
+          if(statusDoc) {
+             const item = statusDoc.items.find(i => i.id === reelId);
+             if(item) {
+                 const hasLiked = item.likes.includes(currentUserCode);
+                 if(hasLiked) { item.likes = item.likes.filter(u => u !== currentUserCode); } 
+                 else { item.likes.push(currentUserCode); }
+                 await statusDoc.save();
+                 io.emit('reel-like-updated', { reelId, likes: item.likes });
+             }
+          }
+      } catch(e) {}
+  });
+
+  socket.on('repost-reel', async ({ media, type }, cb) => {
+      if(!currentUserCode) return cb({success:false});
+      try {
+          const user = await User.findOne({ userCode: currentUserCode }).lean();
+          await Status.findOneAndUpdate(
+             { userCode: currentUserCode }, 
+             { name: user.fullName, avatar: user.avatar, $push: { items: { id: Date.now().toString(), media, type, time: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), viewers: [], likes: [], caption: 'Reposted', privacy: 'all' } } },
+             { upsert: true }
+          );
+          cb({success:true});
+      } catch(e) { cb({success:false}); }
+  });
+
+  socket.on('edit-reel', async ({ reelId, caption, privacy }, cb) => {
+      if(!currentUserCode) return cb({success:false});
+      try {
+          await Status.updateOne(
+              { userCode: currentUserCode, "items.id": reelId },
+              { $set: { "items.$.caption": caption, "items.$.privacy": privacy } }
+          );
+          cb({success:true});
+      } catch(e) { cb({success:false}); }
+  });
+
+  socket.on('delete-my-media', async ({ type, url, id }, cb) => {
     if(!currentUserCode) return cb({success:false});
     try {
        const publicId = getCloudinaryPublicId(url);
@@ -500,22 +543,19 @@ io.on('connection', (socket) => {
           await User.updateOne({ userCode: currentUserCode }, { avatar: DEFAULT_AVATAR });
           cb({success:true, avatar: DEFAULT_AVATAR});
        } else if(type === 'reel') {
-          await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { media: url } } });
+          await Status.updateOne({ userCode: currentUserCode }, { $pull: { items: { id: id } } });
           cb({success:true});
        }
     } catch(e) { cb({success:false}); }
   });
 
+  // Updated AI Logic with strict features prompt
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
       const rawKey = process.env.GROQ_API_KEY || "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";
       const apiKey = String(rawKey).trim();
       
-      let systemInstruction = "You are a helpful assistant for My Chat App. Answer briefly and kindly in Hindi or English mix.";
-      if(context === 'register') systemInstruction = "Only help the user with creating a new account (like 8-digit password, security questions). Keep it very short.";
-      if(context === 'login') systemInstruction = "Only help the user with logging into their account. Keep it short.";
-      if(context === 'forgot') systemInstruction = "Only help the user with recovering their password using security questions. Keep it short.";
-      if(context === 'general') systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Be polite and helpful. Answer clearly in Hindi/English.";
+      let systemInstruction = "You are MC AI, the official AI assistant for My Chat App. Answer strictly in Hindi or English mix. Your ONLY features are: 1. Text/Photo/Video Chat. 2. Audio/Video Calling. 3. 24h Instagram-style Reels (swipe, double tap like, repost). 4. Message Delete (Everyone/Me). 5. Password recovery via Security Questions. 6. Block/Unblock users. Do NOT invent any other features like groups or channels. Keep answers short and polite.";
 
       const postData = JSON.stringify({
         model: "openai/gpt-oss-20b",
