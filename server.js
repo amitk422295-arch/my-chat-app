@@ -298,10 +298,9 @@ io.on('connection', (socket) => {
           $or: [{ senderCode: currentUserCode, receiverCode: u.userCode }, { senderCode: u.userCode, receiverCode: currentUserCode }], deletedFor: {$ne: currentUserCode }
         }).sort({ createdAt: -1 }).lean();
         
-        const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode } });
+        const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] }, deletedFor: { $ne: currentUserCode } });
         
         const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
-        // Restored hasActiveStatus for DB safety, hidden only in UI
         return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
       }));
 
@@ -433,14 +432,20 @@ io.on('connection', (socket) => {
     cb({ success: true });
   });
 
-  socket.on('mark-message-read', async ({ messageId, senderCode }) => {
+  // Ticks System Logic (Delivered / Read)
+  socket.on('mark-message-delivered', async ({ messageId, senderCode }) => {
     await Message.updateOne({ messageId }, { status: 'delivered' });
     io.to(senderCode).emit('message-status-update', { messageId, status: 'delivered' });
   });
 
+  socket.on('mark-message-read', async ({ messageId, senderCode }) => {
+    await Message.updateOne({ messageId }, { status: 'read' });
+    io.to(senderCode).emit('message-status-update', { messageId, status: 'read' });
+  });
+
   socket.on('mark-all-read', async ({ senderCode }) => {
     if (!currentUserCode) return;
-    await Message.updateMany({ senderCode: senderCode, receiverCode: currentUserCode, status: 'sent' }, { status: 'delivered' });
+    await Message.updateMany({ senderCode: senderCode, receiverCode: currentUserCode, status: { $in: ['sent', 'delivered'] } }, { status: 'read' });
   });
 
   socket.on('call-user', async (data) => {
@@ -480,7 +485,7 @@ io.on('connection', (socket) => {
     } catch(e) { cb({ success: false }); }
   });
 
-  // --- Instagram Reels Backend Logic ---
+  // Instagram Reels Backend Logic
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
@@ -560,7 +565,7 @@ io.on('connection', (socket) => {
     } catch(e) { cb({success:false}); }
   });
 
-  // --- Groq / Meta AI Logic ---
+  // Groq / Meta AI Logic
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
       const rawKey = process.env.GROQ_API_KEY || "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";
