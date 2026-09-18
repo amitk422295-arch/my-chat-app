@@ -93,7 +93,7 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
        return res.status(401).json({ success:false, error:'User not found.' });
     }
 
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8500652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe51o';
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8508652075:AAGawPn9vXzEZrehneHrcOVcJ7g6ZHHe5io';
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-1004408463319';
     
     let finalUrl = '';
@@ -112,8 +112,11 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
             else if (resourceType === 'video') { endpoint = 'sendVideo'; field = 'video'; }
 
             tgForm.append(field, blob, req.file.originalname);
+            console.log(`[Telegram Debug] Attempting ${endpoint} for file size: ${req.file.size} bytes...`);
+            
             const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${endpoint}`, { method: 'POST', body: tgForm });
             const tgData = await tgRes.json();
+            console.log("[Telegram Debug] Response:", JSON.stringify(tgData));
 
             if (tgData.ok) {
                 let fileId = resourceType === 'image' ? tgData.result.photo[tgData.result.photo.length - 1].file_id : (resourceType === 'video' ? tgData.result.video.file_id : tgData.result.document.file_id);
@@ -122,12 +125,16 @@ app.post('/api/upload-media', upload.single('media'), async (req, res) => {
                 if (getFileData.ok) {
                     finalUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${getFileData.result.file_path}`;
                     uploadSuccess = true;
+                    console.log("[Telegram Debug] File URL fetched successfully:", finalUrl);
                 }
+            } else {
+                console.error("[Telegram API Error Description]:", tgData.description);
             }
-        } catch(e) { console.error("Telegram Upload Error:", e); }
+        } catch(e) { console.error("Telegram Upload Exception:", e); }
     }
 
     if (!uploadSuccess) {
+        console.log("[Telegram Fallback] Switching to Cloudinary...");
         try {
             const uploadOptions = isStatus && resourceType === 'video' ? { duration: 30 } : {};
             const result = await queuedCloudinaryUpload(req.file, isStatus ? 'chat_app_status' : 'chat_app_media', uploadOptions);
