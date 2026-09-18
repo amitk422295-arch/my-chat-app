@@ -1375,24 +1375,3 @@
   </script>
 </body>
 </html>
-<script>
-  // --- OVERRIDE AI FORMATTING FIX ---
-  window.formatAiResponse = function(text) {
-    let s = String(text || '');
-    if (s.includes('<br>')) {
-      s = s.replace(/<br\s*\/?>/gi, '\n');
-    }
-    return s
-      .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#fff;">$1</strong>')
-      .replace(/\n/g, '<br>');
-  };
-
-  window.appendAiReply = function(rawText, isError = false) {
-     const windowEl = document.getElementById('aiChatWindow');
-     if (!windowEl) return;
-     const color = isError ? '#ff3b5c' : '#20202a';
-     const formatted = isError ? (typeof escapeHtml === 'function' ? escapeHtml(rawText) : rawText) : window.formatAiResponse(rawText);
-     windowEl.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:${color}; border:1px solid rgba(255,255,255,0.1); padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px; max-width:85%; font-size:14px; line-height:1.5;">${formatted}</div>`);
-     windowEl.scrollTo(0, windowEl.scrollHeight);
-  };
-</script>
