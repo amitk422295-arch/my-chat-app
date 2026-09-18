@@ -162,7 +162,7 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', messageSchema);
 
-// Updated Reels Schema
+// Reels Schema 
 const viewerSchema = new mongoose.Schema({ userCode: String, name: String, avatar: String }, { _id: false });
 const statusItemSchema = new mongoose.Schema({ 
     id: String, media: String, type: String, time: String, expiresAt: Date, 
@@ -299,7 +299,10 @@ io.on('connection', (socket) => {
         }).sort({ createdAt: -1 }).lean();
         
         const unreadCount = await Message.countDocuments({ senderCode: u.userCode, receiverCode: currentUserCode, status: 'sent', deletedFor: { $ne: currentUserCode } });
-        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount };
+        
+        const activeStatus = await Status.findOne({ userCode: u.userCode, 'items.expiresAt': { $gt: new Date() } }).lean();
+        // Restored hasActiveStatus for DB safety, hidden only in UI
+        return { userCode: u.userCode, name: u.fullName, avatar: u.avatar || DEFAULT_AVATAR, lastMsgTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0, unreadCount, hasActiveStatus: !!activeStatus };
       }));
 
       contactsWithTime.sort((a, b) => b.lastMsgTime - a.lastMsgTime);
@@ -468,7 +471,16 @@ io.on('connection', (socket) => {
     } catch(e) {}
   });
 
-  // Updated Reels Logic
+  socket.on('get-calls', async (data, cb) => {
+    if(!currentUserCode) return;
+    try {
+       const calls = await CallLog.find({ $or: [{callerCode: currentUserCode}, {receiverCode: currentUserCode}] })
+                                  .sort({ timestamp: -1 }).limit(50).lean();
+       cb({ success: true, calls });
+    } catch(e) { cb({ success: false }); }
+  });
+
+  // --- Instagram Reels Backend Logic ---
   socket.on('get-all-active-reels', async (data, cb) => {
     try {
       const allStatuses = await Status.find({'items.expiresAt': {$gt: new Date()}}).lean();
@@ -486,7 +498,6 @@ io.on('connection', (socket) => {
             }
          });
       });
-      // Sort by newest first
       reels.sort((a,b) => parseInt(b.id) - parseInt(a.id));
       cb({ success: true, reels });
     } catch (e) { cb({ success: false }); }
@@ -549,7 +560,7 @@ io.on('connection', (socket) => {
     } catch(e) { cb({success:false}); }
   });
 
-  // Updated AI Logic with strict features prompt
+  // --- Groq / Meta AI Logic ---
   socket.on('ask-mc-ai', ({ prompt, context }, cb) => {
     try {
       const rawKey = process.env.GROQ_API_KEY || "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";
